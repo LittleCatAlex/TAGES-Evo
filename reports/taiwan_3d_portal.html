@@ -955,12 +955,93 @@
         document.getElementById("badge-basin-name").innerText = `${bMeta.name} 3D 地下地體結構模型 (0 ~ 1,000m)`;
         initOrUpdate3DScene(selectedBasinKey);
       }
+
+      setTimeout(() => {
+        if (renderer3d && container3d && container3d.clientWidth > 0) {
+          camera3d.aspect = container3d.clientWidth / container3d.clientHeight;
+          camera3d.updateProjectionMatrix();
+          renderer3d.setSize(container3d.clientWidth, container3d.clientHeight);
+        }
+      }, 50);
     }
 
     function backToMap() {
       document.getElementById("view-3d-engine").style.display = "none";
       document.getElementById("view-map-portal").style.display = "flex";
       map.invalidateSize();
+    }
+
+    // =========================================
+    // 3. Three.js 3D 立體地體渲染核心 (超高密度)
+    // =========================================
+    let scene3d, camera3d, renderer3d, controls3d;
+    let pointCloudGroup, boreholeGroup, bedrockGroup, faultGroup, bboxGroup;
+    let pointCloud = null;
+    let currentBasinData = null;
+
+    let pointSize = 4.0;
+    let maxDisplayDepth = 1000.0;
+    let zExaggeration = 20.0;
+    const activeLithMask = {};
+    Object.keys(LITH_META).forEach(k => { activeLithMask[k] = true; });
+
+    let container3d = null;
+
+    function init3DBase() {
+      if (scene3d) return;
+
+      container3d = document.getElementById("canvas-container-3d");
+      scene3d = new THREE.Scene();
+      scene3d.background = new THREE.Color(0x0d1117);
+
+      const width = (container3d && container3d.clientWidth > 0) ? container3d.clientWidth : (window.innerWidth - 380);
+      const height = (container3d && container3d.clientHeight > 0) ? container3d.clientHeight : window.innerHeight;
+
+      camera3d = new THREE.PerspectiveCamera(45, width / height, 0.5, 3000);
+      renderer3d = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+      renderer3d.setSize(width, height);
+      renderer3d.setPixelRatio(window.devicePixelRatio);
+      container3d.appendChild(renderer3d.domElement);
+
+      controls3d = new THREE.OrbitControls(camera3d, renderer3d.domElement);
+      controls3d.enableDamping = true;
+      controls3d.dampingFactor = 0.08;
+
+      const ambient = new THREE.AmbientLight(0xffffff, 0.85);
+      scene3d.add(ambient);
+      const dirLight = new THREE.DirectionalLight(0xffffff, 0.75);
+      dirLight.position.set(60, 120, 60);
+      scene3d.add(dirLight);
+
+      pointCloudGroup = new THREE.Group();
+      boreholeGroup = new THREE.Group();
+      bedrockGroup = new THREE.Group();
+      faultGroup = new THREE.Group();
+      bboxGroup = new THREE.Group();
+      scene3d.add(pointCloudGroup);
+      scene3d.add(boreholeGroup);
+      scene3d.add(bedrockGroup);
+      scene3d.add(faultGroup);
+      scene3d.add(bboxGroup);
+
+      // 視窗縮放監聽
+      window.addEventListener("resize", () => {
+        if (renderer3d && container3d && container3d.clientWidth > 0) {
+          camera3d.aspect = container3d.clientWidth / container3d.clientHeight;
+          camera3d.updateProjectionMatrix();
+          renderer3d.setSize(container3d.clientWidth, container3d.clientHeight);
+        }
+      });
+
+      // 初始化射線檢測
+      initRaycasting();
+
+      function animate() {
+        requestAnimationFrame(animate);
+        if (controls3d) controls3d.update();
+        if (renderer3d && scene3d && camera3d) renderer3d.render(scene3d, camera3d);
+      }
+      animate();
     }
 
     // =========================================
@@ -1091,6 +1172,12 @@
       if (!currentBasinData) {
         alert("尚未生成該區域的 3D 體素數據！");
         return;
+      }
+
+      if (renderer3d && container3d && container3d.clientWidth > 0) {
+        camera3d.aspect = container3d.clientWidth / container3d.clientHeight;
+        camera3d.updateProjectionMatrix();
+        renderer3d.setSize(container3d.clientWidth, container3d.clientHeight);
       }
 
       // 重設深度滑桿上限
