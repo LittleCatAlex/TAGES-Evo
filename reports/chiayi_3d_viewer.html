@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TAGES 3D — 台灣嘉義地下地體結構 3D 互動瀏覽器 (0 ~ 1,000m)</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: #0d1117;
+      color: #c9d1d9;
+      overflow: hidden;
+      height: 100vh;
+      display: flex;
+    }
+    #canvas-container {
+      flex: 1;
+      height: 100%;
+      position: relative;
+    }
+    #sidebar {
+      width: 360px;
+      height: 100%;
+      background: #161b22;
+      border-left: 1px solid #30363d;
+      padding: 16px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      box-shadow: -4px 0 16px rgba(0,0,0,0.5);
+      z-index: 10;
+    }
+    h1 {
+      font-size: 1.15rem;
+      color: #58a6ff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .badge {
+      font-size: 0.7rem;
+      background: #238636;
+      color: #fff;
+      padding: 2px 6px;
+      border-radius: 10px;
+      font-weight: bold;
+    }
+    .subtitle {
+      font-size: 0.8rem;
+      color: #8b949e;
+      line-height: 1.4;
+    }
+    .panel-section {
+      background: #21262d;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      padding: 12px;
+    }
+    .panel-title {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #f0f6fc;
+      margin-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+    }
+    .control-row {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+    .control-label {
+      font-size: 0.78rem;
+      display: flex;
+      justify-content: space-between;
+      color: #8b949e;
+    }
+    .slider {
+      width: 100%;
+      accent-color: #58a6ff;
+    }
+    .btn-group {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+    }
+    button {
+      background: #30363d;
+      color: #c9d1d9;
+      border: 1px solid #8b949e33;
+      border-radius: 4px;
+      padding: 6px 10px;
+      font-size: 0.78rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    button:hover {
+      background: #58a6ff;
+      color: #0d1117;
+      font-weight: 600;
+    }
+    .checkbox-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.8rem;
+      margin-bottom: 6px;
+      cursor: pointer;
+    }
+    .color-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 3px;
+      display: inline-block;
+    }
+    #tooltip {
+      position: absolute;
+      background: rgba(22, 27, 34, 0.95);
+      border: 1px solid #58a6ff;
+      border-radius: 6px;
+      padding: 8px 12px;
+      font-size: 0.78rem;
+      pointer-events: none;
+      display: none;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+      z-index: 100;
+    }
+    .hud-stats {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      background: rgba(22, 27, 34, 0.85);
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      padding: 8px 12px;
+      font-size: 0.75rem;
+      font-family: monospace;
+      color: #8b949e;
+      pointer-events: none;
+    }
+    .hud-stats span { color: #58a6ff; font-weight: bold; }
+  </style>
+  <!-- Three.js & OrbitControls CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <!-- 3D 體素數據 (window.TAGES_3D_DATA) -->
+  <script src="chiayi_3d_data.js"></script>
+</head>
+<body>
+
+  <div id="canvas-container">
+    <div id="tooltip"></div>
+    <div class="hud-stats">
+      TAGES 3D VOXEL ENGINE (Chiayi MVP)<br>
+      體素深度範圍: <span id="stat-depth">0 ~ 1,000 m</span> | 顯示點數: <span id="stat-points">0</span><br>
+      真實觀測深井: <span id="stat-wells">0</span> 口 | 聲學基盤: <span id="stat-bedrock">ON</span>
+    </div>
+  </div>
+
+  <div id="sidebar">
+    <div>
+      <h1>TAGES 3D Viewer <span class="badge">MVP 1km</span></h1>
+      <p class="subtitle">台灣嘉南平原至麓山帶地下 3D 地體結構模型<br>結合震波速度斷層 (TEC) 與真實水文深井觀測</p>
+    </div>
+
+    <!-- 視角切換 -->
+    <div class="panel-section">
+      <div class="panel-title">視角預設切換</div>
+      <div class="btn-group">
+        <button onclick="setCameraView('perspective')">立體透視角</button>
+        <button onclick="setCameraView('top')">鳥瞰俯視 (地圖)</button>
+        <button onclick="setCameraView('ew')">東西向 (海→山)</button>
+        <button onclick="setCameraView('ns')">南北向 (平原軸)</button>
+      </div>
+    </div>
+
+    <!-- 深度切片控制 -->
+    <div class="panel-section">
+      <div class="panel-title">深度空間切片 (0 ~ 1,000m)</div>
+      <div class="control-row">
+        <div class="control-label">
+          <span>最大深度上限</span>
+          <span id="label-depth">1000 m</span>
+        </div>
+        <input type="range" id="slider-depth" class="slider" min="50" max="1000" step="10" value="1000" oninput="updateFilters()">
+      </div>
+      <div class="control-row">
+        <div class="control-label">
+          <span>最小深度下限 (切窗)</span>
+          <span id="label-min-depth">0 m</span>
+        </div>
+        <input type="range" id="slider-min-depth" class="slider" min="0" max="950" step="10" value="0" oninput="updateFilters()">
+      </div>
+    </div>
+
+    <!-- 岩性篩選 -->
+    <div class="panel-section">
+      <div class="panel-title">地層岩性圖例與切換 (10 大類)</div>
+      <label class="checkbox-item">
+        <input type="checkbox" id="chk-clay" checked onchange="updateFilters()">
+        <span class="color-dot" style="background: #8B4513;"></span>
+        <span>Clay / Mud (黏土/泥 - 阻水層)</span>
+      </label>
+      <label class="checkbox-item">
+        <input type="checkbox" id="chk-silt" checked onchange="updateFilters()">
+        <span class="color-dot" style="background: #CD853F;"></span>
+        <span>Silt (粉土/粉砂 - 低塑性過渡土)</span>
+      </label>
+      <label class="checkbox-item">
+        <input type="checkbox" id="chk-finesand" checked onchange="updateFilters()">
+        <span class="color-dot" style="background: #FFD700;"></span>
+        <span>Fine Sand (細砂/極細砂 - 主要平原層)</span>
+      </label>
+      <label class="checkbox-item">
+        <input type="checkbox" id="chk-coarsesand" checked onchange="updateFilters()">
+        <span class="color-dot" style="background: #DAA520;"></span>
+        <span>Coarse Sand (中粗砂 - 河道儲水砂相)</span>
+      </label>
+      <label class="checkbox-item">
+        <input type="checkbox" id="chk-mixed" checked onchange="updateFilters()">
+        <span class="color-dot" style="background: #B8860B;"></span>
+        <span>Sand-Mud Mixed (砂泥互層/過渡相)</span>
+      </label>
+      <label class="checkbox-item">
+        <input type="checkbox" id="chk-gravel" checked onchange="updateFilters()">
+        <span class="color-dot" style="background: #708090;"></span>
+        <span>Gravel (礫石/卵石 - 古河道滯留帶)</span>
+      </label>
+      <label class="checkbox-item">
+        <input type="checkbox" id="chk-mudstone" checked onchange="updateFilters()">
+        <span class="color-dot" style="background: #4682B4;"></span>
+        <span>Mudstone / Shale (泥岩/頁岩軟岩基底)</span>
+      </label>
+      <label class="checkbox-item">
+        <input type="checkbox" id="chk-sandstone" checked onchange="updateFilters()">
+        <span class="color-dot" style="background: #2E8B57;"></span>
+        <span>Sandstone (固結砂岩/礫岩基盤)</span>
+      </label>
+      <label class="checkbox-item">
+        <input type="checkbox" id="chk-basement" checked onchange="updateFilters()">
+        <span class="color-dot" style="background: #1C3144;"></span>
+        <span>Crystalline Basement (結晶岩硬基底)</span>
+      </label>
+    </div>
+
+    <!-- 地質圖層疊加 -->
+    <div class="panel-section">
+      <div class="panel-title">構造與真實觀測井疊加</div>
+      <label class="checkbox-item">
+        <input type="checkbox" id="chk-boreholes" checked onchange="toggleBoreholes()">
+        <span class="color-dot" style="background: #00FFCC;"></span>
+        <span>真實水文地質深觀測井 (46口)</span>
+      </label>
+      <label class="checkbox-item">
+        <input type="checkbox" id="chk-bedrock" checked onchange="toggleBedrock()">
+        <span class="color-dot" style="background: #FF0055;"></span>
+        <span>聲學基盤曲面 (Vs &ge; 1,500 m/s)</span>
+      </label>
+      <label class="checkbox-item">
+        <input type="checkbox" id="chk-bounding" checked onchange="toggleBoundingBox()">
+        <span class="color-dot" style="background: #444444;"></span>
+        <span>3D 空間刻度框 (經度/緯度/深度)</span>
+      </label>
+    </div>
+
+    <!-- 顯示設定 -->
+    <div class="panel-section">
+      <div class="panel-title">渲染設定</div>
+      <div class="control-row">
+        <div class="control-label">
+          <span>體素顆粒大小</span>
+          <span id="label-ptsize">2.5</span>
+        </div>
+        <input type="range" id="slider-ptsize" class="slider" min="1" max="8" step="0.5" value="2.5" oninput="updatePointSize()">
+      </div>
+      <div class="control-row">
+        <div class="control-label">
+          <span>垂直深度誇大倍率 (Z-Exaggeration)</span>
+          <span id="label-zscale">4.0x</span>
+        </div>
+        <input type="range" id="slider-zscale" class="slider" min="1" max="10" step="0.5" value="4.0" oninput="updateZScale()">
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 檢查數據是否載入
+    if (!window.TAGES_3D_DATA) {
+      alert("未檢測到 chiayi_3d_data.js，請先執行 python scripts/export_3d_web_data.py！");
+    }
+
+    const data = window.TAGES_3D_DATA;
+    const b = data.bounds;
+
+    // 地質顏色對照表 (10 大類)
+    const COLOR_MAP = {
+      1: new THREE.Color("#D2B48C"),
+      2: new THREE.Color("#8B4513"),
+      3: new THREE.Color("#CD853F"),
+      4: new THREE.Color("#FFD700"),
+      5: new THREE.Color("#DAA520"),
+      6: new THREE.Color("#B8860B"),
+      7: new THREE.Color("#708090"),
+      8: new THREE.Color("#4682B4"),
+      9: new THREE.Color("#2E8B57"),
+      10: new THREE.Color("#1C3144")
+    };
+    const NAME_MAP = {
+      1: "Topsoil / Fill (表土/回填土)",
+      2: "Clay / Mud (黏土/泥)",
+      3: "Silt (粉土/粉砂)",
+      4: "Fine Sand (細砂/極細砂)",
+      5: "Coarse Sand (中粗砂)",
+      6: "Sand-Mud Mixed (砂泥互層)",
+      7: "Gravel (礫石/卵石)",
+      8: "Mudstone / Shale (泥岩/頁岩軟岩)",
+      9: "Sandstone / Conglomerate (固結砂岩)",
+      10: "Crystalline Basement (結晶岩硬基底)"
+    };
+
+    // 空間座標歸一化參數
+    // 將經度 (X), 深度 (Y: 向下為負), 緯度 (Z) 對齊至以原點為中心的場景
+    const LON_CENTER = (b.lon_min + b.lon_max) / 2;
+    const LAT_CENTER = (b.lat_min + b.lat_max) / 2;
+    const LON_SCALE = 100.0; // 經度跨度約 0.5 度 -> 50 單位
+    const LAT_SCALE = 110.0; // 緯度跨度約 0.25 度 -> 27.5 單位
+    let zExaggeration = 4.0;  // 深度誇大倍率
+
+    function toSceneCoords(lon, lat, depth) {
+      const x = (lon - LON_CENTER) * LON_SCALE;
+      const z = -(lat - LAT_CENTER) * LAT_SCALE; // Three.js -Z 為北方
+      const y = -(depth / 1000.0) * 15.0 * zExaggeration; // Y 向下
+      return { x, y, z };
+    }
+
+    // 初始化 Three.js 場景
+    const container = document.getElementById("canvas-container");
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color("#0d1117");
+
+    const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(container.clientWidth, container.clientHeight);
+    renderer.setPixelRatio(window.devicePixelRatio);
+    container.appendChild(renderer.domElement);
+
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+
+    // 光照
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.85);
+    scene.add(ambientLight);
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
+    dirLight.position.set(50, 80, 50);
+    scene.add(dirLight);
+
+    // 建立 3D 體素點雲
+    let pointCloud, pointsGeometry, pointsMaterial;
+    let pointPositions = [];
+    let pointColors = [];
+    let visibleIndices = [];
+
+    function buildPointCloud() {
+      if (pointCloud) scene.remove(pointCloud);
+
+      const count = data.points.length;
+      pointsGeometry = new THREE.BufferGeometry();
+      const posArray = new Float32Array(count * 3);
+      const colArray = new Float32Array(count * 3);
+
+      for (let i = 0; i < count; i++) {
+        const pt = data.points[i];
+        const sc = toSceneCoords(pt[0], pt[1], pt[2]);
+        posArray[i * 3 + 0] = sc.x;
+        posArray[i * 3 + 1] = sc.y;
+        posArray[i * 3 + 2] = sc.z;
+
+        const c = COLOR_MAP[pt[3]] || new THREE.Color("#888888");
+        colArray[i * 3 + 0] = c.r;
+        colArray[i * 3 + 1] = c.g;
+        colArray[i * 3 + 2] = c.b;
+      }
+
+      pointsGeometry.setAttribute("position", new THREE.BufferAttribute(posArray, 3));
+      pointsGeometry.setAttribute("color", new THREE.BufferAttribute(colArray, 3));
+
+      pointsMaterial = new THREE.PointsMaterial({
+        size: parseFloat(document.getElementById("slider-ptsize").value),
+        vertexColors: true,
+        transparent: true,
+        opacity: 0.85,
+        sizeAttenuation: true
+      });
+
+      pointCloud = new THREE.Points(pointsGeometry, pointsMaterial);
+      scene.add(pointCloud);
+      document.getElementById("stat-points").innerText = count.toLocaleString();
+    }
+
+    // 建立真實水文深井圓柱 (Borehole Tubes)
+    let wellGroup = new THREE.Group();
+    function buildBoreholes() {
+      while (wellGroup.children.length > 0) {
+        wellGroup.remove(wellGroup.children[0]);
+      }
+
+      data.boreholes.forEach(bh => {
+        const topSc = toSceneCoords(bh.lon, bh.lat, 0);
+        const botSc = toSceneCoords(bh.lon, bh.lat, bh.depth);
+        const height = Math.abs(topSc.y - botSc.y);
+
+        const cylGeom = new THREE.CylinderGeometry(0.3, 0.3, height, 8);
+        const cylMat = new THREE.MeshLambertMaterial({ color: 0x00ffcc, emissive: 0x004433 });
+        const mesh = new THREE.Mesh(cylGeom, cylMat);
+        mesh.position.set(topSc.x, topSc.y - height / 2, topSc.z);
+        mesh.userData = { isWell: true, ...bh };
+        wellGroup.add(mesh);
+
+        // 井口標記球
+        const sphereGeom = new THREE.SphereGeometry(0.6, 8, 8);
+        const sphereMat = new THREE.MeshBasicMaterial({ color: 0x00ffff });
+        const sphere = new THREE.Mesh(sphereGeom, sphereMat);
+        sphere.position.set(topSc.x, topSc.y, topSc.z);
+        wellGroup.add(sphere);
+      });
+
+      scene.add(wellGroup);
+      document.getElementById("stat-wells").innerText = data.boreholes.length;
+    }
+
+    // 建立基盤曲面 (Bedrock Surface Wireframe)
+    let bedrockMesh;
+    function buildBedrockSurface() {
+      if (bedrockMesh) scene.remove(bedrockMesh);
+
+      const nLat = data.lats.length;
+      const nLon = data.lons.length;
+      const geom = new THREE.PlaneGeometry(
+        (b.lon_max - b.lon_min) * LON_SCALE,
+        (b.lat_max - b.lat_min) * LAT_SCALE,
+        nLon - 1,
+        nLat - 1
+      );
+
+      const pos = geom.attributes.position;
+      let pIdx = 0;
+      for (let i = 0; i < nLat; i++) {
+        for (let j = 0; j < nLon; j++) {
+          const depth = data.bedrock_grid[i][j];
+          const sc = toSceneCoords(data.lons[j], data.lats[i], depth);
+          pos.setXYZ(pIdx, sc.x, sc.y, sc.z);
+          pIdx++;
+        }
+      }
+      geom.computeVertexNormals();
+
+      const mat = new THREE.MeshBasicMaterial({
+        color: 0xff0055,
+        wireframe: true,
+        transparent: true,
+        opacity: 0.35
+      });
+      bedrockMesh = new THREE.Mesh(geom, mat);
+      scene.add(bedrockMesh);
+    }
+
+    // 建立 3D 空間刻度外框 (Bounding Box with Grid)
+    let boxGroup = new THREE.Group();
+    function buildBoundingBox() {
+      while (boxGroup.children.length > 0) {
+        boxGroup.remove(boxGroup.children[0]);
+      }
+
+      const p000 = toSceneCoords(b.lon_min, b.lat_min, 0);
+      const p100 = toSceneCoords(b.lon_max, b.lat_min, 0);
+      const p010 = toSceneCoords(b.lon_min, b.lat_max, 0);
+      const p110 = toSceneCoords(b.lon_max, b.lat_max, 0);
+
+      const p001 = toSceneCoords(b.lon_min, b.lat_min, 1000);
+      const p101 = toSceneCoords(b.lon_max, b.lat_min, 1000);
+      const p011 = toSceneCoords(b.lon_min, b.lat_max, 1000);
+      const p111 = toSceneCoords(b.lon_max, b.lat_max, 1000);
+
+      const points = [
+        // 地表矩形
+        p000, p100, p100, p110, p110, p010, p010, p000,
+        // 底面矩形 (1000m)
+        p001, p101, p101, p111, p111, p011, p011, p001,
+        // 四支垂直立柱
+        p000, p001, p100, p101, p110, p111, p010, p011
+      ];
+
+      const lineGeom = new THREE.BufferGeometry();
+      const posArr = [];
+      points.forEach(p => posArr.push(p.x, p.y, p.z));
+      lineGeom.setAttribute("position", new THREE.Float32BufferAttribute(posArr, 3));
+
+      const lineMat = new THREE.LineBasicMaterial({ color: 0x444444, transparent: true, opacity: 0.6 });
+      const lines = new THREE.LineSegments(lineGeom, lineMat);
+      boxGroup.add(lines);
+
+      scene.add(boxGroup);
+    }
+
+    // 互動篩選更新
+    function updateFilters() {
+      const maxD = parseFloat(document.getElementById("slider-depth").value);
+      const minD = parseFloat(document.getElementById("slider-min-depth").value);
+      document.getElementById("label-depth").innerText = maxD + " m";
+      document.getElementById("label-min-depth").innerText = minD + " m";
+      document.getElementById("stat-depth").innerText = minD + " ~ " + maxD + " m";
+
+      const enabledTypes = new Set();
+      if (document.getElementById("chk-clay")?.checked) enabledTypes.add(2);
+      if (document.getElementById("chk-silt")?.checked) enabledTypes.add(3);
+      if (document.getElementById("chk-finesand")?.checked) enabledTypes.add(4);
+      if (document.getElementById("chk-coarsesand")?.checked) enabledTypes.add(5);
+      if (document.getElementById("chk-mixed")?.checked) enabledTypes.add(6);
+      if (document.getElementById("chk-gravel")?.checked) enabledTypes.add(7);
+      if (document.getElementById("chk-mudstone")?.checked) enabledTypes.add(8);
+      if (document.getElementById("chk-sandstone")?.checked) enabledTypes.add(9);
+      if (document.getElementById("chk-basement")?.checked) enabledTypes.add(10);
+
+      const pos = pointsGeometry.attributes.position;
+      let visibleCount = 0;
+
+      for (let i = 0; i < data.points.length; i++) {
+        const pt = data.points[i];
+        const depth = pt[2];
+        const lid = pt[3];
+
+        const isVisible = (depth >= minD) && (depth <= maxD) && enabledTypes.has(lid);
+        if (isVisible) {
+          const sc = toSceneCoords(pt[0], pt[1], depth);
+          pos.setXYZ(i, sc.x, sc.y, sc.z);
+          visibleCount++;
+        } else {
+          // 移至無窮遠以隱藏
+          pos.setXYZ(i, 99999, 99999, 99999);
+        }
+      }
+
+      pos.needsUpdate = true;
+      document.getElementById("stat-points").innerText = visibleCount.toLocaleString();
+    }
+
+    function updatePointSize() {
+      const sz = parseFloat(document.getElementById("slider-ptsize").value);
+      document.getElementById("label-ptsize").innerText = sz;
+      if (pointsMaterial) pointsMaterial.size = sz;
+    }
+
+    function updateZScale() {
+      zExaggeration = parseFloat(document.getElementById("slider-zscale").value);
+      document.getElementById("label-zscale").innerText = zExaggeration.toFixed(1) + "x";
+      buildPointCloud();
+      buildBoreholes();
+      buildBedrockSurface();
+      buildBoundingBox();
+      updateFilters();
+    }
+
+    function toggleBoreholes() {
+      wellGroup.visible = document.getElementById("chk-boreholes").checked;
+    }
+    function toggleBedrock() {
+      bedrockMesh.visible = document.getElementById("chk-bedrock").checked;
+      document.getElementById("stat-bedrock").innerText = bedrockMesh.visible ? "ON" : "OFF";
+    }
+    function toggleBoundingBox() {
+      boxGroup.visible = document.getElementById("chk-bounding").checked;
+    }
+
+    // 視角預設
+    function setCameraView(mode) {
+      if (mode === "perspective") {
+        camera.position.set(45, 30, 45);
+        controls.target.set(0, -15, 0);
+      } else if (mode === "top") {
+        camera.position.set(0, 60, 0);
+        controls.target.set(0, 0, 0);
+      } else if (mode === "ew") {
+        // 西 -> 東 (看剖面)
+        camera.position.set(0, -15, 55);
+        controls.target.set(0, -15, 0);
+      } else if (mode === "ns") {
+        // 南 -> 北 (看平原軸向)
+        camera.position.set(55, -15, 0);
+        controls.target.set(0, -15, 0);
+      }
+      controls.update();
+    }
+
+    // 滑鼠懸停射線檢測 (Raycaster HUD)
+    const raycaster = new THREE.Raycaster();
+    raycaster.params.Points.threshold = 1.0;
+    const mouse = new THREE.Vector2();
+    const tooltip = document.getElementById("tooltip");
+
+    window.addEventListener("mousemove", (e) => {
+      const rect = renderer.domElement.getBoundingClientRect();
+      mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+
+      raycaster.setFromCamera(mouse, camera);
+
+      // 1. 檢測觀測井圓柱
+      const wellHits = raycaster.intersectObjects(wellGroup.children);
+      if (wellHits.length > 0) {
+        const hit = wellHits[0];
+        if (hit.object.userData && hit.object.userData.isWell) {
+          const w = hit.object.userData;
+          tooltip.style.display = "block";
+          tooltip.style.left = (e.clientX + 14) + "px";
+          tooltip.style.top = (e.clientY + 14) + "px";
+          tooltip.innerHTML = `
+            <b style="color: #00ffcc;">[水文深井] ${w.name} (${w.id})</b><br>
+            地區: ${w.city} | 井深: <b>${w.depth} m</b><br>
+            座標: ${w.lon.toFixed(3)}°E, ${w.lat.toFixed(3)}°N<br>
+            地表高程: ${w.elev} m
+          `;
+          return;
+        }
+      }
+
+      // 2. 檢測體素點雲
+      const ptHits = raycaster.intersectObject(pointCloud);
+      if (ptHits.length > 0) {
+        const idx = ptHits[0].index;
+        const pt = data.points[idx];
+        if (pt) {
+          tooltip.style.display = "block";
+          tooltip.style.left = (e.clientX + 14) + "px";
+          tooltip.style.top = (e.clientY + 14) + "px";
+          const lithName = NAME_MAP[pt[3]] || "Unknown";
+          tooltip.innerHTML = `
+            <b>深度: ${pt[2]} m</b> (${pt[2] <= 300 ? '鑽孔檢驗區' : '構造外推區'})<br>
+            預測岩性: <span style="color: #58a6ff;">${lithName}</span><br>
+            剪力波速 Vs: <b>${pt[4]} m/s</b><br>
+            AI 信心度: <b>${(pt[5]*100).toFixed(0)}%</b><br>
+            經緯度: ${pt[0]}°E, ${pt[1]}°N
+          `;
+          return;
+        }
+      }
+
+      tooltip.style.display = "none";
+    });
+
+    window.addEventListener("resize", () => {
+      camera.aspect = container.clientWidth / container.clientHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(container.clientWidth, container.clientHeight);
+    });
+
+    // 啟動建構
+    buildPointCloud();
+    buildBoreholes();
+    buildBedrockSurface();
+    buildBoundingBox();
+    setCameraView("perspective");
+
+    // 動畫迴圈
+    function animate() {
+      requestAnimationFrame(animate);
+      controls.update();
+      renderer.render(scene, camera);
+    }
+    animate();
+  </script>
+</body>
+</html>

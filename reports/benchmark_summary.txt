@@ -1,0 +1,91 @@
+=======================================================
+  台灣地下 3D 地體結構 — Baseline 模型基準評估報告 (去洩漏版)
+=======================================================
+
+模型: Rule_Baseline
+  Accuracy:    16.10%
+  Macro F1:    0.1450
+  Weighted F1: 0.1632
+
+分類報告:
+              precision    recall  f1-score   support
+
+     ClayMud       0.21      0.11      0.15      6924
+        Silt       0.10      0.10      0.10      3416
+    FineSand       0.23      0.21      0.22      7725
+  CoarseSand       0.12      0.26      0.17      2952
+SandMudMixed       0.19      0.17      0.18      4529
+      Gravel       0.04      0.07      0.05      1957
+
+    accuracy                           0.16     27503
+   macro avg       0.15      0.15      0.14     27503
+weighted avg       0.18      0.16      0.16     27503
+
+混淆矩陣:
+              ClayMud  Silt  FineSand  CoarseSand  SandMudMixed  Gravel
+ClayMud           789   882      1959        1486          1146     662
+Silt              246   335      1022         949           350     514
+FineSand          773   718      1617        2169          1273    1175
+CoarseSand        417   362       538         760           348     527
+SandMudMixed      948   582      1364         620           792     223
+Gravel            575   426       438         117           266     135
+
+-------------------------------------------------------
+模型: RandomForest_BaseFeatures
+  Accuracy:    20.05%
+  Macro F1:    0.1869
+  Weighted F1: 0.2066
+
+分類報告:
+              precision    recall  f1-score   support
+
+     ClayMud       0.27      0.21      0.24      6924
+        Silt       0.12      0.17      0.14      3416
+    FineSand       0.32      0.25      0.28      7725
+  CoarseSand       0.13      0.19      0.15      2952
+SandMudMixed       0.14      0.13      0.14      4529
+      Gravel       0.15      0.22      0.18      1957
+
+    accuracy                           0.20     27503
+   macro avg       0.19      0.19      0.19     27503
+weighted avg       0.22      0.20      0.21     27503
+
+混淆矩陣:
+              ClayMud  Silt  FineSand  CoarseSand  SandMudMixed  Gravel
+ClayMud          1449  1342      1475        1023           976     659
+Silt              789   566       729         508           682     142
+FineSand         1666  1364      1914        1262          1040     479
+CoarseSand        529   392       705         548           470     308
+SandMudMixed      563   757      1018         670           602     919
+Gravel            287   175       212         258           590     435
+
+-------------------------------------------------------
+模型: RandomForest_AugmentedFeatures
+  Accuracy:    28.60%
+  Macro F1:    0.2707
+  Weighted F1: 0.2883
+
+分類報告:
+              precision    recall  f1-score   support
+
+     ClayMud       0.31      0.29      0.30      6924
+        Silt       0.13      0.17      0.15      3416
+    FineSand       0.38      0.38      0.38      7725
+  CoarseSand       0.21      0.22      0.21      2952
+SandMudMixed       0.27      0.22      0.24      4529
+      Gravel       0.33      0.34      0.34      1957
+
+    accuracy                           0.29     27503
+   macro avg       0.27      0.27      0.27     27503
+weighted avg       0.29      0.29      0.29     27503
+
+混淆矩陣:
+              ClayMud  Silt  FineSand  CoarseSand  SandMudMixed  Gravel
+ClayMud          2023  1290      1786         549           996     280
+Silt              782   588      1208         459           338      41
+FineSand         1576  1586      2931         685           704     243
+CoarseSand        514   485       711         661           262     319
+SandMudMixed     1308   438       902         395           992     494
+Gravel            225    62       182         453           364     671
+
+-------------------------------------------------------

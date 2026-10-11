@@ -1,0 +1,37 @@
+# Python & Virtual Environment
+.venv/
+venv/
+ENV/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+
+# Large Model Checkpoints (>50MB)
+models/*.pkl
+!models/.gitkeep
+
+# Raw Data & Large Media
+data/raw/
+data/chart_photos/
+*.zip
+*.tar.gz
+*.mseed
+
+# Intermediate & Processed Data Exclusions
+data/interim/*
+!data/interim/chiayi_velocity_3d.csv
+!data/interim/hydro_boreholes.csv
+!data/interim/hydro_strata.csv
+!data/interim/chiayi_manifest.csv
+!data/interim/hydro_phys_summary.csv
+
+data/processed/*.parquet
+data/processed/*.zarr
+
+# Logs & Temporary files
+logs_pip*.txt
+*.log
+.DS_Store
+Thumbs.db

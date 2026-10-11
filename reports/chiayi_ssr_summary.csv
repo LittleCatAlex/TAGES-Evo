@@ -1,0 +1,5 @@
+﻿Station,Name,Latitude,Longitude,Site_Class,Bedrock_Depth_m,Vs_avg_mps,f0_Theory_Hz,f0_SSR_Hz,Peak_Amp_SSR,Amp_1Hz,Amp_2Hz
+CHY010,布袋 (Budai),23.38,120.16,Class E (Soft Soil / Deep Basin),1000.0,2069.0,0.52,0.5,6.7,0.82,0.96
+CHY080,新港 (Singang),23.55,120.35,Class D (Alluvial Plain),1000.0,1790.0,0.45,0.45,5.52,0.86,0.97
+CHY015,嘉義市 (Chiayi City),23.48,120.45,Class D (Mid-Plio Sediments),1000.0,1798.0,0.45,0.45,5.72,0.86,0.97
+CHY029,中埔/觸口 (Chukou),23.44,120.57,Class C (Foothill Semi-Rock),640.0,2122.0,0.83,0.8,6.15,0.36,0.9

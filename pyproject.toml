@@ -1,0 +1,13 @@
+[project]
+name = "tages"
+version = "0.1.0"
+description = "Taiwan AI Geological Exploration System - 3D lithology classification"
+requires-python = ">=3.10"
+dependencies = [
+  "requests", "pandas", "numpy", "pyarrow", "pyproj",
+  "scikit-learn", "lightgbm", "matplotlib",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
