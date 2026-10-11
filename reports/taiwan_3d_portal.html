@@ -292,6 +292,61 @@
       box-shadow: 0 4px 14px rgba(0,0,0,0.7);
       line-height: 1.4;
     }
+    /* Leaflet 深色科技風格自訂主題 (完全適配深色界面) */
+    .leaflet-control-layers {
+      background: rgba(22, 27, 34, 0.95) !important;
+      border: 1px solid #30363d !important;
+      border-radius: 8px !important;
+      color: #c9d1d9 !important;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.6) !important;
+      font-size: 0.78rem !important;
+      padding: 8px 12px !important;
+      backdrop-filter: blur(6px);
+    }
+    .leaflet-control-layers-expanded {
+      color: #f0f6fc !important;
+    }
+    .leaflet-control-layers label {
+      cursor: pointer;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .leaflet-control-layers-separator {
+      border-top: 1px solid #30363d !important;
+      margin: 6px 0 !important;
+    }
+    .leaflet-bar a {
+      background-color: #161b22 !important;
+      border-color: #30363d !important;
+      color: #c9d1d9 !important;
+    }
+    .leaflet-bar a:hover {
+      background-color: #21262d !important;
+      color: #58a6ff !important;
+    }
+    .leaflet-popup-content-wrapper {
+      background: #161b22 !important;
+      color: #c9d1d9 !important;
+      border: 1px solid #30363d !important;
+      border-radius: 6px !important;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.7) !important;
+    }
+    .leaflet-popup-tip {
+      background: #161b22 !important;
+    }
+    .leaflet-container {
+      background-color: #0d1117 !important;
+    }
+    .leaflet-control-attribution {
+      background: rgba(13, 17, 23, 0.8) !important;
+      color: #8b949e !important;
+      font-size: 0.65rem !important;
+    }
+    .leaflet-control-attribution a {
+      color: #58a6ff !important;
+    }
   </style>
 </head>
 <body>
@@ -476,7 +531,7 @@
     let activeROI = portalData.basins_meta["chianan"] ? portalData.basins_meta["chianan"].bounds : [120.08, 23.15, 120.60, 23.65];
 
     // =========================================
-    // 1. 初始化 Leaflet 2D 地圖門戶
+    // 1. 初始化 Leaflet 2D 地圖門戶 (100% 免 API Key 圖資)
     // =========================================
     const map = L.map('leaflet-map', {
       center: [23.8, 120.9],
@@ -484,12 +539,48 @@
       zoomControl: true
     });
 
-    // 暗黑系底圖
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-      attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
-      subdomains: 'abcd',
+    // 免 API Key 圖層 1: Esri 深色科技地圖 (Base + Reference 標籤) - 預設
+    const esriDark = L.layerGroup([
+      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+        attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ',
+        maxZoom: 16
+      }),
+      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}', {
+        attribution: '',
+        maxZoom: 16
+      })
+    ]).addTo(map);
+
+    // 免 API Key 圖層 2: Esri 高解析衛星影像 (Imagery + 地名邊界)
+    const esriSatellite = L.layerGroup([
+      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS',
+        maxZoom: 18
+      }),
+      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
+        attribution: '',
+        maxZoom: 18
+      })
+    ]);
+
+    // 免 API Key 圖層 3: Esri 地形等高線圖 (立體陰影與高程地貌)
+    const esriTopo = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', {
+      attribution: 'Tiles &copy; Esri',
+      maxZoom: 18
+    });
+
+    // 免 API Key 圖層 4: OpenStreetMap 開放街圖 (完整正體中文行政區與路網)
+    const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors',
       maxZoom: 19
-    }).addTo(map);
+    });
+
+    const baseMaps = {
+      "🌌 深色科技底圖 (Esri Dark)": esriDark,
+      "🛰️ 高解析衛星影像 (Esri Satellite)": esriSatellite,
+      "🗺️ 地形等高線圖 (Esri Topo)": esriTopo,
+      "📍 開放街圖 (OpenStreetMap)": osm
+    };
 
     // 繪製全台活動斷層
     const faultLayer = L.layerGroup().addTo(map);
@@ -523,15 +614,23 @@
       }).addTo(wellLayer);
 
       circle.bindPopup(`
-        <b>觀測井: ${w.name} (${w.id})</b><br>
-        縣市: <b>${w.city}</b> | 地質水區: <b>${w.wsect}</b><br>
-        鑽探深度: <span style="color: #00ddff; font-weight: bold;">${w.depth} m</span><br>
-        地表高程: <b>${w.elev} m</b> | 年份: ${w.year}<br>
-        座標: ${w.lon}°E, ${w.lat}°N
+        <div style="font-family: sans-serif; font-size: 0.8rem; line-height: 1.5; min-width: 170px;">
+          <b style="color: #58a6ff; font-size: 0.88rem;">觀測井: ${w.name} (${w.id})</b><br>
+          縣市: <b>${w.city}</b> | 地質水區: <b>${w.wsect}</b><br>
+          鑽探深度: <span style="color: #00ddff; font-weight: bold;">${w.depth} m</span><br>
+          地表高程: <b>${w.elev} m</b> | 年份: ${w.year}<br>
+          座標: ${w.lon}°E, ${w.lat}°N<br>
+          <div style="margin-top: 8px;">
+            <button onclick="focusWellAndLaunch('${w.id}', ${w.lon}, ${w.lat})" style="width: 100%; background: #238636; color: #fff; border: 1px solid rgba(255,255,255,0.2); border-radius: 4px; padding: 5px 8px; cursor: pointer; font-size: 0.74rem; font-weight: 600;">
+              ✨ 定位並進入本區 3D 地體
+            </button>
+          </div>
+        </div>
       `);
     });
 
     // 繪製六大盆地邊界矩形與列表
+    const basinLayer = L.layerGroup().addTo(map);
     const basinBoxLayers = {};
     const basinListDiv = document.getElementById("basins-list");
 
@@ -545,7 +644,7 @@
         dashArray: '5, 5',
         fillColor: '#1f6feb',
         fillOpacity: k === selectedBasinKey ? 0.25 : 0.08
-      }).addTo(map);
+      }).addTo(basinLayer);
 
       rect.bindTooltip(b.name, { permanent: false, direction: 'center' });
       rect.on('click', () => selectBasin(k));
@@ -562,6 +661,36 @@
       btn.onclick = () => selectBasin(k);
       basinListDiv.appendChild(btn);
     });
+
+    // 加入右上角圖層控制器 (底圖與套疊圖層開關)
+    const overlayMaps = {
+      "⚡ 活動斷層帶": faultLayer,
+      "🟢 深層觀測井": wellLayer,
+      "🔲 平原盆地查詢框": basinLayer
+    };
+    L.control.layers(baseMaps, overlayMaps, { position: 'topright', collapsed: false }).addTo(map);
+
+    function focusWellAndLaunch(wellId, lon, lat) {
+      let bestKey = "chianan";
+      let minDis = 999999;
+      Object.keys(portalData.basins_meta || {}).forEach(k => {
+        const b = portalData.basins_meta[k];
+        if (lon >= b.bounds[0] && lon <= b.bounds[2] && lat >= b.bounds[1] && lat <= b.bounds[3]) {
+          bestKey = k;
+          minDis = 0;
+        } else {
+          const midX = (b.bounds[0] + b.bounds[2]) / 2;
+          const midY = (b.bounds[1] + b.bounds[3]) / 2;
+          const d = Math.hypot(lon - midX, lat - midY);
+          if (d < minDis) {
+            minDis = d;
+            bestKey = k;
+          }
+        }
+      });
+      selectBasin(bestKey);
+      launch3DViewer();
+    }
 
     function selectBasin(key) {
       selectedBasinKey = key;

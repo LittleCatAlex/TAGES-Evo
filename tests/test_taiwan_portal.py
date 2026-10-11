@@ -44,3 +44,9 @@ def test_taiwan_portal_assets():
     js_path = Path("reports/taiwan_portal_data.js")
     assert html_path.exists() and html_path.stat().st_size > 10000
     assert js_path.exists() and js_path.stat().st_size > 5000000
+
+    html_content = html_path.read_text(encoding="utf-8")
+    assert "cartocdn" not in html_content.lower(), "不可使用需付費或強制要求 API key 的 Carto 圖資"
+    assert "arcgisonline" in html_content, "需支援免 API Key 之 Esri 圖資"
+    assert "openstreetmap" in html_content, "需支援免 API Key 之 OpenStreetMap 圖資"
+    assert "control.layers" in html_content, "需具備圖層切換控制元件"
