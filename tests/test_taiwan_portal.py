@@ -47,6 +47,10 @@ def test_taiwan_portal_assets():
 
     html_content = html_path.read_text(encoding="utf-8")
     assert "cartocdn" not in html_content.lower(), "不可使用需付費或強制要求 API key 的 Carto 圖資"
+    assert "tile.openstreetmap.org" not in html_content, "不可使用對本地 file 訪問回傳 403 阻擋之 OSM 志工伺服器"
     assert "arcgisonline" in html_content, "需支援免 API Key 之 Esri 圖資"
-    assert "openstreetmap" in html_content, "需支援免 API Key 之 OpenStreetMap 圖資"
+    assert "wmts.nlsc.gov.tw" in html_content, "需支援內政部國土測繪圖資服務雲 (NLSC EMAP) 官方圖資"
+    assert "World_Street_Map" in html_content, "需支援 Esri 全球街道圖資"
     assert "control.layers" in html_content, "需具備圖層切換控制元件"
+    assert "applyCustomROI" in html_content, "需支援地圖自由自訂框選查詢範圍"
+    assert "getOrCreateCustomROI3DData" in html_content, "需支援自訂區域 3D 體素動態合成生成"
