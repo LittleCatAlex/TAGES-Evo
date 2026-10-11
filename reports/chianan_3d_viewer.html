@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TAGES-Evo 3D — 西南臺灣 (雲林・嘉義・臺南) 地下 3D 地體結構互動瀏覽器 (0 ~ 1,000m)</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: #0d1117;
+      color: #c9d1d9;
+      overflow: hidden;
+      height: 100vh;
+      display: flex;
+    }
+    #canvas-container {
+      flex: 1;
+      height: 100%;
+      position: relative;
+    }
+    #sidebar {
+      width: 380px;
+      height: 100%;
+      background: #161b22;
+      border-left: 1px solid #30363d;
+      padding: 16px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      box-shadow: -4px 0 16px rgba(0,0,0,0.5);
+      z-index: 10;
+    }
+    h1 {
+      font-size: 1.15rem;
+      color: #58a6ff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .badge {
+      font-size: 0.7rem;
+      background: #238636;
+      color: #fff;
+      padding: 2px 6px;
+      border-radius: 10px;
+      font-weight: bold;
+    }
+    .subtitle {
+      font-size: 0.8rem;
+      color: #8b949e;
+      line-height: 1.4;
+    }
+    .panel-section {
+      background: #21262d;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      padding: 12px;
+    }
+    .section-title {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #f0f6fc;
+      margin-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .layer-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.78rem;
+      padding: 4px 0;
+      cursor: pointer;
+    }
+    .color-dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 3px;
+      border: 1px solid rgba(255,255,255,0.2);
+    }
+    .slider-row {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-top: 6px;
+      font-size: 0.78rem;
+    }
+    .slider-row input[type="range"] {
+      width: 100%;
+      accent-color: #58a6ff;
+    }
+    .btn-group {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      margin-top: 6px;
+    }
+    button {
+      background: #238636;
+      color: #fff;
+      border: 1px solid rgba(240,246,252,0.1);
+      border-radius: 6px;
+      padding: 6px 10px;
+      font-size: 0.75rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    button:hover { background: #2ea043; }
+    button.secondary {
+      background: #21262d;
+      border-color: #30363d;
+      color: #c9d1d9;
+    }
+    button.secondary:hover { background: #30363d; }
+    #hud-info {
+      position: absolute;
+      top: 14px;
+      left: 14px;
+      background: rgba(22, 27, 34, 0.85);
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      padding: 10px 14px;
+      font-size: 0.78rem;
+      backdrop-filter: blur(4px);
+      pointer-events: none;
+      z-index: 5;
+    }
+    #tooltip {
+      position: absolute;
+      display: none;
+      background: rgba(13, 17, 23, 0.95);
+      border: 1px solid #58a6ff;
+      border-radius: 6px;
+      padding: 8px 12px;
+      font-size: 0.78rem;
+      pointer-events: none;
+      z-index: 20;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+      line-height: 1.4;
+    }
+    .stat-badge {
+      font-family: monospace;
+      color: #79c0ff;
+    }
+    .fault-tag {
+      font-size: 0.72rem;
+      padding: 2px 5px;
+      border-radius: 3px;
+      background: #30363d;
+      margin-top: 4px;
+      display: inline-block;
+    }
+  </style>
+</head>
+<body>
+  <div id="canvas-container">
+    <div id="hud-info">
+      <div><b>西南臺灣 (雲林・嘉義・臺南) 3D 地下地體結構模型</b></div>
+      <div style="color: #8b949e; font-size: 0.72rem; margin-top: 2px;">
+        經度 120.00°~120.75°E | 緯度 22.95°~23.85°N | 深度 0 ~ 1,000m
+      </div>
+      <div style="margin-top: 4px;">
+        滑鼠：左鍵旋轉 | 右鍵平移 | 滾輪縮放 | 懸停查看體素/鑽井屬性
+      </div>
+    </div>
+    <div id="tooltip"></div>
+  </div>
+
+  <div id="sidebar">
+    <div>
+      <h1>TAGES-Evo 3D <span class="badge">Foreland Basin</span></h1>
+      <div class="subtitle" style="margin-top: 4px;">
+        西南臺灣前陸盆地 3D 岩性反演、基底高區與活動斷層結構立體整合瀏覽系統。
+      </div>
+    </div>
+
+    <!-- 視角控制 -->
+    <div class="panel-section">
+      <div class="section-title">立體視角切換</div>
+      <div class="btn-group">
+        <button class="secondary" onclick="setCameraView('perspective')">3D 鳥瞰視角</button>
+        <button class="secondary" onclick="setCameraView('top')">地圖俯視圖</button>
+        <button class="secondary" onclick="setCameraView('ew')">東西向地質剖面</button>
+        <button class="secondary" onclick="setCameraView('ns')">南北向地質剖面</button>
+      </div>
+    </div>
+
+    <!-- 深度裁切 -->
+    <div class="panel-section">
+      <div class="section-title">垂直深度裁切濾鏡</div>
+      <div class="slider-row">
+        <span>最大顯示深度: <span id="depth-val" class="stat-badge">1000</span> m</span>
+        <input type="range" id="depth-slider" min="50" max="1000" step="20" value="1000" oninput="updateDepthFilter(this.value)">
+      </div>
+      <div class="slider-row" style="margin-top: 8px;">
+        <span>Z軸垂直放大倍率: <span id="z-scale-val" class="stat-badge">20x</span></span>
+        <input type="range" id="z-scale-slider" min="5" max="50" step="5" value="20" oninput="updateZScale(this.value)">
+      </div>
+    </div>
+
+    <!-- 構造與地質物件圖層 -->
+    <div class="panel-section">
+      <div class="section-title">地體構造與地質物件</div>
+      <label class="layer-item">
+        <input type="checkbox" id="toggle-wells" checked onchange="toggleBoreholes(this.checked)">
+        <span>91 口真實水文地質深井 (雲嘉南觀測井網)</span>
+      </label>
+      <label class="layer-item">
+        <input type="checkbox" id="toggle-bedrock" checked onchange="toggleBedrock(this.checked)">
+        <span>聲學與前第四紀基盤曲面 (Vs >= 2,150 m/s)</span>
+      </label>
+      <label class="layer-item">
+        <input type="checkbox" id="toggle-faults" checked onchange="toggleFaults(this.checked)">
+        <span>主要活動斷層地表跡線與斷層面 (觸口/梅山/新化)</span>
+      </label>
+      <label class="layer-item">
+        <input type="checkbox" id="toggle-bbox" checked onchange="toggleBoundingBox(this.checked)">
+        <span>空間座標方框與經緯網</span>
+      </label>
+    </div>
+
+    <!-- 10 類地質岩性圖層過濾 -->
+    <div class="panel-section">
+      <div class="section-title">
+        <span>L2 規範地層岩性 (10 類)</span>
+        <button class="secondary" style="padding: 2px 6px; font-size: 0.7rem;" onclick="toggleAllLith(true)">全選</button>
+      </div>
+      <div id="lith-layers-list"></div>
+    </div>
+
+    <!-- 統計數值摘要 -->
+    <div class="panel-section">
+      <div class="section-title">模型體系指標</div>
+      <div style="font-size: 0.75rem; line-height: 1.6; color: #8b949e;">
+        <div>覆蓋面積: <span class="stat-badge">75 km × 100 km (~7,500 km²)</span></div>
+        <div>預測體素點數: <span class="stat-badge" id="voxel-count">26,979</span> 點</div>
+        <div>水文觀測井: <span class="stat-badge">91 口 (雲林50, 嘉義27, 臺南13, 南投1)</span></div>
+        <div>震波約束資料源: <span class="stat-badge">TEC TWtomo (LEE2025)</span></div>
+        <div>地體特徵: <span class="stat-badge">北港基底高區 vs. 臺南深拗陷</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 引入 Three.js 與 OrbitControls -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <!-- 引入全區 3D 數據 -->
+  <script src="chianan_3d_data.js"></script>
+
+  <script>
+    // 檢查數據載入
+    if (typeof window.TAGES_3D_DATA === "undefined") {
+      alert("未檢測到 chianan_3d_data.js，請先執行 python scripts/export_chianan_web_data.py！");
+    }
+
+    const data = window.TAGES_3D_DATA || {
+      bounds: { lon_min: 120.0, lon_max: 120.75, lat_min: 22.95, lat_max: 23.85, depth_min: 0, depth_max: 1000 },
+      points: [],
+      boreholes: [],
+      bedrock_grid: [],
+      faults: []
+    };
+
+    // 10 類地質規範色表
+    const LITH_META = {
+      1: { name: "表土 / 回填層 (Topsoil)", color: "#D2B48C" },
+      2: { name: "黏土 / 泥 (Clay/Mud)", color: "#8B4513" },
+      3: { name: "粉土 (Silt)", color: "#CD853F" },
+      4: { name: "細砂 (Fine Sand)", color: "#FFD700" },
+      5: { name: "粗砂 (Coarse Sand)", color: "#DAA520" },
+      6: { name: "砂泥互層 (Sand-Mud)", color: "#B8860B" },
+      7: { name: "厚礫石層 (Gravel)", color: "#708090" },
+      8: { name: "泥岩 / 頁岩 (Mudstone)", color: "#4682B4" },
+      9: { name: "固結砂岩 (Sandstone)", color: "#2E8B57" },
+      10: { name: "結晶基底 (Basement)", color: "#1C3144" }
+    };
+
+    const NAME_MAP = {};
+    Object.keys(LITH_META).forEach(k => { NAME_MAP[k] = LITH_META[k].name; });
+
+    const activeLithMask = {};
+    Object.keys(LITH_META).forEach(k => { activeLithMask[k] = true; });
+
+    let zExaggeration = 20.0;
+    let maxDisplayDepth = 1000.0;
+
+    // 空間座標歸一化設定
+    const b = data.bounds;
+    const centerLon = (b.lon_min + b.lon_max) / 2.0;
+    const centerLat = (b.lat_min + b.lat_max) / 2.0;
+    const lonSpan = b.lon_max - b.lon_min; // ~0.75 deg
+    const latSpan = b.lat_max - b.lat_min; // ~0.90 deg
+
+    // 將真實經緯度與深度映射至 Three.js 場景世界座標 (X: 經度, Z: 緯度, Y: 高程/負深度)
+    const SCENE_WIDTH = 120.0;
+    const SCENE_LENGTH = SCENE_WIDTH * (latSpan / lonSpan); // ~144.0
+    const SCENE_DEPTH_BASE = 6.0;
+
+    function lonToX(lon) {
+      return ((lon - centerLon) / lonSpan) * SCENE_WIDTH;
+    }
+    function latToZ(lat) {
+      return -((lat - centerLat) / latSpan) * SCENE_LENGTH;
+    }
+    function depthToY(depth) {
+      return -(depth / 1000.0) * SCENE_DEPTH_BASE * (zExaggeration / 10.0);
+    }
+
+    // 初始化 Three.js 場景
+    const container = document.getElementById("canvas-container");
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0d1117);
+
+    const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.5, 2000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(container.clientWidth, container.clientHeight);
+    renderer.setPixelRatio(window.devicePixelRatio);
+    container.appendChild(renderer.domElement);
+
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.08;
+
+    // 燈光
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.85);
+    scene.add(ambientLight);
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.7);
+    dirLight.position.set(50, 100, 50);
+    scene.add(dirLight);
+
+    // 物件群組
+    const pointCloudGroup = new THREE.Group();
+    const boreholeGroup = new THREE.Group();
+    const bedrockGroup = new THREE.Group();
+    const faultGroup = new THREE.Group();
+    const bboxGroup = new THREE.Group();
+    scene.add(pointCloudGroup);
+    scene.add(boreholeGroup);
+    scene.add(bedrockGroup);
+    scene.add(faultGroup);
+    scene.add(bboxGroup);
+
+    let pointCloud = null;
+
+    // 建立 3D 體素點雲
+    function buildPointCloud() {
+      if (pointCloud) {
+        pointCloudGroup.remove(pointCloud);
+        pointCloud.geometry.dispose();
+      }
+
+      const pts = data.points;
+      const positions = [];
+      const colors = [];
+      const validIndices = [];
+
+      pts.forEach((pt, idx) => {
+        const [lon, lat, depth, lid, vs, conf] = pt;
+        if (!activeLithMask[lid]) return;
+        if (depth > maxDisplayDepth) return;
+
+        const x = lonToX(lon);
+        const y = depthToY(depth);
+        const z = latToZ(lat);
+
+        positions.push(x, y, z);
+        const col = new THREE.Color(LITH_META[lid] ? LITH_META[lid].color : "#ffffff");
+        colors.push(col.r, col.g, col.b);
+        validIndices.push(idx);
+      });
+
+      const geom = new THREE.BufferGeometry();
+      geom.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+      geom.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
+      geom.userData = { validIndices };
+
+      const mat = new THREE.PointsMaterial({
+        size: 2.2,
+        vertexColors: true,
+        transparent: true,
+        opacity: 0.88
+      });
+
+      pointCloud = new THREE.Points(geom, mat);
+      pointCloudGroup.add(pointCloud);
+      document.getElementById("voxel-count").innerText = (positions.length / 3).toLocaleString();
+    }
+
+    // 建立 91 口真實水文地質深井柱體
+    function buildBoreholes() {
+      boreholeGroup.clear();
+      const wells = data.boreholes || [];
+
+      wells.forEach(w => {
+        const x = lonToX(w.lon);
+        const z = latToZ(w.lat);
+        const wellD = Math.min(w.depth, maxDisplayDepth);
+        const yTop = 0.5;
+        const yBot = depthToY(wellD);
+        const height = Math.abs(yTop - yBot);
+
+        // 柱體幾何
+        const cylGeom = new THREE.CylinderGeometry(0.5, 0.5, height, 12);
+        const cylMat = new THREE.MeshStandardMaterial({
+          color: 0x00d2ff,
+          metalness: 0.3,
+          roughness: 0.4
+        });
+        const mesh = new THREE.Mesh(cylGeom, cylMat);
+        mesh.position.set(x, (yTop + yBot) / 2.0, z);
+        mesh.userData = { type: "borehole", data: w };
+        boreholeGroup.add(mesh);
+
+        // 井口頂部標記球
+        const sphereGeom = new THREE.SphereGeometry(0.9, 12, 12);
+        const sphereMat = new THREE.MeshBasicMaterial({ color: 0xffcc00 });
+        const sphere = new THREE.Mesh(sphereGeom, sphereMat);
+        sphere.position.set(x, yTop + 0.5, z);
+        sphere.userData = { type: "borehole", data: w };
+        boreholeGroup.add(sphere);
+      });
+    }
+
+    // 建立基盤網格曲面 (Z_bedrock Surface)
+    function buildBedrockSurface() {
+      bedrockGroup.clear();
+      const grid = data.bedrock_grid;
+      const lats = data.lats;
+      const lons = data.lons;
+      if (!grid || grid.length === 0) return;
+
+      const nLat = lats.length;
+      const nLon = lons.length;
+      const geom = new THREE.PlaneGeometry(1, 1, nLon - 1, nLat - 1);
+      const pos = geom.attributes.position;
+
+      let idx = 0;
+      for (let i = 0; i < nLat; i++) {
+        for (let j = 0; j < nLon; j++) {
+          const lon = lons[j];
+          const lat = lats[i];
+          const depth = Math.min(grid[i][j], maxDisplayDepth);
+          const x = lonToX(lon);
+          const y = depthToY(depth);
+          const z = latToZ(lat);
+          pos.setXYZ(idx, x, y, z);
+          idx++;
+        }
+      }
+      geom.computeVertexNormals();
+
+      const mat = new THREE.MeshStandardMaterial({
+        color: 0x1c3144,
+        roughness: 0.6,
+        metalness: 0.4,
+        transparent: true,
+        opacity: 0.72,
+        side: THREE.DoubleSide,
+        wireframe: false
+      });
+
+      const mesh = new THREE.Mesh(geom, mat);
+      bedrockGroup.add(mesh);
+
+      // 加一層等高線骨架網線
+      const wireMat = new THREE.MeshBasicMaterial({
+        color: 0x58a6ff,
+        wireframe: true,
+        transparent: true,
+        opacity: 0.25
+      });
+      const wireMesh = new THREE.Mesh(geom, wireMat);
+      bedrockGroup.add(wireMesh);
+    }
+
+    // 建立活動斷層三維結構牆
+    function buildFaults() {
+      faultGroup.clear();
+      const faults = data.faults || [];
+
+      faults.forEach(f => {
+        const coords = f.coords;
+        if (!coords || coords.length < 2) return;
+
+        // 沿斷層跡線建立垂直向下延伸至基底的立體斷層牆
+        for (let i = 0; i < coords.length - 1; i++) {
+          const p1 = coords[i];
+          const p2 = coords[i+1];
+
+          const x1 = lonToX(p1[0]), z1 = latToZ(p1[1]);
+          const x2 = lonToX(p2[0]), z2 = latToZ(p2[1]);
+          const yTop = 1.0;
+          const yBot = depthToY(1000.0);
+
+          const geom = new THREE.BufferGeometry();
+          // 兩個三角形構成矩形面
+          const vertices = new Float32Array([
+            x1, yTop, z1,   x2, yTop, z2,   x1, yBot, z1,
+            x2, yTop, z2,   x2, yBot, z2,   x1, yBot, z1
+          ]);
+          geom.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+          geom.computeVertexNormals();
+
+          const mat = new THREE.MeshBasicMaterial({
+            color: new THREE.Color(f.color),
+            transparent: true,
+            opacity: 0.45,
+            side: THREE.DoubleSide
+          });
+          const mesh = new THREE.Mesh(geom, mat);
+          mesh.userData = { type: "fault", name: f.name };
+          faultGroup.add(mesh);
+
+          // 地表折線
+          const lineGeom = new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(x1, yTop, z1),
+            new THREE.Vector3(x2, yTop, z2)
+          ]);
+          const lineMat = new THREE.LineBasicMaterial({ color: new THREE.Color(f.color), linewidth: 2 });
+          const line = new THREE.Line(lineGeom, lineMat);
+          faultGroup.add(line);
+        }
+      });
+    }
+
+    // 建立空間邊界框
+    function buildBoundingBox() {
+      bboxGroup.clear();
+      const xMin = lonToX(b.lon_min), xMax = lonToX(b.lon_max);
+      const zMin = latToZ(b.lat_max), zMax = latToZ(b.lat_min); // 緯度遞增方向在 -Z
+      const yTop = 0.0;
+      const yBot = depthToY(maxDisplayDepth);
+
+      const boxGeom = new THREE.BoxGeometry(xMax - xMin, yTop - yBot, zMax - zMin);
+      const wireGeom = new THREE.WireframeGeometry(boxGeom);
+      const wireMat = new THREE.LineBasicMaterial({ color: 0x30363d, linewidth: 1 });
+      const line = new THREE.LineSegments(wireGeom, wireMat);
+      line.position.set((xMin + xMax) / 2.0, (yTop + yBot) / 2.0, (zMin + zMax) / 2.0);
+      bboxGroup.add(line);
+    }
+
+    // 視角切換控制
+    function setCameraView(view) {
+      if (view === "perspective") {
+        camera.position.set(0, 100, 160);
+        controls.target.set(0, depthToY(500), 0);
+      } else if (view === "top") {
+        camera.position.set(0, 220, 0);
+        controls.target.set(0, 0, 0);
+      } else if (view === "ew") {
+        // 從正南方朝正北觀看 (東西剖面)
+        camera.position.set(0, depthToY(500), 180);
+        controls.target.set(0, depthToY(500), 0);
+      } else if (view === "ns") {
+        // 從正東方朝正西觀看 (南北剖面)
+        camera.position.set(180, depthToY(500), 0);
+        controls.target.set(0, depthToY(500), 0);
+      }
+      controls.update();
+    }
+
+    // 更新圖層與參數
+    function updateDepthFilter(val) {
+      maxDisplayDepth = parseFloat(val);
+      document.getElementById("depth-val").innerText = val;
+      buildPointCloud();
+      buildBoreholes();
+      buildBedrockSurface();
+      buildBoundingBox();
+    }
+
+    function updateZScale(val) {
+      zExaggeration = parseFloat(val);
+      document.getElementById("z-scale-val").innerText = val + "x";
+      buildPointCloud();
+      buildBoreholes();
+      buildBedrockSurface();
+      buildFaults();
+      buildBoundingBox();
+    }
+
+    function toggleBoreholes(checked) { boreholeGroup.visible = checked; }
+    function toggleBedrock(checked) { bedrockGroup.visible = checked; }
+    function toggleFaults(checked) { faultGroup.visible = checked; }
+    function toggleBoundingBox(checked) { bboxGroup.visible = checked; }
+
+    function toggleAllLith(state) {
+      Object.keys(activeLithMask).forEach(k => {
+        activeLithMask[k] = state;
+        const cb = document.getElementById("cb-lith-" + k);
+        if (cb) cb.checked = state;
+      });
+      buildPointCloud();
+    }
+
+    // 初始化岩性切換列表
+    const lithListDiv = document.getElementById("lith-layers-list");
+    Object.keys(LITH_META).forEach(lid => {
+      const meta = LITH_META[lid];
+      const row = document.createElement("label");
+      row.className = "layer-item";
+      row.innerHTML = `
+        <input type="checkbox" id="cb-lith-${lid}" checked onchange="toggleLith(${lid}, this.checked)">
+        <span class="color-dot" style="background: ${meta.color};"></span>
+        <span>${meta.name}</span>
+      `;
+      lithListDiv.appendChild(row);
+    });
+
+    window.toggleLith = function(lid, checked) {
+      activeLithMask[lid] = checked;
+      buildPointCloud();
+    };
+
+    // 射線檢測互動 Tooltip
+    const raycaster = new THREE.Raycaster();
+    raycaster.params.Points.threshold = 1.8;
+    const mouse = new THREE.Vector2();
+    const tooltip = document.getElementById("tooltip");
+
+    window.addEventListener("mousemove", (e) => {
+      const rect = renderer.domElement.getBoundingClientRect();
+      mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+
+      raycaster.setFromCamera(mouse, camera);
+
+      // 1. 優先檢測鑽井
+      const wellHits = raycaster.intersectObjects(boreholeGroup.children);
+      if (wellHits.length > 0) {
+        const item = wellHits[0].object.userData;
+        if (item && item.type === "borehole") {
+          const w = item.data;
+          tooltip.style.display = "block";
+          tooltip.style.left = (e.clientX + 14) + "px";
+          tooltip.style.top = (e.clientY + 14) + "px";
+          tooltip.innerHTML = `
+            <b>水文觀測井: ${w.name} (${w.id})</b><br>
+            行政區: <b>${w.city}</b> | 地質分區: <b>${w.wsect}</b><br>
+            鑽探總深度: <span style="color: #00d2ff; font-weight: bold;">${w.depth} m</span><br>
+            測站地表高程: <b>${w.elev} m</b><br>
+            座標: ${w.lon}°E, ${w.lat}°N
+          `;
+          return;
+        }
+      }
+
+      // 2. 檢測斷層
+      const faultHits = raycaster.intersectObjects(faultGroup.children);
+      if (faultHits.length > 0) {
+        const item = faultHits[0].object.userData;
+        if (item && item.type === "fault") {
+          tooltip.style.display = "block";
+          tooltip.style.left = (e.clientX + 14) + "px";
+          tooltip.style.top = (e.clientY + 14) + "px";
+          tooltip.innerHTML = `
+            <b style="color: #ff3333;">主要活動斷層</b><br>
+            名稱: <b>${item.name}</b><br>
+            性質: 東傾逆衝斷層帶 / 構造邊界
+          `;
+          return;
+        }
+      }
+
+      // 3. 檢測體素點雲
+      if (pointCloud) {
+        const ptHits = raycaster.intersectObject(pointCloud);
+        if (ptHits.length > 0) {
+          const geomIdx = ptHits[0].index;
+          const validIndices = pointCloud.geometry.userData.validIndices;
+          const originalIdx = validIndices ? validIndices[geomIdx] : geomIdx;
+          const pt = data.points[originalIdx];
+          if (pt) {
+            tooltip.style.display = "block";
+            tooltip.style.left = (e.clientX + 14) + "px";
+            tooltip.style.top = (e.clientY + 14) + "px";
+            const lithName = NAME_MAP[pt[3]] || "Unknown";
+            tooltip.innerHTML = `
+              <b>深度: ${pt[2]} m</b> (${pt[2] <= 300 ? '鑽孔檢驗區' : '構造外推基底區'})<br>
+              預測岩性: <span style="color: #58a6ff; font-weight: bold;">${lithName}</span><br>
+              剪力波速 Vs: <b>${pt[4]} m/s</b><br>
+              AI 信心度: <b>${(pt[5]*100).toFixed(0)}%</b><br>
+              經緯度: ${pt[0]}°E, ${pt[1]}°N
+            `;
+            return;
+          }
+        }
+      }
+
+      tooltip.style.display = "none";
+    });
+
+    window.addEventListener("resize", () => {
+      camera.aspect = container.clientWidth / container.clientHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(container.clientWidth, container.clientHeight);
+    });
+
+    // 啟動建構
+    buildPointCloud();
+    buildBoreholes();
+    buildBedrockSurface();
+    buildFaults();
+    buildBoundingBox();
+    setCameraView("perspective");
+
+    // 動畫迴圈
+    function animate() {
+      requestAnimationFrame(animate);
+      controls.update();
+      renderer.render(scene, camera);
+    }
+    animate();
+  </script>
+</body>
+</html>

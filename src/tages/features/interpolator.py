@@ -9,6 +9,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from scipy.spatial import cKDTree
+
 class VelocityModel3D:
     def __init__(self, velocity_csv_path: str | Path, k_neighbors: int = 8, p_power: float = 2.0):
         df = pd.read_csv(velocity_csv_path)
@@ -22,34 +24,26 @@ class VelocityModel3D:
         
         self.vp = df["vp_ms"].values
         self.vs = df["vs_ms"].values
-        self.k = k_neighbors
+        self.k = min(k_neighbors, len(df))
         self.p = p_power
+        self.tree = cKDTree(self.coords_scaled)
         
     def _idw_interpolate(self, query_scaled: np.ndarray, values: np.ndarray) -> np.ndarray:
-        """向量化 3D 反距離權重插值 (Inverse Distance Weighting)。"""
-        # query_scaled: (M, 3), coords_scaled: (N, 3)
-        # 計算歐式距離矩陣
-        dists = np.linalg.norm(query_scaled[:, np.newaxis, :] - self.coords_scaled[np.newaxis, :, :], axis=2)
+        """使用 cKDTree 進行 3D 反距離權重插值 (Inverse Distance Weighting)，低記憶體且高效。"""
+        # dists: (M, k), idxs: (M, k)
+        dists, idxs = self.tree.query(query_scaled, k=self.k, workers=-1)
         
-        # 檢查是否有距離為 0 的精確命中
-        exact_match = dists < 1e-4
-        has_exact = np.any(exact_match, axis=1)
-        
-        # 取最近 k 個鄰居
-        k_idx = np.argsort(dists, axis=1)[:, :self.k]
-        rows = np.arange(len(query_scaled))[:, np.newaxis]
-        
-        top_dists = dists[rows, k_idx]
-        top_vals = values[k_idx]
-        
-        weights = 1.0 / np.maximum(top_dists, 1e-4) ** self.p
+        if self.k == 1:
+            return values[idxs]
+            
+        weights = 1.0 / np.maximum(dists, 1e-4) ** self.p
         weights_sum = np.sum(weights, axis=1, keepdims=True)
-        interp = np.sum(weights * top_vals, axis=1) / weights_sum.squeeze()
+        interp = np.sum(weights * values[idxs], axis=1) / weights_sum.squeeze()
         
-        # 精確命中補正
-        if np.any(has_exact):
-            exact_indices = np.argmax(exact_match[has_exact], axis=1)
-            interp[has_exact] = values[exact_indices]
+        # 若最近鄰居距離極近 (< 1e-4)，直接採用最近鄰居的值
+        exact_mask = dists[:, 0] < 1e-4
+        if np.any(exact_mask):
+            interp[exact_mask] = values[idxs[exact_mask, 0]]
             
         return interp
 

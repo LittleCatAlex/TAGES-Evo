@@ -22,6 +22,7 @@ data/chart_photos/
 # Intermediate & Processed Data Exclusions
 data/interim/*
 !data/interim/chiayi_velocity_3d.csv
+!data/interim/chianan_velocity_3d.csv
 !data/interim/hydro_boreholes.csv
 !data/interim/hydro_strata.csv
 !data/interim/chiayi_manifest.csv

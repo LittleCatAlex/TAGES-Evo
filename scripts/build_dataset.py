@@ -22,7 +22,7 @@ from tages.geo.crs import convert
 def build_dataset(
     boreholes_path: str = "data/interim/hydro_boreholes.csv",
     strata_path: str = "data/interim/hydro_strata.csv",
-    velocity_grid_path: str = "data/interim/chiayi_velocity_3d.csv",
+    velocity_grid_path: str = "data/interim/chianan_velocity_3d.csv",
     out_dir: str = "data/processed",
     sample_step_m: float = 1.0  # 厚地層每隔多少公尺取樣一點
 ):
