@@ -122,4 +122,19 @@ def build_dataset(
     return df_samples
 
 if __name__ == "__main__":
-    build_dataset()
+    import argparse
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--boreholes", default="data/interim/taiwan_boreholes.csv", help="觀測井檔案")
+    ap.add_argument("--strata", default="data/interim/taiwan_strata.csv", help="地層紀錄檔案")
+    ap.add_argument("--velocity", default="data/interim/taiwan_velocity_3d.csv", help="3D 震波速度網格")
+    ap.add_argument("--out", default="data/processed", help="輸出資料夾")
+    ap.add_argument("--step", type=float, default=1.0, help="厚地層深度採樣步長(m)")
+    args = ap.parse_args()
+
+    build_dataset(
+        boreholes_path=args.boreholes,
+        strata_path=args.strata,
+        velocity_grid_path=args.velocity,
+        out_dir=args.out,
+        sample_step_m=args.step
+    )

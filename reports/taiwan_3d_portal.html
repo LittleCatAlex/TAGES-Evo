@@ -1,0 +1,1056 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TAGES-Evo — 臺灣地下 3D 地體結構數位分身系統 (全島 2D 門戶與區域超高密度 3D 檢視器)</title>
+  
+  <!-- Leaflet 2D GIS 地圖庫 -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- Three.js 3D 渲染庫 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+  <!-- 全島數據包 -->
+  <script src="taiwan_portal_data.js"></script>
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: #0d1117;
+      color: #c9d1d9;
+      overflow: hidden;
+      height: 100vh;
+      width: 100vw;
+    }
+
+    /* 視圖切換容器 */
+    #portal-container {
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+
+    /* =========================================
+       模式 1: 2D GIS 地圖門戶 (Map Portal)
+       ========================================= */
+    #view-map-portal {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 10;
+      transition: opacity 0.3s ease;
+    }
+
+    #map-sidebar {
+      width: 400px;
+      height: 100%;
+      background: #161b22;
+      border-right: 1px solid #30363d;
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      overflow-y: auto;
+      z-index: 20;
+      box-shadow: 4px 0 20px rgba(0,0,0,0.6);
+    }
+
+    #map-canvas-container {
+      flex: 1;
+      height: 100%;
+      position: relative;
+    }
+
+    #leaflet-map {
+      width: 100%;
+      height: 100%;
+      background: #090d13;
+    }
+
+    /* =========================================
+       模式 2: 3D 立體地體檢視器 (3D Engine)
+       ========================================= */
+    #view-3d-engine {
+      width: 100%;
+      height: 100%;
+      display: none;
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 15;
+    }
+
+    #canvas-container-3d {
+      flex: 1;
+      height: 100%;
+      position: relative;
+    }
+
+    #sidebar-3d {
+      width: 380px;
+      height: 100%;
+      background: #161b22;
+      border-left: 1px solid #30363d;
+      padding: 16px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      box-shadow: -4px 0 20px rgba(0,0,0,0.6);
+      z-index: 25;
+    }
+
+    /* 頂部導航條 */
+    #nav-bar-3d {
+      position: absolute;
+      top: 14px;
+      left: 14px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      z-index: 30;
+    }
+
+    .btn-back {
+      background: #238636;
+      color: #fff;
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 6px;
+      padding: 8px 14px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+      transition: background 0.15s, transform 0.1s;
+    }
+    .btn-back:hover { background: #2ea043; transform: translateY(-1px); }
+
+    .badge-roi-title {
+      background: rgba(22, 27, 34, 0.9);
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      padding: 8px 14px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #58a6ff;
+      backdrop-filter: blur(4px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    }
+
+    /* 通用 UI 元件 */
+    h1 {
+      font-size: 1.15rem;
+      color: #58a6ff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .badge {
+      font-size: 0.7rem;
+      background: #238636;
+      color: #fff;
+      padding: 2px 6px;
+      border-radius: 10px;
+      font-weight: bold;
+    }
+    .subtitle {
+      font-size: 0.78rem;
+      color: #8b949e;
+      line-height: 1.4;
+    }
+    .panel-section {
+      background: #21262d;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      padding: 12px;
+    }
+    .section-title {
+      font-size: 0.84rem;
+      font-weight: 600;
+      color: #f0f6fc;
+      margin-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .btn-preset {
+      width: 100%;
+      text-align: left;
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      padding: 8px 10px;
+      color: #c9d1d9;
+      font-size: 0.78rem;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      transition: all 0.15s;
+      margin-bottom: 6px;
+    }
+    .btn-preset:hover, .btn-preset.active {
+      border-color: #58a6ff;
+      background: #1f2937;
+      color: #58a6ff;
+    }
+    .btn-preset .preset-name {
+      font-weight: 600;
+      font-size: 0.82rem;
+    }
+    .btn-preset .preset-desc {
+      font-size: 0.7rem;
+      color: #8b949e;
+    }
+    .btn-launch {
+      width: 100%;
+      background: #1f6feb;
+      color: #fff;
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 6px;
+      padding: 10px;
+      font-size: 0.88rem;
+      font-weight: bold;
+      cursor: pointer;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 6px;
+      margin-top: 6px;
+      box-shadow: 0 4px 14px rgba(31, 111, 235, 0.4);
+      transition: background 0.15s, transform 0.1s;
+    }
+    .btn-launch:hover { background: #388bfd; transform: translateY(-1px); }
+
+    .slider-row {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-top: 6px;
+      font-size: 0.76rem;
+    }
+    .slider-row input[type="range"] {
+      width: 100%;
+      accent-color: #58a6ff;
+    }
+    .stat-badge {
+      font-family: monospace;
+      color: #79c0ff;
+    }
+    .layer-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.76rem;
+      padding: 3px 0;
+      cursor: pointer;
+    }
+    .color-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 2px;
+      border: 1px solid rgba(255,255,255,0.2);
+    }
+    .btn-group {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      margin-top: 6px;
+    }
+    button.secondary {
+      background: #21262d;
+      border: 1px solid #30363d;
+      color: #c9d1d9;
+      border-radius: 6px;
+      padding: 6px 10px;
+      font-size: 0.75rem;
+      cursor: pointer;
+    }
+    button.secondary:hover { background: #30363d; border-color: #8b949e; }
+
+    /* Tooltip 與 HUD */
+    #tooltip-3d {
+      position: absolute;
+      display: none;
+      background: rgba(13, 17, 23, 0.95);
+      border: 1px solid #58a6ff;
+      border-radius: 6px;
+      padding: 8px 12px;
+      font-size: 0.76rem;
+      pointer-events: none;
+      z-index: 50;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.7);
+      line-height: 1.4;
+    }
+  </style>
+</head>
+<body>
+  <div id="portal-container">
+
+    <!-- =========================================
+         模式 1: 2D GIS 地圖門戶 (Map Portal)
+         ========================================= -->
+    <div id="view-map-portal">
+      <div id="map-sidebar">
+        <div>
+          <h1>TAGES-Evo <span class="badge">Taiwan GIS</span></h1>
+          <div class="subtitle" style="margin-top: 4px;">
+            臺灣全島 3D 地質結構數位分身系統。請在右側地圖上<b>點選主要地質分區</b>或<b>自由框選目標範圍</b>，即可一鍵進入超高密度 3D 立體地體檢視！
+          </div>
+        </div>
+
+        <!-- 選擇主要地質分區 (一鍵定位與框選) -->
+        <div class="panel-section">
+          <div class="section-title">臺灣主要平原與盆地預設 (點擊定位)</div>
+          <div id="basins-list"></div>
+        </div>
+
+        <!-- 框選範圍資訊與密度設定 -->
+        <div class="panel-section">
+          <div class="section-title">當前查詢範圍 (ROI)</div>
+          <div style="font-size: 0.75rem; line-height: 1.5; color: #8b949e;">
+            <div>經度範圍: <span id="roi-lon" class="stat-badge">120.08° ~ 120.60°E</span></div>
+            <div>緯度範圍: <span id="roi-lat" class="stat-badge">23.15° ~ 23.65°N</span></div>
+            <div>範圍內深井: <span id="roi-wells" class="stat-badge">27 口</span> (全島共 423 口)</div>
+          </div>
+          <div class="slider-row" style="margin-top: 8px;">
+            <span>3D 渲染體素密度: <span id="density-name" class="stat-badge">高密度 (High-Dense)</span></span>
+            <select id="select-density" style="background: #161b22; color: #c9d1d9; border: 1px solid #30363d; border-radius: 4px; padding: 4px; font-size: 0.76rem;">
+              <option value="ultra">💎 超高密度 (Ultra-Dense, 緻密實體塊體)</option>
+              <option value="high" selected>⚡ 高密度 (High-Dense, 平衡解析度)</option>
+              <option value="standard">🚀 標準密度 (Standard, 快速預覽)</option>
+            </select>
+          </div>
+          <button class="btn-launch" onclick="launch3DViewer()">
+            ✨ 進入 3D 立體地體互動檢視
+          </button>
+        </div>
+
+        <!-- 全島地質圖資圖例 -->
+        <div class="panel-section">
+          <div class="section-title">全島圖層與地質觀測網</div>
+          <div style="font-size: 0.75rem; color: #8b949e; line-height: 1.6;">
+            <div>🟢 深層觀測井 (&lt;100m) | 🔵 (100~200m) | 🟠 (200~300m) | 🔴 (&gt;300m)</div>
+            <div>⚡ 紅色/橘色粗線: 全台 9 大主要活動斷層帶 (車籠埔、觸口、梅山等)</div>
+            <div>🔲 藍色虛線方框: 預設地質平原/盆地可查詢三維體素範圍</div>
+          </div>
+        </div>
+      </div>
+
+      <div id="map-canvas-container">
+        <div id="leaflet-map"></div>
+      </div>
+    </div>
+
+    <!-- =========================================
+         模式 2: 3D 立體地體檢視器 (3D Engine)
+         ========================================= -->
+    <div id="view-3d-engine">
+      <div id="nav-bar-3d">
+        <button class="btn-back" onclick="backToMap()">
+          ◀ 返回全台地圖選擇其他區域
+        </button>
+        <div class="badge-roi-title" id="badge-basin-name">
+          嘉南平原 (Chianan Plain) 3D 地下地體結構模型
+        </div>
+      </div>
+
+      <div id="canvas-container-3d">
+        <div id="tooltip-3d"></div>
+      </div>
+
+      <div id="sidebar-3d">
+        <div>
+          <h1>3D Subsurface <span class="badge" id="badge-voxel-tag">High-Density</span></h1>
+          <div class="subtitle" style="margin-top: 4px;">
+            高解析度三維地下岩性體素、深井柱狀圖與深部構造基盤曲面。
+          </div>
+        </div>
+
+        <!-- 視角切換 -->
+        <div class="panel-section">
+          <div class="section-title">立體視角切換</div>
+          <div class="btn-group">
+            <button class="secondary" onclick="setCameraView('perspective')">3D 鳥瞰視角</button>
+            <button class="secondary" onclick="setCameraView('top')">地圖俯視圖</button>
+            <button class="secondary" onclick="setCameraView('ew')">東西向地質剖面</button>
+            <button class="secondary" onclick="setCameraView('ns')">南北向地質剖面</button>
+          </div>
+        </div>
+
+        <!-- 體素解析度與大小 (解決太疏問題！) -->
+        <div class="panel-section">
+          <div class="section-title">體素大小與密度調節</div>
+          <div class="slider-row">
+            <span>體素點大小: <span id="pt-size-val" class="stat-badge">4.0 px</span> (調大形成實體連續地層)</span>
+            <input type="range" id="pt-size-slider" min="1.0" max="8.0" step="0.5" value="4.0" oninput="updatePointSize(this.value)">
+          </div>
+          <div class="slider-row" style="margin-top: 6px;">
+            <span>最大顯示深度: <span id="depth-val" class="stat-badge">1000</span> m</span>
+            <input type="range" id="depth-slider" min="50" max="1000" step="25" value="1000" oninput="updateDepthFilter(this.value)">
+          </div>
+          <div class="slider-row" style="margin-top: 6px;">
+            <span>Z 軸垂直放大: <span id="z-scale-val" class="stat-badge">20x</span></span>
+            <input type="range" id="z-scale-slider" min="5" max="50" step="5" value="20" oninput="updateZScale(this.value)">
+          </div>
+        </div>
+
+        <!-- 物件圖層開關 -->
+        <div class="panel-section">
+          <div class="section-title">地體構造與地質物件</div>
+          <label class="layer-item">
+            <input type="checkbox" id="toggle-wells" checked onchange="toggleBoreholes(this.checked)">
+            <span>真實深層觀測井柱狀圖 (Boreholes)</span>
+          </label>
+          <label class="layer-item">
+            <input type="checkbox" id="toggle-bedrock" checked onchange="toggleBedrock(this.checked)">
+            <span>聲學與第三紀基盤曲面 (Bedrock Mesh)</span>
+          </label>
+          <label class="layer-item">
+            <input type="checkbox" id="toggle-faults" checked onchange="toggleFaults(this.checked)">
+            <span>立體活動斷層剪切面 (3D Fault Walls)</span>
+          </label>
+          <label class="layer-item">
+            <input type="checkbox" id="toggle-bbox" checked onchange="toggleBoundingBox(this.checked)">
+            <span>空間座標邊界外框 (Bounding Box)</span>
+          </label>
+        </div>
+
+        <!-- 10 類岩性圖層過濾 -->
+        <div class="panel-section">
+          <div class="section-title">
+            <span>L2 規範地層岩性 (10 類)</span>
+            <button class="secondary" style="padding: 2px 6px; font-size: 0.7rem;" onclick="toggleAllLith(true)">全選</button>
+          </div>
+          <div id="lith-layers-list"></div>
+        </div>
+
+        <!-- 統計數據摘要 -->
+        <div class="panel-section">
+          <div class="section-title">區域模型統計</div>
+          <div style="font-size: 0.74rem; line-height: 1.6; color: #8b949e;">
+            <div>當前渲染體素: <span class="stat-badge" id="voxel-count">0</span> 點</div>
+            <div>範圍內深井: <span class="stat-badge" id="well-count">0</span> 口</div>
+            <div>震波約束: <span class="stat-badge">中研院 TEC LEE2025</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // 檢查數據載入
+    const portalData = window.TAIWAN_PORTAL_DATA || {
+      boreholes: [],
+      faults: [],
+      basins_meta: {},
+      basins_voxels: {}
+    };
+
+    // 10 類地質規範色表 (L2 10 類)
+    const LITH_META = {
+      1: { name: "表土 / 回填土 (Topsoil)", color: "#D2B48C" },
+      2: { name: "黏土 / 泥 (Clay/Mud)", color: "#8B4513" },
+      3: { name: "粉土 (Silt)", color: "#CD853F" },
+      4: { name: "細砂 (Fine Sand)", color: "#FFD700" },
+      5: { name: "粗砂 (Coarse Sand)", color: "#DAA520" },
+      6: { name: "砂泥互層 (Sand-Mud Mixed)", color: "#B8860B" },
+      7: { name: "厚礫石層 (Gravel)", color: "#708090" },
+      8: { name: "泥岩 / 頁岩軟岩 (Mudstone)", color: "#4682B4" },
+      9: { name: "固結砂岩 (Sandstone)", color: "#2E8B57" },
+      10: { name: "結晶基盤 (Basement)", color: "#1C3144" }
+    };
+
+    let selectedBasinKey = "chianan";
+    let activeROI = portalData.basins_meta["chianan"] ? portalData.basins_meta["chianan"].bounds : [120.08, 23.15, 120.60, 23.65];
+
+    // =========================================
+    // 1. 初始化 Leaflet 2D 地圖門戶
+    // =========================================
+    const map = L.map('leaflet-map', {
+      center: [23.8, 120.9],
+      zoom: 8,
+      zoomControl: true
+    });
+
+    // 暗黑系底圖
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+      subdomains: 'abcd',
+      maxZoom: 19
+    }).addTo(map);
+
+    // 繪製全台活動斷層
+    const faultLayer = L.layerGroup().addTo(map);
+    (portalData.faults || []).forEach(f => {
+      const latlngs = f.coords.map(c => [c[1], c[0]]);
+      const line = L.polyline(latlngs, {
+        color: f.color || '#ff3333',
+        weight: 3.5,
+        opacity: 0.85
+      }).addTo(faultLayer);
+      line.bindPopup(`<b>${f.name}</b><br>分區: ${f.region}`);
+    });
+
+    // 繪製全台 423 口深層水文地質觀測井
+    const wellLayer = L.layerGroup().addTo(map);
+    function getWellColor(depth) {
+      if (depth >= 300) return '#ff3333';
+      if (depth >= 200) return '#ffaa00';
+      if (depth >= 100) return '#00ddff';
+      return '#00ff88';
+    }
+
+    (portalData.boreholes || []).forEach(w => {
+      const circle = L.circleMarker([w.lat, w.lon], {
+        radius: 4,
+        fillColor: getWellColor(w.depth),
+        color: '#ffffff',
+        weight: 0.8,
+        opacity: 0.9,
+        fillOpacity: 0.85
+      }).addTo(wellLayer);
+
+      circle.bindPopup(`
+        <b>觀測井: ${w.name} (${w.id})</b><br>
+        縣市: <b>${w.city}</b> | 地質水區: <b>${w.wsect}</b><br>
+        鑽探深度: <span style="color: #00ddff; font-weight: bold;">${w.depth} m</span><br>
+        地表高程: <b>${w.elev} m</b> | 年份: ${w.year}<br>
+        座標: ${w.lon}°E, ${w.lat}°N
+      `);
+    });
+
+    // 繪製六大盆地邊界矩形與列表
+    const basinBoxLayers = {};
+    const basinListDiv = document.getElementById("basins-list");
+
+    Object.keys(portalData.basins_meta || {}).forEach(k => {
+      const b = portalData.basins_meta[k];
+      const bounds = [[b.bounds[1], b.bounds[0]], [b.bounds[3], b.bounds[2]]];
+      
+      const rect = L.rectangle(bounds, {
+        color: '#58a6ff',
+        weight: 1.8,
+        dashArray: '5, 5',
+        fillColor: '#1f6feb',
+        fillOpacity: k === selectedBasinKey ? 0.25 : 0.08
+      }).addTo(map);
+
+      rect.bindTooltip(b.name, { permanent: false, direction: 'center' });
+      rect.on('click', () => selectBasin(k));
+      basinBoxLayers[k] = rect;
+
+      // 側邊欄按鈕
+      const btn = document.createElement("div");
+      btn.className = `btn-preset ${k === selectedBasinKey ? 'active' : ''}`;
+      btn.id = `btn-preset-${k}`;
+      btn.innerHTML = `
+        <div class="preset-name">${b.name}</div>
+        <div class="preset-desc">${b.desc}</div>
+      `;
+      btn.onclick = () => selectBasin(k);
+      basinListDiv.appendChild(btn);
+    });
+
+    function selectBasin(key) {
+      selectedBasinKey = key;
+      const b = portalData.basins_meta[key];
+      if (!b) return;
+
+      activeROI = b.bounds;
+      document.getElementById("roi-lon").innerText = `${b.bounds[0]}° ~ ${b.bounds[2]}°E`;
+      document.getElementById("roi-lat").innerText = `${b.bounds[1]}° ~ ${b.bounds[3]}°N`;
+
+      // 計算範圍內井數
+      const count = (portalData.boreholes || []).filter(w =>
+        w.lon >= b.bounds[0] && w.lon <= b.bounds[2] &&
+        w.lat >= b.bounds[1] && w.lat <= b.bounds[3]
+      ).length;
+      document.getElementById("roi-wells").innerText = `${count} 口`;
+
+      // 更新按鈕與矩形樣式
+      document.querySelectorAll(".btn-preset").forEach(el => el.classList.remove("active"));
+      const btn = document.getElementById(`btn-preset-${key}`);
+      if (btn) btn.classList.add("active");
+
+      Object.keys(basinBoxLayers).forEach(bk => {
+        basinBoxLayers[bk].setStyle({
+          fillOpacity: bk === key ? 0.25 : 0.08,
+          color: bk === key ? '#58a6ff' : '#30363d'
+        });
+      });
+
+      // 平滑飛至該盆地
+      map.flyToBounds([[b.bounds[1], b.bounds[0]], [b.bounds[3], b.bounds[2]]], { padding: [40, 40], duration: 1.2 });
+    }
+
+    // 初始化選中第一個盆地 (嘉南)
+    selectBasin("chianan");
+
+    // =========================================
+    // 2. 視圖切換與 3D 引擎啟動
+    // =========================================
+    function launch3DViewer() {
+      document.getElementById("view-map-portal").style.display = "none";
+      const view3d = document.getElementById("view-3d-engine");
+      view3d.style.display = "flex";
+
+      const bMeta = portalData.basins_meta[selectedBasinKey] || { name: "自訂查詢區域" };
+      document.getElementById("badge-basin-name").innerText = `${bMeta.name} 3D 地下地體結構模型 (0 ~ 1,000m)`;
+
+      // 初始化或重建 3D 場景
+      initOrUpdate3DScene(selectedBasinKey);
+    }
+
+    function backToMap() {
+      document.getElementById("view-3d-engine").style.display = "none";
+      document.getElementById("view-map-portal").style.display = "flex";
+      map.invalidateSize();
+    }
+
+    // =========================================
+    // 3. Three.js 3D 立體地體渲染核心 (超高密度)
+    // =========================================
+    let scene3d, camera3d, renderer3d, controls3d;
+    let pointCloudGroup, boreholeGroup, bedrockGroup, faultGroup, bboxGroup;
+    let pointCloud = null;
+    let currentBasinData = null;
+
+    let pointSize = 4.0;
+    let maxDisplayDepth = 1000.0;
+    let zExaggeration = 20.0;
+    const activeLithMask = {};
+    Object.keys(LITH_META).forEach(k => { activeLithMask[k] = true; });
+
+    const container3d = document.getElementById("canvas-container-3d");
+
+    function init3DBase() {
+      if (scene3d) return;
+
+      scene3d = new THREE.Scene();
+      scene3d.background = new THREE.Color(0x0d1117);
+
+      camera3d = new THREE.PerspectiveCamera(45, container3d.clientWidth / container3d.clientHeight, 0.5, 3000);
+      renderer3d = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+      renderer3d.setSize(container3d.clientWidth, container3d.clientHeight);
+      renderer3d.setPixelRatio(window.devicePixelRatio);
+      container3d.appendChild(renderer3d.domElement);
+
+      controls3d = new THREE.OrbitControls(camera3d, renderer3d.domElement);
+      controls3d.enableDamping = true;
+      controls3d.dampingFactor = 0.08;
+
+      const ambient = new THREE.AmbientLight(0xffffff, 0.85);
+      scene3d.add(ambient);
+      const dirLight = new THREE.DirectionalLight(0xffffff, 0.75);
+      dirLight.position.set(60, 120, 60);
+      scene3d.add(dirLight);
+
+      pointCloudGroup = new THREE.Group();
+      boreholeGroup = new THREE.Group();
+      bedrockGroup = new THREE.Group();
+      faultGroup = new THREE.Group();
+      bboxGroup = new THREE.Group();
+      scene3d.add(pointCloudGroup);
+      scene3d.add(boreholeGroup);
+      scene3d.add(bedrockGroup);
+      scene3d.add(faultGroup);
+      scene3d.add(bboxGroup);
+
+      // 視窗縮放監聽
+      window.addEventListener("resize", () => {
+        if (renderer3d && container3d) {
+          camera3d.aspect = container3d.clientWidth / container3d.clientHeight;
+          camera3d.updateProjectionMatrix();
+          renderer3d.setSize(container3d.clientWidth, container3d.clientHeight);
+        }
+      });
+
+      // 初始化射線檢測
+      initRaycasting();
+
+      function animate() {
+        requestAnimationFrame(animate);
+        if (controls3d) controls3d.update();
+        if (renderer3d && scene3d && camera3d) renderer3d.render(scene3d, camera3d);
+      }
+      animate();
+    }
+
+    function initOrUpdate3DScene(basinKey) {
+      init3DBase();
+
+      currentBasinData = portalData.basins_voxels[basinKey];
+      if (!currentBasinData) {
+        alert("尚未生成該區域的 3D 體素數據！");
+        return;
+      }
+
+      // 重設深度滑桿上限
+      const maxD = currentBasinData.bounds.depth_max || 1000.0;
+      document.getElementById("depth-slider").max = maxD;
+      document.getElementById("depth-slider").value = maxD;
+      maxDisplayDepth = maxD;
+      document.getElementById("depth-val").innerText = maxD;
+
+      // 構建物件
+      build3DPointCloud();
+      build3DBoreholes(currentBasinData.bounds);
+      build3DBedrock();
+      build3DFaults(currentBasinData.bounds);
+      build3DBoundingBox(currentBasinData.bounds);
+      setCameraView("perspective");
+    }
+
+    // 空間座標歸一化
+    const SCENE_WIDTH = 120.0;
+
+    function getCoordsHelper(b) {
+      const centerLon = (b.lon_min + b.lon_max) / 2.0;
+      const centerLat = (b.lat_min + b.lat_max) / 2.0;
+      const lonSpan = Math.max(1e-4, b.lon_max - b.lon_min);
+      const latSpan = Math.max(1e-4, b.lat_max - b.lat_min);
+      const sceneLength = SCENE_WIDTH * (latSpan / lonSpan);
+      const sceneDepthBase = 8.0;
+
+      return {
+        lonToX: (lon) => ((lon - centerLon) / lonSpan) * SCENE_WIDTH,
+        latToZ: (lat) => -((lat - centerLat) / latSpan) * sceneLength,
+        depthToY: (d) => -(d / 1000.0) * sceneDepthBase * (zExaggeration / 10.0),
+        sceneLength
+      };
+    }
+
+    // 建立超高密度點雲
+    function build3DPointCloud() {
+      if (!currentBasinData) return;
+      pointCloudGroup.clear();
+
+      const b = currentBasinData.bounds;
+      const ch = getCoordsHelper(b);
+      const pts = currentBasinData.points || [];
+
+      const positions = [];
+      const colors = [];
+      const validIndices = [];
+
+      pts.forEach((pt, idx) => {
+        const [lon, lat, depth, lid, vs, conf] = pt;
+        if (!activeLithMask[lid]) return;
+        if (depth > maxDisplayDepth) return;
+
+        const x = ch.lonToX(lon);
+        const y = ch.depthToY(depth);
+        const z = ch.latToZ(lat);
+
+        positions.push(x, y, z);
+        const col = new THREE.Color(LITH_META[lid] ? LITH_META[lid].color : "#ffffff");
+        colors.push(col.r, col.g, col.b);
+        validIndices.push(idx);
+      });
+
+      const geom = new THREE.BufferGeometry();
+      geom.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+      geom.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
+      geom.userData = { validIndices };
+
+      // 使用較大點徑 (Point Size) 消除空隙，形成緊實連續地體！
+      const mat = new THREE.PointsMaterial({
+        size: pointSize,
+        vertexColors: true,
+        transparent: true,
+        opacity: 0.92
+      });
+
+      pointCloud = new THREE.Points(geom, mat);
+      pointCloudGroup.add(pointCloud);
+
+      document.getElementById("voxel-count").innerText = (positions.length / 3).toLocaleString();
+    }
+
+    // 建立範圍內深井柱體
+    function build3DBoreholes(b) {
+      boreholeGroup.clear();
+      const ch = getCoordsHelper(b);
+      const wells = (portalData.boreholes || []).filter(w =>
+        w.lon >= b.lon_min - 0.02 && w.lon <= b.lon_max + 0.02 &&
+        w.lat >= b.lat_min - 0.02 && w.lat <= b.lat_max + 0.02
+      );
+      document.getElementById("well-count").innerText = wells.length;
+
+      wells.forEach(w => {
+        const x = ch.lonToX(w.lon);
+        const z = ch.latToZ(w.lat);
+        const wellD = Math.min(w.depth, maxDisplayDepth);
+        const yTop = 0.5;
+        const yBot = ch.depthToY(wellD);
+        const height = Math.abs(yTop - yBot);
+
+        const cylGeom = new THREE.CylinderGeometry(0.6, 0.6, height, 12);
+        const cylMat = new THREE.MeshStandardMaterial({ color: 0x00d2ff, roughness: 0.4 });
+        const mesh = new THREE.Mesh(cylGeom, cylMat);
+        mesh.position.set(x, (yTop + yBot) / 2.0, z);
+        mesh.userData = { type: "borehole", data: w };
+        boreholeGroup.add(mesh);
+
+        const sphereGeom = new THREE.SphereGeometry(1.0, 12, 12);
+        const sphereMat = new THREE.MeshBasicMaterial({ color: 0xffcc00 });
+        const sphere = new THREE.Mesh(sphereGeom, sphereMat);
+        sphere.position.set(x, yTop + 0.5, z);
+        sphere.userData = { type: "borehole", data: w };
+        boreholeGroup.add(sphere);
+      });
+    }
+
+    // 建立基盤曲面
+    function build3DBedrock() {
+      bedrockGroup.clear();
+      if (!currentBasinData) return;
+      const b = currentBasinData.bounds;
+      const ch = getCoordsHelper(b);
+      const grid = currentBasinData.bedrock_grid;
+      const lats = currentBasinData.lats;
+      const lons = currentBasinData.lons;
+      if (!grid || grid.length === 0) return;
+
+      const nLat = lats.length;
+      const nLon = lons.length;
+      const geom = new THREE.PlaneGeometry(1, 1, nLon - 1, nLat - 1);
+      const pos = geom.attributes.position;
+
+      let idx = 0;
+      for (let i = 0; i < nLat; i++) {
+        for (let j = 0; j < nLon; j++) {
+          const depth = Math.min(grid[i][j], maxDisplayDepth);
+          pos.setXYZ(idx, ch.lonToX(lons[j]), ch.depthToY(depth), ch.latToZ(lats[i]));
+          idx++;
+        }
+      }
+      geom.computeVertexNormals();
+
+      const mat = new THREE.MeshStandardMaterial({
+        color: 0x1c3144,
+        roughness: 0.6,
+        transparent: true,
+        opacity: 0.68,
+        side: THREE.DoubleSide
+      });
+      bedrockGroup.add(new THREE.Mesh(geom, mat));
+
+      const wireMat = new THREE.MeshBasicMaterial({ color: 0x58a6ff, wireframe: true, transparent: true, opacity: 0.22 });
+      bedrockGroup.add(new THREE.Mesh(geom, wireMat));
+    }
+
+    // 建立斷層立體牆面
+    function build3DFaults(b) {
+      faultGroup.clear();
+      const ch = getCoordsHelper(b);
+      (portalData.faults || []).forEach(f => {
+        const coords = f.coords;
+        for (let i = 0; i < coords.length - 1; i++) {
+          const p1 = coords[i], p2 = coords[i+1];
+          // 檢查是否在視野邊界附近
+          if (p1[0] < b.lon_min - 0.05 && p2[0] < b.lon_min - 0.05) continue;
+          if (p1[0] > b.lon_max + 0.05 && p2[0] > b.lon_max + 0.05) continue;
+          if (p1[1] < b.lat_min - 0.05 && p2[1] < b.lat_min - 0.05) continue;
+          if (p1[1] > b.lat_max + 0.05 && p2[1] > b.lat_max + 0.05) continue;
+
+          const x1 = ch.lonToX(p1[0]), z1 = ch.latToZ(p1[1]);
+          const x2 = ch.lonToX(p2[0]), z2 = ch.latToZ(p2[1]);
+          const yTop = 1.0, yBot = ch.depthToY(maxDisplayDepth);
+
+          const geom = new THREE.BufferGeometry();
+          const vertices = new Float32Array([
+            x1, yTop, z1,   x2, yTop, z2,   x1, yBot, z1,
+            x2, yTop, z2,   x2, yBot, z2,   x1, yBot, z1
+          ]);
+          geom.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+          geom.computeVertexNormals();
+
+          const mat = new THREE.MeshBasicMaterial({ color: new THREE.Color(f.color), transparent: true, opacity: 0.45, side: THREE.DoubleSide });
+          const mesh = new THREE.Mesh(geom, mat);
+          mesh.userData = { type: "fault", name: f.name };
+          faultGroup.add(mesh);
+        }
+      });
+    }
+
+    // 建立邊界方框
+    function build3DBoundingBox(b) {
+      bboxGroup.clear();
+      const ch = getCoordsHelper(b);
+      const xMin = ch.lonToX(b.lon_min), xMax = ch.lonToX(b.lon_max);
+      const zMin = ch.latToZ(b.lat_max), zMax = ch.latToZ(b.lat_min);
+      const yTop = 0.0, yBot = ch.depthToY(maxDisplayDepth);
+
+      const boxGeom = new THREE.BoxGeometry(xMax - xMin, yTop - yBot, zMax - zMin);
+      const wireGeom = new THREE.WireframeGeometry(boxGeom);
+      const wireMat = new THREE.LineBasicMaterial({ color: 0x30363d });
+      const line = new THREE.LineSegments(wireGeom, wireMat);
+      line.position.set((xMin + xMax) / 2.0, (yTop + yBot) / 2.0, (zMin + zMax) / 2.0);
+      bboxGroup.add(line);
+    }
+
+    // 視角控制
+    function setCameraView(view) {
+      if (!camera3d || !controls3d || !currentBasinData) return;
+      const b = currentBasinData.bounds;
+      const ch = getCoordsHelper(b);
+      const midY = ch.depthToY(maxDisplayDepth / 2.0);
+
+      if (view === "perspective") {
+        camera3d.position.set(0, 90, 150);
+        controls3d.target.set(0, midY, 0);
+      } else if (view === "top") {
+        camera3d.position.set(0, 200, 0);
+        controls3d.target.set(0, 0, 0);
+      } else if (view === "ew") {
+        camera3d.position.set(0, midY, 160);
+        controls3d.target.set(0, midY, 0);
+      } else if (view === "ns") {
+        camera3d.position.set(160, midY, 0);
+        controls3d.target.set(0, midY, 0);
+      }
+      controls3d.update();
+    }
+
+    // 動態調節滑桿 (體素大小、深度、垂直誇大)
+    function updatePointSize(val) {
+      pointSize = parseFloat(val);
+      document.getElementById("pt-size-val").innerText = val + " px";
+      if (pointCloud && pointCloud.material) {
+        pointCloud.material.size = pointSize;
+        pointCloud.material.needsUpdate = true;
+      }
+    }
+
+    function updateDepthFilter(val) {
+      maxDisplayDepth = parseFloat(val);
+      document.getElementById("depth-val").innerText = val;
+      build3DPointCloud();
+      build3DBoreholes(currentBasinData.bounds);
+      build3DBedrock();
+      build3DFaults(currentBasinData.bounds);
+      build3DBoundingBox(currentBasinData.bounds);
+    }
+
+    function updateZScale(val) {
+      zExaggeration = parseFloat(val);
+      document.getElementById("z-scale-val").innerText = val + "x";
+      build3DPointCloud();
+      build3DBoreholes(currentBasinData.bounds);
+      build3DBedrock();
+      build3DFaults(currentBasinData.bounds);
+      build3DBoundingBox(currentBasinData.bounds);
+    }
+
+    function toggleBoreholes(chk) { boreholeGroup.visible = chk; }
+    function toggleBedrock(chk) { bedrockGroup.visible = chk; }
+    function toggleFaults(chk) { faultGroup.visible = chk; }
+    function toggleBoundingBox(chk) { bboxGroup.visible = chk; }
+
+    function toggleAllLith(state) {
+      Object.keys(activeLithMask).forEach(k => {
+        activeLithMask[k] = state;
+        const cb = document.getElementById("cb-lith-" + k);
+        if (cb) cb.checked = state;
+      });
+      build3DPointCloud();
+    }
+
+    // 初始化岩性切換列表
+    const lithListDiv = document.getElementById("lith-layers-list");
+    Object.keys(LITH_META).forEach(lid => {
+      const meta = LITH_META[lid];
+      const row = document.createElement("label");
+      row.className = "layer-item";
+      row.innerHTML = `
+        <input type="checkbox" id="cb-lith-${lid}" checked onchange="toggleLith(${lid}, this.checked)">
+        <span class="color-dot" style="background: ${meta.color};"></span>
+        <span>${meta.name}</span>
+      `;
+      lithListDiv.appendChild(row);
+    });
+
+    window.toggleLith = function(lid, checked) {
+      activeLithMask[lid] = checked;
+      build3DPointCloud();
+    };
+
+    // 射線檢測
+    function initRaycasting() {
+      const raycaster = new THREE.Raycaster();
+      raycaster.params.Points.threshold = 1.8;
+      const mouse = new THREE.Vector2();
+      const tooltip = document.getElementById("tooltip-3d");
+
+      window.addEventListener("mousemove", (e) => {
+        if (!renderer3d || !camera3d) return;
+        const rect = renderer3d.domElement.getBoundingClientRect();
+        mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+        mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+
+        raycaster.setFromCamera(mouse, camera3d);
+
+        // 1. 優先檢測深井
+        const wellHits = raycaster.intersectObjects(boreholeGroup.children);
+        if (wellHits.length > 0) {
+          const item = wellHits[0].object.userData;
+          if (item && item.type === "borehole") {
+            const w = item.data;
+            tooltip.style.display = "block";
+            tooltip.style.left = (e.clientX + 14) + "px";
+            tooltip.style.top = (e.clientY + 14) + "px";
+            tooltip.innerHTML = `
+              <b>深層觀測井: ${w.name} (${w.id})</b><br>
+              行政區: <b>${w.city}</b> | 地質水區: <b>${w.wsect}</b><br>
+              鑽探深度: <span style="color: #00d2ff; font-weight: bold;">${w.depth} m</span><br>
+              地表高程: <b>${w.elev} m</b> | 年份: ${w.year}<br>
+              座標: ${w.lon}°E, ${w.lat}°N
+            `;
+            return;
+          }
+        }
+
+        // 2. 檢測體素點雲
+        if (pointCloud && currentBasinData) {
+          const ptHits = raycaster.intersectObject(pointCloud);
+          if (ptHits.length > 0) {
+            const geomIdx = ptHits[0].index;
+            const validIndices = pointCloud.geometry.userData.validIndices;
+            const origIdx = validIndices ? validIndices[geomIdx] : geomIdx;
+            const pt = currentBasinData.points[origIdx];
+            if (pt) {
+              tooltip.style.display = "block";
+              tooltip.style.left = (e.clientX + 14) + "px";
+              tooltip.style.top = (e.clientY + 14) + "px";
+              const lithName = LITH_META[pt[3]] ? LITH_META[pt[3]].name : "Unknown";
+              tooltip.innerHTML = `
+                <b>深度: ${pt[2]} m</b><br>
+                預測岩性: <span style="color: #58a6ff; font-weight: bold;">${lithName}</span><br>
+                剪力波速 Vs: <b>${pt[4]} m/s</b><br>
+                AI 信心度: <b>${(pt[5]*100).toFixed(0)}%</b><br>
+                座標: ${pt[0]}°E, ${pt[1]}°N
+              `;
+              return;
+            }
+          }
+        }
+
+        tooltip.style.display = "none";
+      });
+    }
+  </script>
+</body>
+</html>
