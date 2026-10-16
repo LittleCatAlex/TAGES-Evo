@@ -67,11 +67,12 @@ BASIN_CONFIGS = {
 def main():
     root = Path(__file__).resolve().parents[1]
     vel_csv = root / "data" / "interim" / "taiwan_velocity_3d.csv"
-    model_pkl = root / "models" / "tages_rf_augmented.pkl"
+    model_pt = root / "models" / "well_seq_net_v1.pt"
+    model_path = model_pt if model_pt.exists() else (root / "models" / "tages_rf_augmented.pkl")
     out_npz = root / "data" / "processed" / "taiwan_basins_dense.npz"
 
     print("================================================================")
-    print("啟動臺灣全島六大代表性盆地與平原高密度 3D 體素模型批次生成...")
+    print(f"啟動臺灣全島六大代表性盆地與平原高密度 3D 體素模型批次生成 (模型: {model_path.name})...")
     print("================================================================")
 
     basin_data_dict = {}
@@ -83,7 +84,7 @@ def main():
             lat_min=b_info["lat_min"], lat_max=b_info["lat_max"], n_lat=b_info["n_lat"],
             depth_min=b_info["depth_min"], depth_max=b_info["depth_max"], n_depth=b_info["n_depth"]
         )
-        gen = VoxelVolumeGenerator(vel_csv, model_pkl, config=cfg)
+        gen = VoxelVolumeGenerator(vel_csv, model_path, config=cfg)
         d = gen.generate()
         
         n_pts = d["lithology_3d"].size

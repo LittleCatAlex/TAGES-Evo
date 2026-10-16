@@ -548,6 +548,7 @@
           <div style="font-size: 0.74rem; line-height: 1.6; color: #8b949e;">
             <div>當前渲染體素: <span class="stat-badge" id="voxel-count">0</span> 點</div>
             <div>範圍內深井: <span class="stat-badge" id="well-count">0</span> 口</div>
+            <div>時序預測引擎: <span class="stat-badge" style="color: #58a6ff; font-weight: bold;">Wellbore-SeqNet (BiLSTM-CRF)</span></div>
             <div>震波約束: <span class="stat-badge">中研院 TEC LEE2025</span></div>
           </div>
         </div>
@@ -1559,7 +1560,7 @@
                 <b>深度: ${pt[2]} m</b><br>
                 預測岩性: <span style="color: #58a6ff; font-weight: bold;">${lithName}</span><br>
                 剪力波速 Vs: <b>${pt[4]} m/s</b><br>
-                AI 信心度: <b>${(pt[5]*100).toFixed(0)}%</b><br>
+                AI 序列信心度: <b>${(pt[5]*100).toFixed(0)}%</b> (Wellbore-SeqNet)<br>
                 座標: ${pt[0]}°E, ${pt[1]}°N
               `;
               return;

@@ -40,3 +40,38 @@ def test_voxel_volume_small_run(tmp_path):
     gen.save_volume(data, out_npz)
     assert out_npz.exists()
     assert out_npz.stat().st_size > 0
+
+def test_voxel_volume_well_seq_net_run(tmp_path):
+    root = Path(__file__).resolve().parents[1]
+    vel_csv = root / "data" / "interim" / "chiayi_velocity_3d.csv"
+    model_pt = root / "models" / "well_seq_net_v1.pt"
+
+    if not vel_csv.exists() or not model_pt.exists():
+        pytest.skip("Velocity CSV or model PT not available for test.")
+
+    cfg = VoxelGridConfig(
+        lon_min=120.20, lon_max=120.30, n_lon=3,
+        lat_min=23.40, lat_max=23.45, n_lat=2,
+        depth_min=0.0, depth_max=100.0, n_depth=5
+    )
+
+    gen = VoxelVolumeGenerator(vel_csv, model_pt, config=cfg)
+    assert gen.is_sequence_model is True
+    data = gen.generate()
+
+    assert data["lithology_3d"].shape == (2, 3, 5)
+    assert data["confidence_3d"].shape == (2, 3, 5)
+    assert data["vs_3d"].shape == (2, 3, 5)
+    assert data["bedrock_depth_2d"].shape == (2, 3)
+    assert not np.isnan(data["lithology_3d"]).any()
+
+    # 驗證類別都在合法範圍內
+    valid_classes = {2, 3, 4, 5, 6, 7, 8, 9, 10}
+    unique_preds = set(np.unique(data["lithology_3d"]))
+    assert unique_preds.issubset(valid_classes)
+
+    out_npz = tmp_path / "test_seq_vol.npz"
+    gen.save_volume(data, out_npz)
+    assert out_npz.exists()
+    assert out_npz.stat().st_size > 0
+

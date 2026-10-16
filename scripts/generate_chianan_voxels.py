@@ -203,13 +203,14 @@ def plot_regional_transects(data: dict, out_png: Path):
 def main():
     root = Path(__file__).resolve().parents[1]
     vel_csv = root / "data" / "interim" / "chianan_velocity_3d.csv"
-    model_pkl = root / "models" / "tages_rf_augmented.pkl"
+    model_pt = root / "models" / "well_seq_net_v1.pt"
+    model_path = model_pt if model_pt.exists() else (root / "models" / "tages_rf_augmented.pkl")
     out_npz = root / "data" / "processed" / "chianan_3d_voxels_1km.npz"
     reports_dir = root / "reports"
     reports_dir.mkdir(parents=True, exist_ok=True)
 
     print("================================================================")
-    print("啟動西南臺灣 (嘉南平原/雲嘉南) 全域 3D 地下體素地體模型生成 (0 ~ 1,000 m)...")
+    print(f"啟動西南臺灣 (嘉南平原/雲嘉南) 全域 3D 地下體素地體模型生成 (0 ~ 1,000 m, 模型: {model_path.name})...")
     print("================================================================")
 
     # 擴展網格配置 (經向 120.00 ~ 120.75, 緯向 22.95 ~ 23.85, 深度 0 ~ 1000m)
@@ -219,7 +220,7 @@ def main():
         depth_min=0.0, depth_max=1000.0, n_depth=101 # 垂直步長 10.0 m
     )
 
-    generator = VoxelVolumeGenerator(vel_csv, model_pkl, config=cfg)
+    generator = VoxelVolumeGenerator(vel_csv, model_path, config=cfg)
     data = generator.generate()
 
     print(f"體素計算完成: 形狀 {data['lithology_3d'].shape}，共 {data['lithology_3d'].size:,} 個空間體素點。")

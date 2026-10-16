@@ -5,7 +5,7 @@ description = "Taiwan AI Geological Exploration System - 3D lithology classifica
 requires-python = ">=3.10"
 dependencies = [
   "requests", "pandas", "numpy", "pyarrow", "pyproj",
-  "scikit-learn", "lightgbm", "matplotlib",
+  "scikit-learn", "lightgbm", "matplotlib", "torch>=2.0.0",
 ]
 
 [tool.pytest.ini_options]

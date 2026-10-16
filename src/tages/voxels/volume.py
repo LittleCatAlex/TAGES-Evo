@@ -16,6 +16,7 @@ import numpy as np
 import pandas as pd
 
 from tages.features.interpolator import VelocityModel3D
+from tages.features.sequence_features import compute_column_sequence_features
 from tages.geo.crs import convert
 
 @dataclass
@@ -58,7 +59,18 @@ class VoxelVolumeGenerator:
         self.model_path = Path(model_path)
         
         self.vm = VelocityModel3D(self.velocity_csv_path)
-        self.clf = joblib.load(self.model_path)
+        self.is_sequence_model = self.model_path.suffix.lower() == ".pt"
+        if self.is_sequence_model:
+            import torch
+            from tages.models.trainer import WellboreSeqTrainer
+            self.seq_model, self.extractor, self.ckpt = WellboreSeqTrainer.load_checkpoint(self.model_path)
+            self.seq_model.eval()
+            self.clf = None
+        else:
+            self.clf = joblib.load(self.model_path)
+            self.seq_model = None
+            self.extractor = None
+            self.ckpt = None
 
     def generate(self) -> dict[str, np.ndarray]:
         """產生完整 3D 體素陣列與基盤深度。"""
@@ -107,23 +119,74 @@ class VoxelVolumeGenerator:
         poisson = 0.5 * (r2 - 2.0) / np.maximum(r2 - 1.0, 1e-4)
         poisson = np.clip(poisson, 0.05, 0.49)
 
-        # 4. 組織特徵矩陣
-        # 特徵欄位順序需與訓練一致:
-        # ["depth_m", "z_msl", "vp_ms", "vs_ms", "vp_vs_ratio", "dvs_dz", "poisson_ratio", "x_twd97", "y_twd97"]
-        X_flat = np.column_stack([
-            flat_depth, flat_z_msl, vp, vs, vp_vs, dvs_dz, poisson, flat_x97, flat_y97
-        ])
+        n_cols = cfg.n_lat * cfg.n_lon
+        n_depth = cfg.n_depth
 
-        # 5. 隨機森林模型推論
-        raw_probs = self.clf.predict_proba(X_flat)  # 機率分佈 (ClaySilt:2, Sand:3, Gravel:4)
-        raw_classes = self.clf.classes_             # [2, 3, 4]
-        best_idx = np.argmax(raw_probs, axis=1)
-        pred_lith = raw_classes[best_idx].copy()
-        pred_conf = np.max(raw_probs, axis=1)
+        if self.is_sequence_model:
+            import torch
+            # 組織垂直柱時序特徵矩陣: (N_col, n_depth, 14)
+            feats_list = []
+            for c in range(n_cols):
+                s = slice(c * n_depth, (c + 1) * n_depth)
+                c_df = compute_column_sequence_features(
+                    depths=flat_depth[s],
+                    z_msl=flat_z_msl[s],
+                    vp=vp[s],
+                    vs=vs[s],
+                    vp_vs=vp_vs[s],
+                    poisson=poisson[s],
+                    x_twd97=flat_x97[c * n_depth],
+                    y_twd97=flat_y97[c * n_depth],
+                    max_depth=float(cfg.depth_max)
+                )
+                c_norm = self.extractor.scaler.transform(c_df.values)
+                feats_list.append(c_norm)
+            
+            feats_all = np.array(feats_list, dtype=np.float32)
 
-        # 計算預測熵 (不確定性指數: 0=完全確定, 1=完全隨機)
-        eps = 1e-9
-        entropy = -np.sum(raw_probs * np.log(raw_probs + eps), axis=1) / np.log(len(raw_classes))
+            pred_lith = np.zeros(shape_3d, dtype=np.int64).ravel()
+            pred_conf = np.zeros(shape_3d, dtype=np.float32).ravel()
+            entropy = np.zeros(shape_3d, dtype=np.float32).ravel()
+
+            batch_size = 256
+            l2_classes_np = np.array(self.ckpt.get("l2_classes", [2, 3, 4, 5, 6, 7]))
+
+            for b_start in range(0, n_cols, batch_size):
+                b_end = min(b_start + batch_size, n_cols)
+                batch_t = torch.tensor(feats_all[b_start:b_end], dtype=torch.float32)
+                with torch.no_grad():
+                    res = self.seq_model.predict(batch_t)
+                
+                for idx_in_batch, col_c in enumerate(range(b_start, b_end)):
+                    path = res["l2_paths"][idx_in_batch]
+                    lith_col = l2_classes_np[path]
+                    conf_col = res["l2_conf"][idx_in_batch]
+                    probs_col = res["l2_probs"][idx_in_batch]
+                    eps = 1e-9
+                    ent_col = -np.sum(probs_col * np.log(probs_col + eps), axis=-1) / np.log(probs_col.shape[-1])
+                    
+                    s = slice(col_c * n_depth, (col_c + 1) * n_depth)
+                    pred_lith[s] = lith_col
+                    pred_conf[s] = conf_col
+                    entropy[s] = ent_col
+        else:
+            # 4. 組織特徵矩陣 (Random Forest 基準模型)
+            # 特徵欄位順序需與訓練一致:
+            # ["depth_m", "z_msl", "vp_ms", "vs_ms", "vp_vs_ratio", "dvs_dz", "poisson_ratio", "x_twd97", "y_twd97"]
+            X_flat = np.column_stack([
+                flat_depth, flat_z_msl, vp, vs, vp_vs, dvs_dz, poisson, flat_x97, flat_y97
+            ])
+
+            # 5. 隨機森林模型推論
+            raw_probs = self.clf.predict_proba(X_flat)  # 機率分佈 (ClaySilt:2, Sand:3, Gravel:4)
+            raw_classes = self.clf.classes_             # [2, 3, 4]
+            best_idx = np.argmax(raw_probs, axis=1)
+            pred_lith = raw_classes[best_idx].copy()
+            pred_conf = np.max(raw_probs, axis=1)
+
+            # 計算預測熵 (不確定性指數: 0=完全確定, 1=完全隨機)
+            eps = 1e-9
+            entropy = -np.sum(raw_probs * np.log(raw_probs + eps), axis=1) / np.log(len(raw_classes))
 
         # 6. 地球物理與深部地質約束層 (Geophysical Stratigraphic Constraint)
         # 標記推論範圍：0~300m 為鑽孔檢驗區 (Z1/Z2)，300~1000m 為外推與基盤區 (Z3)
