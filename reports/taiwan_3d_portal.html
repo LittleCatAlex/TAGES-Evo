@@ -1045,12 +1045,58 @@
     }
 
     // =========================================
-    // 自訂查詢區域 3D 體素動態採樣與合成生成器
+    // 自訂查詢區域 3D 體素動態採樣與混合無縫合成生成器
     // =========================================
     function getOrCreateCustomROI3DData(roi) {
       const [minLon, minLat, maxLon, maxLat] = roi;
       
-      // 1. 先檢驗是否有預計算盆地與此 ROI 重疊，若有重疊則優先提取高精度模型體素
+      // 定義自訂查詢區域空間採樣網格 (nX x nY)
+      const nX = 32, nY = 32;
+      const lons = [];
+      for (let i = 0; i < nX; i++) lons.push(+(minLon + (maxLon - minLon) * (i / (nX - 1))).toFixed(5));
+      const lats = [];
+      for (let j = 0; j < nY; j++) lats.push(+(minLat + (maxLat - minLat) * (j / (nY - 1))).toFixed(5));
+
+      // 檢查座標是否落在任何既有 6 大預設盆地內
+      function getPresetBasinAt(lon, lat) {
+        const basins = portalData.basins_voxels || {};
+        for (const k of Object.keys(basins)) {
+          const bv = basins[k];
+          if (!bv || !bv.bounds) continue;
+          const b = bv.bounds;
+          if (lon >= b.lon_min && lon <= b.lon_max && lat >= b.lat_min && lat <= b.lat_max) {
+            return { key: k, bv: bv };
+          }
+        }
+        return null;
+      }
+
+      // 1. 產出連續基盤網格 (落入預設盆地區域取用其高精度基盤網格，非預設盆地區依區域構造延伸)
+      const bedrockGrid = [];
+      for (let j = 0; j < nY; j++) {
+        const row = [];
+        const lat = lats[j];
+        for (let i = 0; i < nX; i++) {
+          const lon = lons[i];
+          const hit = getPresetBasinAt(lon, lat);
+          let bedD;
+          if (hit && hit.bv.bedrock_grid && hit.bv.lats && hit.bv.lons) {
+            const b = hit.bv.bounds;
+            const u = (lon - b.lon_min) / Math.max(1e-5, b.lon_max - b.lon_min);
+            const v = (lat - b.lat_min) / Math.max(1e-5, b.lat_max - b.lat_min);
+            const iLon = Math.max(0, Math.min(hit.bv.lons.length - 1, Math.round(u * (hit.bv.lons.length - 1))));
+            const iLat = Math.max(0, Math.min(hit.bv.lats.length - 1, Math.round(v * (hit.bv.lats.length - 1))));
+            bedD = hit.bv.bedrock_grid[iLat][iLon];
+          } else {
+            const distToRidge = Math.abs(lon - 121.0);
+            bedD = Math.max(120, Math.min(950, 780 - distToRidge * 450 + Math.sin(lat * 15 + lon * 20) * 60));
+          }
+          row.push(Math.round(bedD));
+        }
+        bedrockGrid.push(row);
+      }
+
+      // 2. 收集落在 ROI 內的高精度既有盆地體素點
       const collectedPoints = [];
       Object.keys(portalData.basins_voxels || {}).forEach(k => {
         const bv = portalData.basins_voxels[k];
@@ -1065,41 +1111,9 @@
         }
       });
 
-      const nX = 30, nY = 30;
-      const lons = [];
-      for (let i = 0; i < nX; i++) lons.push(minLon + (maxLon - minLon) * (i / (nX - 1)));
-      const lats = [];
-      for (let j = 0; j < nY; j++) lats.push(minLat + (maxLat - minLat) * (j / (nY - 1)));
-
-      // 產出基盤網格
-      const bedrockGrid = [];
-      for (let j = 0; j < nY; j++) {
-        const row = [];
-        const lat = lats[j];
-        for (let i = 0; i < nX; i++) {
-          const lon = lons[i];
-          const distToRidge = Math.abs(lon - 121.0);
-          const bedD = Math.max(120, Math.min(950, 780 - distToRidge * 450 + Math.sin(lat * 15 + lon * 20) * 60));
-          row.push(bedD);
-        }
-        bedrockGrid.push(row);
-      }
-
-      // 如果從既有高精度盆地中提取的體素數量足夠 (>= 400 點)
-      if (collectedPoints.length >= 400) {
-        return {
-          bounds: { lon_min: minLon, lon_max: maxLon, lat_min: minLat, lat_max: maxLat, depth_min: 0.0, depth_max: 1000.0 },
-          lats: lats,
-          lons: lons,
-          depths: [0, 50, 100, 200, 400, 600, 800, 1000],
-          points: collectedPoints,
-          bedrock_grid: bedrockGrid
-        };
-      }
-
-      // 2. 若為全新區域（如新竹、苗栗、花蓮縱谷、恆春或高山區），執行全島沉積地體與深井約束動態體素生成
-      const nZ = 45;
+      // 3. 針對未被 6 大預設盆地涵蓋的網格位置 (Non-preset columns)，動態合成 3D 地層體素
       const synthPoints = [];
+      const nZ = 45;
       const localWells = (portalData.boreholes || []).filter(w =>
         w.lon >= minLon - 0.15 && w.lon <= maxLon + 0.15 &&
         w.lat >= minLat - 0.15 && w.lat <= maxLat + 0.15
@@ -1109,7 +1123,25 @@
         const lat = lats[j];
         for (let i = 0; i < nX; i++) {
           const lon = lons[i];
+
+          // 若該經緯度座標已由 6 大預設盆地的高精度模型涵蓋，則跳過，避免重複生成
+          if (getPresetBasinAt(lon, lat) !== null) {
+            continue;
+          }
+
           const bedD = bedrockGrid[j][i];
+
+          // 尋找最近觀測井作地質深度約束
+          let nearestW = null;
+          let minDist = 999;
+          for (let wIdx = 0; wIdx < localWells.length; wIdx++) {
+            const w = localWells[wIdx];
+            const d = Math.hypot(lon - w.lon, lat - w.lat);
+            if (d < minDist) {
+              minDist = d;
+              nearestW = w;
+            }
+          }
 
           for (let k = 0; k < nZ; k++) {
             const depth = 1000.0 * (k / (nZ - 1));
@@ -1136,11 +1168,10 @@
               vs = 750 + depth * 0.7;
             }
 
-            if (localWells.length > 0) {
-              const nearestW = localWells[0];
-              const dist = Math.hypot(lon - nearestW.lon, lat - nearestW.lat);
-              if (dist < 0.04 && depth >= nearestW.depth * 0.85 && depth <= nearestW.depth * 1.15) {
+            if (nearestW && minDist < 0.05) {
+              if (depth >= nearestW.depth * 0.85 && depth <= nearestW.depth * 1.15) {
                 lid = 7; // 井底礫石/緻密層
+                vs = Math.max(vs, 680);
               }
             }
 
@@ -1150,12 +1181,17 @@
         }
       }
 
+      // 4. 無縫合併既有盆地提取體素與新合成體素 (混合跨區 ROI 無縫渲染)
+      const allPoints = (collectedPoints.length > 0 && synthPoints.length > 0)
+        ? collectedPoints.concat(synthPoints)
+        : (collectedPoints.length > 0 ? collectedPoints : synthPoints);
+
       return {
         bounds: { lon_min: minLon, lon_max: maxLon, lat_min: minLat, lat_max: maxLat, depth_min: 0.0, depth_max: 1000.0 },
         lats: lats,
         lons: lons,
         depths: [0, 50, 100, 200, 400, 600, 800, 1000],
-        points: synthPoints,
+        points: allPoints,
         bedrock_grid: bedrockGrid
       };
     }
