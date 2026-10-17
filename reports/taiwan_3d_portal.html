@@ -1247,9 +1247,12 @@
             let lid = 2; // 預設黏土/泥
             let vs = 260;
 
-            if (depth >= bedD) {
-              lid = 10; // 結晶基盤
-              vs = 2200 + Math.min(800, (depth - bedD) * 0.8);
+            if (depth >= bedD + 80) {
+              lid = 10; // 結晶基盤 (Crystalline Basement)
+              vs = 2400 + Math.min(600, (depth - bedD) * 0.8);
+            } else if (depth >= bedD) {
+              lid = (depth - bedD >= 40) ? 9 : 8; // 基盤過渡層 (泥岩 / 砂岩)
+              vs = 2150 + Math.min(250, (depth - bedD) * 1.5);
             } else if (nearestPresetCol && minColDist < 0.25) {
               // 承接相鄰預設盆地 AI 地質模型之層序沉積相，依基盤深度比例等比映射
               const colSedD = Math.max(30, nearestPresetCol.bedD);

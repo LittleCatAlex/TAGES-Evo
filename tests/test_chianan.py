@@ -27,14 +27,17 @@ def test_chianan_voxels_file():
     assert lith.shape == (46, 46, 101)
     assert lith.size == 213716
 
-    # 檢查岩性類別是否在 1~10 規範內
+    # 檢查岩性類別是否在 1~10 規範內且包含結晶基盤
     unique_lith = np.unique(lith)
     assert np.all((unique_lith >= 1) & (unique_lith <= 10))
+    assert 10 in unique_lith, "西南臺灣體素應包含結晶基盤 (Class 10)"
+    pct_basement = np.mean(lith == 10) * 100.0
+    assert pct_basement >= 20.0, f"西南臺灣結晶基盤體素比例過低: {pct_basement:.1f}%"
 
     # 檢查基盤深度
     b2d = data["bedrock_depth_2d"]
     assert b2d.shape == (46, 46)
-    assert b2d.min() >= 0.0 and b2d.max() <= 1000.0
+    assert b2d.min() >= 50.0 and b2d.max() <= 1000.0
 
 def test_chianan_web_assets():
     html_path = Path("reports/chianan_3d_viewer.html")

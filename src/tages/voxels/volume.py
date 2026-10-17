@@ -36,9 +36,78 @@ class VoxelGridConfig:
 
     # 地質與波速基盤閾值 (剪力波速 Vs)
     vs_mudstone_thresh: float = 2150.0   # 泥岩/頁岩軟岩基底 (m/s)
-    vs_sandstone_thresh: float = 2500.0  # 固結砂岩/礫岩 (m/s)
-    vs_basement_thresh: float = 2800.0   # 堅硬結晶基底 (m/s)
-    vs_acoustic_bedrock: float = 2150.0  # 地震聲學基盤 (Vs >= 2,150 m/s，進入第三紀半固結/固結泥岩砂岩基底)
+    vs_sandstone_thresh: float = 2350.0  # 固結砂岩/礫岩 (m/s)
+    vs_basement_thresh: float = 2500.0   # 堅硬結晶基底 (m/s)
+    vs_acoustic_bedrock: float = 2000.0  # 地震聲學基盤 (Vs >= 2,000 m/s，進入半固結/固結泥岩砂岩基底)
+
+
+def estimate_structural_bedrock_depth(lon: np.ndarray, lat: np.ndarray) -> np.ndarray:
+    """計算臺灣各沉積盆地與平原之構造地質基盤深度 (Structural Geological Bedrock Depth, 公尺)。
+    依據文獻 (中油深井 PK-1/2/3、地調所 CGS 臺北 WK-1 深井、蘭陽平原深震測、車籠埔斷層探勘)：
+    - 嘉南平原：北港基底高區 (Peikang High, Mesozoic Basement) 在東石/北港/麥寮約 420~580m，往南至臺南凹陷深陷至 1000~1500m，往東至麓山帶約 250~400m。
+    - 濁水溪沖積扇：東側扇頂竹山約 200~320m，西側沿海芳苑/麥寮約 550~750m。
+    - 臺北盆地：山腳正斷層半地塹，西側五股/新莊陷落帶約 240~290m，東南側信義/南港約 50~100m，中心約 150m。
+    - 臺中盆地：車籠埔逆衝斷層下盤，東界逆衝帶約 180~280m，盆地軸心沉積厚達 400~550m。
+    - 屏東平原：潮州斷層以西厚層砂礫石前陸槽，東界斷層帶約 100~200m，盆地軸心約 450~680m。
+    - 蘭陽平原：雪山山脈板岩結晶基盤，西側扇頂員山/礁溪約 90~160m，東側海岸壯圍/五結約 380~480m。
+    - 臺灣一般陸域/山麓：隨遠離中央山脈脊線 (Lon 121.0) 平滑過渡至深前陸盆地。
+    """
+    lon_arr, lat_arr = np.broadcast_arrays(lon, lat)
+    shape = lon_arr.shape
+    lo = lon_arr.ravel()
+    la = lat_arr.ravel()
+    
+    # 預設區域基底深度 (依距離中央山脈脊線遞變)
+    dist_ridge = np.abs(lo - 121.0)
+    z_bed = np.clip(780.0 - dist_ridge * 450.0, 150.0, 850.0)
+
+    # 1. 臺北盆地 (半地塹：西深東淺)
+    mask_tp = (la >= 24.95) & (la <= 25.15) & (lo >= 121.40) & (lo <= 121.65)
+    if np.any(mask_tp):
+        u = np.clip((lo[mask_tp] - 121.42) / 0.20, 0.0, 1.0)
+        v = np.clip((la[mask_tp] - 25.00) / 0.12, 0.0, 1.0)
+        tp_depth = 280.0 - u * 200.0 + (1.0 - v) * 30.0
+        z_bed[mask_tp] = np.clip(tp_depth, 60.0, 320.0)
+
+    # 2. 蘭陽平原 (西頂淺東岸深)
+    mask_yl = (la >= 24.62) & (la <= 24.88) & (lo >= 121.65) & (lo <= 121.90)
+    if np.any(mask_yl):
+        u = np.clip((lo[mask_yl] - 121.68) / 0.18, 0.0, 1.0)
+        yl_depth = 120.0 + u * 300.0
+        z_bed[mask_yl] = np.clip(yl_depth, 90.0, 460.0)
+
+    # 3. 臺中盆地 (車籠埔斷層下盤軸心深)
+    mask_tc = (la >= 24.05) & (la <= 24.32) & (lo >= 120.55) & (lo <= 120.80)
+    if np.any(mask_tc):
+        dist_axis = np.abs(lo[mask_tc] - 120.65)
+        tc_depth = 480.0 - (dist_axis / 0.10) * 220.0
+        z_bed[mask_tc] = np.clip(tc_depth, 180.0, 520.0)
+
+    # 4. 濁水溪沖積扇 (扇頂淺沿海深)
+    mask_zs = (la >= 23.65) & (la <= 23.95) & (lo >= 120.15) & (lo <= 120.68)
+    if np.any(mask_zs):
+        u = np.clip((120.65 - lo[mask_zs]) / 0.45, 0.0, 1.0)
+        zs_depth = 240.0 + u * 400.0
+        z_bed[mask_zs] = np.clip(zs_depth, 200.0, 680.0)
+
+    # 5. 嘉南平原 (北港基底高區 vs 臺南凹陷)
+    mask_cn = (la >= 23.00) & (la <= 23.68) & (lo >= 120.05) & (lo <= 120.65)
+    if np.any(mask_cn):
+        dist_pk = np.hypot((lo[mask_cn] - 120.25) / 0.35, (la[mask_cn] - 23.58) / 0.25)
+        south_dip = np.maximum(0.0, (23.50 - la[mask_cn]) / 0.45) * 520.0
+        east_uplift = np.maximum(0.0, (lo[mask_cn] - 120.45) / 0.18) * 300.0
+        cn_depth = 460.0 + dist_pk * 200.0 + south_dip - east_uplift
+        z_bed[mask_cn] = np.clip(cn_depth, 220.0, 1000.0)
+
+    # 6. 屏東平原 (潮州斷層以西槽地)
+    mask_pt = (la >= 22.45) & (la <= 22.82) & (lo >= 120.40) & (lo <= 120.70)
+    if np.any(mask_pt):
+        u = np.clip((120.65 - lo[mask_pt]) / 0.20, 0.0, 1.0)
+        pt_depth = 150.0 + u * 420.0
+        z_bed[mask_pt] = np.clip(pt_depth, 120.0, 650.0)
+
+    return z_bed.reshape(shape)
+
 
 
 _ELEV_TREE = None
@@ -230,22 +299,6 @@ class VoxelVolumeGenerator:
             eps = 1e-9
             entropy = -np.sum(raw_probs * np.log(raw_probs + eps), axis=1) / np.log(len(raw_classes))
 
-        # 6. 地球物理與深部地質約束層 (Geophysical Stratigraphic Constraint)
-        # 標記推論範圍：0~300m 為鑽孔檢驗區 (Z1/Z2)，300~1000m 為外推與基盤區 (Z3)
-        is_extrapolated = (flat_depth > 300.0)
-
-        # 深部岩性判別：當深度 > 250m 且波速達到軟岩/硬岩基底標準時，啟動細化岩盤分類
-        # Class 8 (泥岩/頁岩: Mudstone): 2150 <= Vs < 2500
-        # Class 9 (砂岩/礫岩: Sandstone): 2500 <= Vs < 2800
-        # Class 10 (堅硬結晶基底: Basement): Vs >= 2800
-        mask_mudstone = (flat_depth > 250.0) & (vs >= cfg.vs_mudstone_thresh) & (vs < cfg.vs_sandstone_thresh)
-        mask_sandstone = (flat_depth > 350.0) & (vs >= cfg.vs_sandstone_thresh) & (vs < cfg.vs_basement_thresh)
-        mask_basement = (flat_depth > 450.0) & (vs >= cfg.vs_basement_thresh)
-        
-        pred_lith[mask_mudstone] = 8
-        pred_lith[mask_sandstone] = 9
-        pred_lith[mask_basement] = 10
-
         # 塑造成 3D 體素形狀
         lith_3d = pred_lith.reshape(shape_3d)
         conf_3d = pred_conf.reshape(shape_3d)
@@ -253,17 +306,46 @@ class VoxelVolumeGenerator:
         vs_3d = vs.reshape(shape_3d)
         vp_3d = vp.reshape(shape_3d)
         z_msl_3d = flat_z_msl.reshape(shape_3d)
-        extra_3d = is_extrapolated.reshape(shape_3d)
 
-        # 7. 萃取 2D 聲學基底深度 (Acoustic Bedrock Surface Z_bedrock)
-        # 沿垂直軸尋找第一個 Vs >= vs_acoustic_bedrock 的深度
-        bedrock_depth_2d = np.full((cfg.n_lat, cfg.n_lon), fill_value=cfg.depth_max, dtype=float)
+        # 6. 計算構造地質與地球物理耦合聲學基底深度 (Acoustic Bedrock Depth Z_bedrock)
+        # 提取 2D 空間網格之構造基盤深度 (n_lat, n_lon)
+        z_struct_2d = estimate_structural_bedrock_depth(lons[None, :], lats[:, None])
+        bedrock_depth_2d = np.zeros((cfg.n_lat, cfg.n_lon), dtype=float)
         for i in range(cfg.n_lat):
             for j in range(cfg.n_lon):
+                z_s = float(z_struct_2d[i, j])
                 vs_col = vs_3d[i, j, :]
-                match_indices = np.where(vs_col >= cfg.vs_acoustic_bedrock)[0]
-                if len(match_indices) > 0:
-                    bedrock_depth_2d[i, j] = depths[match_indices[0]]
+                # 尋找深度 >= 50m (盆地沖積蓋層最低厚度，杜絕 0m 誤判) 且 Vs >= vs_acoustic_bedrock
+                m = np.where((depths >= 50.0) & (vs_col >= cfg.vs_acoustic_bedrock))[0]
+                if len(m) > 0:
+                    z_ac = float(depths[m[0]])
+                    bedrock_depth_2d[i, j] = np.clip(0.5 * z_s + 0.5 * z_ac, 50.0, float(cfg.depth_max))
+                else:
+                    bedrock_depth_2d[i, j] = np.clip(z_s, 50.0, float(cfg.depth_max))
+
+        # 7. 地質層序與結晶基盤賦值 (Sedimentary Fill -> Transition Bedrock -> Crystalline Basement)
+        # 廣播為 3D 深度基底面: (n_lat, n_lon, 1)
+        z_bedrock_3d = bedrock_depth_2d[:, :, None]
+        z_basement_3d = z_bedrock_3d + 90.0  # 基盤過渡帶厚約 90m
+
+        # 結晶基盤掩碼 (Class 10: Basement / 結晶基盤)
+        # 條件：穿透至結晶基盤深度 (z >= z_basement)，或深部硬岩 (z >= 350m 且 Vs >= vs_sandstone_thresh)，或深層硬底 (z >= 600m 且 z >= z_bedrock)
+        mask_basement = (grid_depth >= z_basement_3d) | \
+                        ((grid_depth >= 350.0) & (vs_3d >= cfg.vs_sandstone_thresh)) | \
+                        ((grid_depth >= 600.0) & (grid_depth >= z_bedrock_3d))
+
+        # 基盤過渡帶掩碼 (Class 8 / 9: Transition Bedrock - 泥岩 / 砂岩)
+        mask_transition = (grid_depth >= z_bedrock_3d) & (~mask_basement)
+        mask_sandstone = mask_transition & (vs_3d >= cfg.vs_mudstone_thresh)
+        mask_mudstone = mask_transition & (~mask_sandstone)
+
+        lith_3d[mask_mudstone] = 8
+        lith_3d[mask_sandstone] = 9
+        lith_3d[mask_basement] = 10
+
+        conf_3d[mask_basement] = 1.0
+        entropy_3d[mask_basement] = 0.0
+        extra_3d = (grid_depth > 300.0) | (grid_depth >= z_bedrock_3d)
 
         return {
             "lats": lats,

@@ -35,9 +35,16 @@ def test_taiwan_basins_dense_npz():
         assert f"{b}_bedrock" in data, f"缺少盆地 {b} 之基盤數據"
         lith = data[f"{b}_lith"]
         assert lith.ndim == 3 and lith.size > 20000, f"盆地 {b} 體素點數過少: {lith.size}"
-        # 驗證岩性分類在 1~10 規範內
+        # 驗證岩性分類在 1~10 規範內且包含結晶基盤
         unq = np.unique(lith)
         assert np.all((unq >= 1) & (unq <= 10))
+        assert 10 in unq, f"盆地 {b} 必須包含結晶基盤 (Class 10)"
+        pct_basement = np.mean(lith == 10) * 100.0
+        assert pct_basement >= 15.0, f"盆地 {b} 結晶基盤體素比例過低: {pct_basement:.1f}%"
+        
+        # 驗證基盤深度大於等於 50m (杜絕 0m 誤判)
+        bedrock = data[f"{b}_bedrock"]
+        assert (bedrock >= 50.0).all(), f"盆地 {b} 基盤深度應 >= 50m (杜絕 0m 誤判)"
 
 def test_taiwan_portal_assets():
     html_path = Path("reports/taiwan_3d_portal.html")
