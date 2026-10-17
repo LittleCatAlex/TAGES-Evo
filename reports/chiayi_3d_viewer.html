@@ -352,53 +352,62 @@
     controls.dampingFactor = 0.05;
 
     // 光照
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.85);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.75);
     scene.add(ambientLight);
-    const dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
     dirLight.position.set(50, 80, 50);
     scene.add(dirLight);
+    const dirLight2 = new THREE.DirectionalLight(0xa5c9ea, 0.4);
+    dirLight2.position.set(-50, -50, -50);
+    scene.add(dirLight2);
 
-    // 建立 3D 體素點雲
-    let pointCloud, pointsGeometry, pointsMaterial;
-    let pointPositions = [];
-    let pointColors = [];
-    let visibleIndices = [];
+    // 建立 3D 體素 (真實 3D 立體方塊 InstancedMesh)
+    let voxelMesh = null;
+    let pointCloud = null;
 
     function buildPointCloud() {
-      if (pointCloud) scene.remove(pointCloud);
+      if (voxelMesh) {
+        scene.remove(voxelMesh);
+        voxelMesh.geometry.dispose();
+        voxelMesh = null;
+      }
+      if (pointCloud) {
+        scene.remove(pointCloud);
+        pointCloud.geometry.dispose();
+        pointCloud = null;
+      }
 
       const count = data.points.length;
-      pointsGeometry = new THREE.BufferGeometry();
-      const posArray = new Float32Array(count * 3);
-      const colArray = new Float32Array(count * 3);
+      document.getElementById("stat-points").innerText = count.toLocaleString();
+      if (count === 0) return;
+
+      const boxGeom = new THREE.BoxGeometry(1.0, 0.5, 1.0);
+      const boxMat = new THREE.MeshLambertMaterial({
+        color: 0xffffff,
+        transparent: true,
+        opacity: 0.95
+      });
+
+      voxelMesh = new THREE.InstancedMesh(boxGeom, boxMat, count);
+      voxelMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+
+      const matrix = new THREE.Matrix4();
+      const dummyColor = new THREE.Color();
 
       for (let i = 0; i < count; i++) {
         const pt = data.points[i];
         const sc = toSceneCoords(pt[0], pt[1], pt[2]);
-        posArray[i * 3 + 0] = sc.x;
-        posArray[i * 3 + 1] = sc.y;
-        posArray[i * 3 + 2] = sc.z;
+        matrix.setPosition(sc.x, sc.y, sc.z);
+        voxelMesh.setMatrixAt(i, matrix);
 
         const c = COLOR_MAP[pt[3]] || new THREE.Color("#888888");
-        colArray[i * 3 + 0] = c.r;
-        colArray[i * 3 + 1] = c.g;
-        colArray[i * 3 + 2] = c.b;
+        dummyColor.set(c);
+        voxelMesh.setColorAt(i, dummyColor);
       }
 
-      pointsGeometry.setAttribute("position", new THREE.BufferAttribute(posArray, 3));
-      pointsGeometry.setAttribute("color", new THREE.BufferAttribute(colArray, 3));
-
-      pointsMaterial = new THREE.PointsMaterial({
-        size: parseFloat(document.getElementById("slider-ptsize").value),
-        vertexColors: true,
-        transparent: true,
-        opacity: 0.85,
-        sizeAttenuation: true
-      });
-
-      pointCloud = new THREE.Points(pointsGeometry, pointsMaterial);
-      scene.add(pointCloud);
-      document.getElementById("stat-points").innerText = count.toLocaleString();
+      voxelMesh.instanceMatrix.needsUpdate = true;
+      if (voxelMesh.instanceColor) voxelMesh.instanceColor.needsUpdate = true;
+      scene.add(voxelMesh);
     }
 
     // 建立真實水文深井圓柱 (Borehole Tubes)
@@ -627,24 +636,49 @@
         }
       }
 
-      // 2. 檢測體素點雲
-      const ptHits = raycaster.intersectObject(pointCloud);
-      if (ptHits.length > 0) {
-        const idx = ptHits[0].index;
-        const pt = data.points[idx];
-        if (pt) {
-          tooltip.style.display = "block";
-          tooltip.style.left = (e.clientX + 14) + "px";
-          tooltip.style.top = (e.clientY + 14) + "px";
-          const lithName = NAME_MAP[pt[3]] || "Unknown";
-          tooltip.innerHTML = `
-            <b>深度: ${pt[2]} m</b> (${pt[2] <= 300 ? '鑽孔檢驗區' : '構造外推區'})<br>
-            預測岩性: <span style="color: #58a6ff;">${lithName}</span><br>
-            剪力波速 Vs: <b>${pt[4]} m/s</b><br>
-            AI 信心度: <b>${(pt[5]*100).toFixed(0)}%</b><br>
-            經緯度: ${pt[0]}°E, ${pt[1]}°N
-          `;
-          return;
+      // 2. 檢測體素 (支援 3D 立體方塊與點雲)
+      if (voxelMesh) {
+        const hits = raycaster.intersectObject(voxelMesh);
+        if (hits.length > 0) {
+          const instId = hits[0].instanceId;
+          if (instId !== undefined) {
+            const pt = data.points[instId];
+            if (pt) {
+              tooltip.style.display = "block";
+              tooltip.style.left = (e.clientX + 14) + "px";
+              tooltip.style.top = (e.clientY + 14) + "px";
+              const lithName = NAME_MAP[pt[3]] || "Unknown";
+              tooltip.innerHTML = `
+                <div style="color: #58a6ff; font-weight: bold; margin-bottom: 2px;">🧊 3D 地質立體方塊 (Voxel)</div>
+                <b>深度: ${pt[2]} m</b> (${pt[2] <= 300 ? '鑽孔檢驗區' : '構造外推區'})<br>
+                預測岩性: <span style="color: #7ee787; font-weight: bold;">${lithName}</span><br>
+                剪力波速 Vs: <b>${pt[4]} m/s</b><br>
+                AI 信心度: <b>${(pt[5]*100).toFixed(0)}%</b><br>
+                經緯度: ${pt[0]}°E, ${pt[1]}°N
+              `;
+              return;
+            }
+          }
+        }
+      } else if (pointCloud) {
+        const ptHits = raycaster.intersectObject(pointCloud);
+        if (ptHits.length > 0) {
+          const idx = ptHits[0].index;
+          const pt = data.points[idx];
+          if (pt) {
+            tooltip.style.display = "block";
+            tooltip.style.left = (e.clientX + 14) + "px";
+            tooltip.style.top = (e.clientY + 14) + "px";
+            const lithName = NAME_MAP[pt[3]] || "Unknown";
+            tooltip.innerHTML = `
+              <b>深度: ${pt[2]} m</b> (${pt[2] <= 300 ? '鑽孔檢驗區' : '構造外推區'})<br>
+              預測岩性: <span style="color: #58a6ff;">${lithName}</span><br>
+              剪力波速 Vs: <b>${pt[4]} m/s</b><br>
+              AI 信心度: <b>${(pt[5]*100).toFixed(0)}%</b><br>
+              經緯度: ${pt[0]}°E, ${pt[1]}°N
+            `;
+            return;
+          }
         }
       }
 

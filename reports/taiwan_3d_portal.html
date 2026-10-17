@@ -277,6 +277,12 @@
       cursor: pointer;
     }
     button.secondary:hover { background: #30363d; border-color: #8b949e; }
+    button.secondary.active {
+      background: #1f6feb;
+      border-color: #58a6ff;
+      color: #ffffff;
+      font-weight: bold;
+    }
 
     .btn-tool {
       background: #21262d;
@@ -478,9 +484,9 @@
 
       <div id="sidebar-3d">
         <div>
-          <h1>3D Subsurface <span class="badge" id="badge-voxel-tag">High-Density</span></h1>
+          <h1>3D Subsurface <span class="badge" id="badge-voxel-tag">3D Solid Voxels</span></h1>
           <div class="subtitle" style="margin-top: 4px;">
-            高解析度三維地下岩性體素、深井柱狀圖與深部構造基盤曲面。
+            高解析度三維地下岩性立體方塊 (3D Voxels)、深井柱狀圖與深部構造基盤曲面。
           </div>
         </div>
 
@@ -495,12 +501,21 @@
           </div>
         </div>
 
-        <!-- 體素解析度與大小 (解決太疏問題！) -->
+        <!-- 體素呈現形態切換 -->
         <div class="panel-section">
-          <div class="section-title">體素大小與密度調節</div>
+          <div class="section-title">體素呈現形態</div>
+          <div class="btn-group">
+            <button id="btn-mode-cube" class="secondary active" onclick="setRenderMode('cube')">🧊 3D 立體方塊 (預設)</button>
+            <button id="btn-mode-point" class="secondary" onclick="setRenderMode('point')">✦ 輕量點雲</button>
+          </div>
+        </div>
+
+        <!-- 體素解析度與大小 (3D 方塊調節) -->
+        <div class="panel-section">
+          <div class="section-title">方塊尺寸與密度調節</div>
           <div class="slider-row">
-            <span>體素點大小: <span id="pt-size-val" class="stat-badge">4.0 px</span> (調大形成實體連續地層)</span>
-            <input type="range" id="pt-size-slider" min="1.0" max="8.0" step="0.5" value="4.0" oninput="updatePointSize(this.value)">
+            <span id="label-size-slider">3D 方塊比例: <span id="pt-size-val" class="stat-badge">0.95x</span> (微縫立體效果)</span>
+            <input type="range" id="pt-size-slider" min="0.4" max="1.3" step="0.05" value="0.95" oninput="updatePointSize(this.value)">
           </div>
           <div class="slider-row" style="margin-top: 6px;">
             <span>最大顯示深度: <span id="depth-val" class="stat-badge">1000</span> m</span>
@@ -977,9 +992,12 @@
     // =========================================
     let scene3d, camera3d, renderer3d, controls3d;
     let pointCloudGroup, boreholeGroup, bedrockGroup, faultGroup, bboxGroup;
+    let voxelMesh = null;
     let pointCloud = null;
     let currentBasinData = null;
 
+    let renderMode = "cube"; // "cube" (3D 立體方塊, 預設) 或 "point" (點雲)
+    let cubeScale = 0.95;    // 方塊尺寸比例 (0.4 ~ 1.3)
     let pointSize = 4.0;
     let maxDisplayDepth = 1000.0;
     let zExaggeration = 20.0;
@@ -1008,11 +1026,14 @@
       controls3d.enableDamping = true;
       controls3d.dampingFactor = 0.08;
 
-      const ambient = new THREE.AmbientLight(0xffffff, 0.85);
+      const ambient = new THREE.AmbientLight(0xffffff, 0.75);
       scene3d.add(ambient);
-      const dirLight = new THREE.DirectionalLight(0xffffff, 0.75);
-      dirLight.position.set(60, 120, 60);
-      scene3d.add(dirLight);
+      const dirLight1 = new THREE.DirectionalLight(0xffffff, 0.85);
+      dirLight1.position.set(80, 150, 90);
+      scene3d.add(dirLight1);
+      const dirLight2 = new THREE.DirectionalLight(0xa5c9ea, 0.45);
+      dirLight2.position.set(-80, -60, -90);
+      scene3d.add(dirLight2);
 
       pointCloudGroup = new THREE.Group();
       boreholeGroup = new THREE.Group();
@@ -1252,51 +1273,135 @@
       };
     }
 
-    // 建立超高密度點雲
+    // 建立 3D 體素 (預設：真實 3D 立體方塊 InstancedMesh，亦可切換點雲模式)
     function build3DPointCloud() {
+      build3DVoxels();
+    }
+
+    function build3DVoxels() {
       if (!currentBasinData) return;
       pointCloudGroup.clear();
+      voxelMesh = null;
+      pointCloud = null;
 
       const b = currentBasinData.bounds;
       const ch = getCoordsHelper(b);
       const pts = currentBasinData.points || [];
 
-      const positions = [];
-      const colors = [];
+      // 1. 篩選目前可見的體素點
       const validIndices = [];
+      const validPoints = [];
+      for (let i = 0; i < pts.length; i++) {
+        const pt = pts[i];
+        const depth = pt[2];
+        const lid = pt[3];
+        if (!activeLithMask[lid]) continue;
+        if (depth > maxDisplayDepth) continue;
+        validIndices.push(i);
+        validPoints.push(pt);
+      }
 
-      pts.forEach((pt, idx) => {
-        const [lon, lat, depth, lid, vs, conf] = pt;
-        if (!activeLithMask[lid]) return;
-        if (depth > maxDisplayDepth) return;
+      const count = validPoints.length;
+      const countEl = document.getElementById("voxel-count");
+      if (countEl) countEl.innerText = count.toLocaleString();
+      if (count === 0) return;
 
-        const x = ch.lonToX(lon);
-        const y = ch.depthToY(depth);
-        const z = ch.latToZ(lat);
+      if (renderMode === "cube") {
+        // ============================================
+        // 真正的 3D 方塊 (True 3D Solid Voxels / BoxGeometry)
+        // ============================================
+        const lons = currentBasinData.lons || [];
+        const lats = currentBasinData.lats || [];
+        const depths = currentBasinData.depths || [];
 
-        positions.push(x, y, z);
-        const col = new THREE.Color(LITH_META[lid] ? LITH_META[lid].color : "#ffffff");
-        colors.push(col.r, col.g, col.b);
-        validIndices.push(idx);
-      });
+        const lonSpan = Math.max(1e-4, b.lon_max - b.lon_min);
+        const latSpan = Math.max(1e-4, b.lat_max - b.lat_min);
 
-      const geom = new THREE.BufferGeometry();
-      geom.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
-      geom.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
-      geom.userData = { validIndices };
+        let stepLon = lons.length >= 2 ? Math.abs(lons[1] - lons[0]) : (lonSpan / 35.0);
+        let stepLat = lats.length >= 2 ? Math.abs(lats[1] - lats[0]) : (latSpan / 35.0);
+        let stepDepth = depths.length >= 2 ? Math.abs(depths[1] - depths[0]) : 20.0;
+        if (stepLon <= 0) stepLon = lonSpan / 35.0;
+        if (stepLat <= 0) stepLat = latSpan / 35.0;
+        if (stepDepth <= 0) stepDepth = 20.0;
 
-      // 使用較大點徑 (Point Size) 消除空隙，形成緊實連續地體！
-      const mat = new THREE.PointsMaterial({
-        size: pointSize,
-        vertexColors: true,
-        transparent: true,
-        opacity: 0.92
-      });
+        // 計算 3D 場景空間中每個網格方塊的基礎寬度、長度、高度
+        const unitBoxW = (stepLon / lonSpan) * SCENE_WIDTH;
+        const unitBoxD = (stepLat / latSpan) * ch.sceneLength;
+        const unitBoxH = (stepDepth / 1000.0) * 8.0 * (zExaggeration / 10.0);
 
-      pointCloud = new THREE.Points(geom, mat);
-      pointCloudGroup.add(pointCloud);
+        const boxW = Math.max(0.15, unitBoxW * cubeScale);
+        const boxD = Math.max(0.15, unitBoxD * cubeScale);
+        const boxH = Math.max(0.08, unitBoxH * cubeScale);
 
-      document.getElementById("voxel-count").innerText = (positions.length / 3).toLocaleString();
+        const boxGeom = new THREE.BoxGeometry(boxW, boxH, boxD);
+        const boxMat = new THREE.MeshLambertMaterial({
+          color: 0xffffff,
+          transparent: true,
+          opacity: 0.95
+        });
+
+        voxelMesh = new THREE.InstancedMesh(boxGeom, boxMat, count);
+        voxelMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+        voxelMesh.userData = { validIndices, isVoxelMesh: true };
+
+        const matrix = new THREE.Matrix4();
+        const dummyColor = new THREE.Color();
+
+        for (let i = 0; i < count; i++) {
+          const pt = validPoints[i];
+          const lon = pt[0], lat = pt[1], depth = pt[2], lid = pt[3];
+
+          const x = ch.lonToX(lon);
+          const y = ch.depthToY(depth);
+          const z = ch.latToZ(lat);
+
+          matrix.setPosition(x, y, z);
+          voxelMesh.setMatrixAt(i, matrix);
+
+          const hex = LITH_META[lid] ? LITH_META[lid].color : "#ffffff";
+          dummyColor.set(hex);
+          voxelMesh.setColorAt(i, dummyColor);
+        }
+
+        voxelMesh.instanceMatrix.needsUpdate = true;
+        if (voxelMesh.instanceColor) voxelMesh.instanceColor.needsUpdate = true;
+
+        pointCloudGroup.add(voxelMesh);
+      } else {
+        // ============================================
+        // 點雲模式 (Point Cloud Mode)
+        // ============================================
+        const positions = [];
+        const colors = [];
+
+        for (let i = 0; i < count; i++) {
+          const pt = validPoints[i];
+          const lon = pt[0], lat = pt[1], depth = pt[2], lid = pt[3];
+
+          const x = ch.lonToX(lon);
+          const y = ch.depthToY(depth);
+          const z = ch.latToZ(lat);
+
+          positions.push(x, y, z);
+          const col = new THREE.Color(LITH_META[lid] ? LITH_META[lid].color : "#ffffff");
+          colors.push(col.r, col.g, col.b);
+        }
+
+        const geom = new THREE.BufferGeometry();
+        geom.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+        geom.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
+        geom.userData = { validIndices };
+
+        const mat = new THREE.PointsMaterial({
+          size: pointSize,
+          vertexColors: true,
+          transparent: true,
+          opacity: 0.92
+        });
+
+        pointCloud = new THREE.Points(geom, mat);
+        pointCloudGroup.add(pointCloud);
+      }
     }
 
     // 建立範圍內深井柱體
@@ -1445,13 +1550,55 @@
       controls3d.update();
     }
 
-    // 動態調節滑桿 (體素大小、深度、垂直誇大)
+    // 動態調節模式與滑桿 (3D 方塊比例 / 點雲大小、深度、垂直誇大)
+    function setRenderMode(mode) {
+      renderMode = mode;
+      const btnCube = document.getElementById("btn-mode-cube");
+      const btnPoint = document.getElementById("btn-mode-point");
+      const label = document.getElementById("label-size-slider");
+      const badge = document.getElementById("pt-size-val");
+      const slider = document.getElementById("pt-size-slider");
+
+      if (mode === "cube") {
+        if (btnCube) btnCube.className = "secondary active";
+        if (btnPoint) btnPoint.className = "secondary";
+        if (label) label.innerHTML = `3D 方塊比例: <span id="pt-size-val" class="stat-badge">${cubeScale.toFixed(2)}x</span> (微縫立體效果)`;
+        if (slider) {
+          slider.min = "0.4";
+          slider.max = "1.3";
+          slider.step = "0.05";
+          slider.value = cubeScale;
+        }
+      } else {
+        if (btnCube) btnCube.className = "secondary";
+        if (btnPoint) btnPoint.className = "secondary active";
+        if (label) label.innerHTML = `體素點大小: <span id="pt-size-val" class="stat-badge">${pointSize.toFixed(1)} px</span>`;
+        if (slider) {
+          slider.min = "1.0";
+          slider.max = "8.0";
+          slider.step = "0.5";
+          slider.value = pointSize;
+        }
+      }
+      build3DVoxels();
+    }
+
     function updatePointSize(val) {
-      pointSize = parseFloat(val);
-      document.getElementById("pt-size-val").innerText = val + " px";
-      if (pointCloud && pointCloud.material) {
-        pointCloud.material.size = pointSize;
-        pointCloud.material.needsUpdate = true;
+      const num = parseFloat(val);
+      const badge = document.getElementById("pt-size-val");
+      if (renderMode === "cube") {
+        cubeScale = num;
+        if (badge) badge.innerText = num.toFixed(2) + "x";
+        build3DVoxels();
+      } else {
+        pointSize = num;
+        if (badge) badge.innerText = num.toFixed(1) + " px";
+        if (pointCloud && pointCloud.material) {
+          pointCloud.material.size = pointSize;
+          pointCloud.material.needsUpdate = true;
+        } else {
+          build3DVoxels();
+        }
       }
     }
 
@@ -1543,27 +1690,55 @@
           }
         }
 
-        // 2. 檢測體素點雲
-        if (pointCloud && currentBasinData) {
-          const ptHits = raycaster.intersectObject(pointCloud);
-          if (ptHits.length > 0) {
-            const geomIdx = ptHits[0].index;
-            const validIndices = pointCloud.geometry.userData.validIndices;
-            const origIdx = validIndices ? validIndices[geomIdx] : geomIdx;
-            const pt = currentBasinData.points[origIdx];
-            if (pt) {
-              tooltip.style.display = "block";
-              tooltip.style.left = (e.clientX + 14) + "px";
-              tooltip.style.top = (e.clientY + 14) + "px";
-              const lithName = LITH_META[pt[3]] ? LITH_META[pt[3]].name : "Unknown";
-              tooltip.innerHTML = `
-                <b>深度: ${pt[2]} m</b><br>
-                預測岩性: <span style="color: #58a6ff; font-weight: bold;">${lithName}</span><br>
-                剪力波速 Vs: <b>${pt[4]} m/s</b><br>
-                AI 序列信心度: <b>${(pt[5]*100).toFixed(0)}%</b> (Wellbore-SeqNet)<br>
-                座標: ${pt[0]}°E, ${pt[1]}°N
-              `;
-              return;
+        // 2. 檢測體素物件 (支援 3D 立體方塊 InstancedMesh 與 點雲 Points)
+        if (currentBasinData) {
+          if (voxelMesh) {
+            const hits = raycaster.intersectObject(voxelMesh);
+            if (hits.length > 0) {
+              const instId = hits[0].instanceId;
+              if (instId !== undefined) {
+                const validIndices = voxelMesh.userData.validIndices;
+                const origIdx = validIndices ? validIndices[instId] : instId;
+                const pt = currentBasinData.points[origIdx];
+                if (pt) {
+                  tooltip.style.display = "block";
+                  tooltip.style.left = (e.clientX + 14) + "px";
+                  tooltip.style.top = (e.clientY + 14) + "px";
+                  const lithName = LITH_META[pt[3]] ? LITH_META[pt[3]].name : "Unknown";
+                  tooltip.innerHTML = `
+                    <div style="color: #58a6ff; font-weight: bold; margin-bottom: 2px;">🧊 3D 地質立體方塊 (Voxel)</div>
+                    <b>深度: ${pt[2]} m</b><br>
+                    預測岩性: <span style="color: #7ee787; font-weight: bold;">${lithName}</span><br>
+                    剪力波速 Vs: <b>${pt[4]} m/s</b><br>
+                    AI 序列信心度: <b>${(pt[5]*100).toFixed(0)}%</b> (Wellbore-SeqNet)<br>
+                    座標: ${pt[0]}°E, ${pt[1]}°N
+                  `;
+                  return;
+                }
+              }
+            }
+          }
+          if (pointCloud) {
+            const ptHits = raycaster.intersectObject(pointCloud);
+            if (ptHits.length > 0) {
+              const geomIdx = ptHits[0].index;
+              const validIndices = pointCloud.geometry.userData.validIndices;
+              const origIdx = validIndices ? validIndices[geomIdx] : geomIdx;
+              const pt = currentBasinData.points[origIdx];
+              if (pt) {
+                tooltip.style.display = "block";
+                tooltip.style.left = (e.clientX + 14) + "px";
+                tooltip.style.top = (e.clientY + 14) + "px";
+                const lithName = LITH_META[pt[3]] ? LITH_META[pt[3]].name : "Unknown";
+                tooltip.innerHTML = `
+                  <b>深度: ${pt[2]} m</b><br>
+                  預測岩性: <span style="color: #58a6ff; font-weight: bold;">${lithName}</span><br>
+                  剪力波速 Vs: <b>${pt[4]} m/s</b><br>
+                  AI 序列信心度: <b>${(pt[5]*100).toFixed(0)}%</b> (Wellbore-SeqNet)<br>
+                  座標: ${pt[0]}°E, ${pt[1]}°N
+                `;
+                return;
+              }
             }
           }
         }

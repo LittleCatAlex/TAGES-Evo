@@ -60,6 +60,10 @@ def test_taiwan_portal_assets():
     assert "getPresetBasinAt" in html_content, "需具備判斷座標落於預設盆地之輔助函數 getPresetBasinAt"
     assert "collectedPoints.concat(synthPoints)" in html_content, "跨界自訂 ROI 需能無縫合併既有盆地與新合成體素"
     assert "if (collectedPoints.length >= 400)" not in html_content, "不可因盆地體素點數大於 400 即提早返回而遺漏非盆地區域"
+    assert "THREE.InstancedMesh" in html_content, "需使用 THREE.InstancedMesh 渲染真正 3D 方塊實體體素"
+    assert "THREE.BoxGeometry" in html_content, "需具備 3D 方塊幾何體 BoxGeometry"
+    assert "setRenderMode" in html_content, "需支援 3D 立體方塊與點雲呈現形態切換"
+    assert "voxelMesh.setColorAt" in html_content, "需支援 3D 方塊實例化個別岩性著色"
 
 def test_hybrid_roi_seamless_coverage():
     """驗證當自訂框選範圍同時涵蓋預設盆地與非預設盆地時，能無縫生成涵蓋全框的 3D 體素。"""
