@@ -19,10 +19,61 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from tages.features.interpolator import VelocityModel3D
 from tages.geo.crs import convert
 
+WESTERN_DEFORMATION_FRONT = np.array([
+    [121.50, 25.05],
+    [121.25, 24.85],
+    [120.95, 24.45],
+    [120.72, 24.15],
+    [120.58, 23.65],
+    [120.48, 23.35],
+    [120.42, 22.85],
+    [120.45, 22.40],
+    [120.75, 21.95]
+])
+
+WESTERN_COASTLINE = np.array([
+    [121.50, 25.25],
+    [121.15, 25.10],
+    [120.95, 24.75],
+    [120.62, 24.35],
+    [120.30, 23.95],
+    [120.12, 23.55],
+    [120.08, 23.10],
+    [120.20, 22.50],
+    [120.65, 21.90]
+])
+
+def point_to_polyline_dist_km(lons: np.ndarray, lats: np.ndarray, polyline: np.ndarray) -> np.ndarray:
+    """計算點集到多段線之最近水平距離 (km)。"""
+    lat_mean = np.radians(np.mean(lats))
+    scale_y = 111.0
+    scale_x = 111.0 * np.cos(lat_mean)
+    
+    px = lons * scale_x
+    py = lats * scale_y
+    poly_x = polyline[:, 0] * scale_x
+    poly_y = polyline[:, 1] * scale_y
+    
+    min_dists = np.full(len(lons), np.inf)
+    for i in range(len(polyline) - 1):
+        x1, y1 = poly_x[i], poly_y[i]
+        x2, y2 = poly_x[i+1], poly_y[i+1]
+        dx, dy = x2 - x1, y2 - y1
+        l2 = dx*dx + dy*dy
+        if l2 == 0:
+            d = np.hypot(px - x1, py - y1)
+        else:
+            t = np.clip(((px - x1)*dx + (py - y1)*dy) / l2, 0.0, 1.0)
+            proj_x = x1 + t * dx
+            proj_y = y1 + t * dy
+            d = np.hypot(px - proj_x, py - proj_y)
+        min_dists = np.minimum(min_dists, d)
+    return np.round(min_dists, 2)
+
 def build_dataset(
-    boreholes_path: str = "data/interim/hydro_boreholes.csv",
-    strata_path: str = "data/interim/hydro_strata.csv",
-    velocity_grid_path: str = "data/interim/chianan_velocity_3d.csv",
+    boreholes_path: str = "data/interim/taiwan_boreholes.csv",
+    strata_path: str = "data/interim/taiwan_strata.csv",
+    velocity_grid_path: str = "data/interim/taiwan_velocity_3d.csv",
     out_dir: str = "data/processed",
     sample_step_m: float = 1.0  # 厚地層每隔多少公尺取樣一點
 ):
@@ -99,6 +150,18 @@ def build_dataset(
     # nu = 0.5 * ( (Vp/Vs)^2 - 2 ) / ( (Vp/Vs)^2 - 1 )
     r2 = df_samples["vp_vs_ratio"] ** 2
     df_samples["poisson_ratio"] = np.round(0.5 * (r2 - 2) / np.maximum(r2 - 1, 1e-4), 3)
+
+    # 沉積地貌與壓密特徵
+    print("正在計算構造前緣距離、海岸線距離與沉積壓密特徵...")
+    df_samples["dist_to_fault_km"] = point_to_polyline_dist_km(
+        df_samples["lon"].values, df_samples["lat"].values, WESTERN_DEFORMATION_FRONT
+    )
+    df_samples["dist_to_coast_km"] = point_to_polyline_dist_km(
+        df_samples["lon"].values, df_samples["lat"].values, WESTERN_COASTLINE
+    )
+    compaction_vs = 160.0 * (1.0 + df_samples["depth_m"] / 8.0) ** 0.32
+    df_samples["compaction_vs_ms"] = np.round(compaction_vs, 1)
+    df_samples["vs_residual_ms"] = np.round(df_samples["vs_ms"] - compaction_vs, 1)
     
     # 存檔
     csv_out = out / "dataset_v1.csv"
@@ -113,7 +176,7 @@ def build_dataset(
         
     print(f"CSV 儲存成功: {csv_out}")
     print("\n資料集摘要統計:")
-    print(df_samples[["depth_m", "z_msl", "vp_ms", "vs_ms", "vp_vs_ratio", "poisson_ratio"]].describe().round(2).to_string())
+    print(df_samples[["depth_m", "z_msl", "vp_ms", "vs_ms", "vp_vs_ratio", "poisson_ratio", "dist_to_fault_km", "dist_to_coast_km", "vs_residual_ms"]].describe().round(2).to_string())
     print("\n岩性類別分佈 (樣本數與百分比):")
     counts = df_samples["lithology_name"].value_counts()
     pcts = (counts / len(df_samples) * 100).round(1)

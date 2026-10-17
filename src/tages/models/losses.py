@@ -51,14 +51,15 @@ class HierarchicalSequenceLoss(nn.Module):
         weight_crf: float = 1.0,
         weight_focal_l2: float = 0.5,
         weight_focal_l1: float = 0.3,
-        gamma: float = 2.0
+        gamma: float = 2.0,
+        alpha_l2: torch.Tensor | None = None
     ):
         super().__init__()
         self.weight_crf = weight_crf
         self.weight_focal_l2 = weight_focal_l2
         self.weight_focal_l1 = weight_focal_l1
 
-        self.focal_l2 = MaskedFocalLoss(gamma=gamma)
+        self.focal_l2 = MaskedFocalLoss(gamma=gamma, alpha=alpha_l2)
         self.focal_l1 = MaskedFocalLoss(gamma=gamma)
 
     def forward(

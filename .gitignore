@@ -14,6 +14,7 @@ models/*.pkl
 
 # Raw Data & Large Media
 data/raw/
+!data/raw/seismic/tsmip_site_truth.csv
 data/chart_photos/
 *.zip
 *.tar.gz

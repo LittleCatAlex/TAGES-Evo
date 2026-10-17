@@ -105,7 +105,7 @@ class WellboreSeqTrainer:
         # 地質層序品質指標：換層次數與孤立噪點
         total_transitions = 0
         isolated_noise_count = 0
-        total_length = 0
+        total_depth_m = 0.0
 
         with torch.no_grad():
             for batch in dataloader:
@@ -114,6 +114,7 @@ class WellboreSeqTrainer:
                 y_l1 = batch["y_l1"].cpu().numpy()
                 mask = batch["mask"].to(self.device)
                 lengths = batch["lengths"]
+                depths_batch = batch.get("depths")
 
                 res = self.model.predict(x, mask=mask)
                 pred_paths = res["l2_paths"]
@@ -136,7 +137,13 @@ class WellboreSeqTrainer:
                     if len(p) > 1:
                         transitions = np.sum(p[:-1] != p[1:])
                         total_transitions += int(transitions)
-                    total_length += len(p)
+                    
+                    if depths_batch is not None:
+                        d_seq = depths_batch[b, :t_len].cpu().numpy()
+                        span = float(d_seq[-1] - d_seq[0]) if len(d_seq) > 1 else 1.0
+                        total_depth_m += max(1.0, span)
+                    else:
+                        total_depth_m += len(p) * 2.0
 
                     # 統計孤立單點噪聲 (A-B-A 模式)
                     for k in range(1, len(p) - 1):
@@ -155,7 +162,7 @@ class WellboreSeqTrainer:
         acc_l1 = accuracy_score(all_true_l1, all_pred_l1)
         macro_f1_l1 = f1_score(all_true_l1, all_pred_l1, average="macro", zero_division=0)
 
-        trans_per_100m = (total_transitions / max(1, total_length)) * 100.0
+        trans_per_100m = (total_transitions / max(1.0, total_depth_m)) * 100.0
 
         return {
             "accuracy_l2": acc_l2,

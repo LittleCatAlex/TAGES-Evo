@@ -1792,6 +1792,34 @@
 
         // 2. 檢測體素物件 (支援 3D 立體方塊 InstancedMesh 與 點雲 Points)
         if (currentBasinData) {
+          function getEvidenceTier(pt) {
+            let tierTag = "";
+            let tierColor = "#7ee787";
+            if (selectedBasinKey === "custom" || (currentBasinData && currentBasinData.is_custom)) {
+              tierTag = "Tier 3 (相鄰盆地層序延展與區域構造內插)";
+              tierColor = "#f0883e";
+            } else if (pt[2] <= 300) {
+              tierTag = "Tier 1 (深水井密集校準 + WellboreSeqNet 推論)";
+              tierColor = "#7ee787";
+            } else {
+              tierTag = "Tier 2 (TEC 3D 震波層析約束外推)";
+              tierColor = "#58a6ff";
+            }
+
+            let minWellDist = 999.0;
+            if (portalData && portalData.boreholes) {
+              for (let bi = 0; bi < portalData.boreholes.length; bi++) {
+                const bh = portalData.boreholes[bi];
+                const dx = (pt[0] - bh.lon) * 102.0;
+                const dy = (pt[1] - bh.lat) * 111.0;
+                const dist = Math.sqrt(dx*dx + dy*dy);
+                if (dist < minWellDist) minWellDist = dist;
+              }
+            }
+            const wellDistStr = minWellDist < 100 ? minWellDist.toFixed(1) + " km" : "> 100 km";
+            return { tierTag, tierColor, wellDistStr };
+          }
+
           if (voxelMesh) {
             const hits = raycaster.intersectObject(voxelMesh);
             if (hits.length > 0) {
@@ -1801,6 +1829,7 @@
                 const origIdx = validIndices ? validIndices[instId] : instId;
                 const pt = currentBasinData.points[origIdx];
                 if (pt) {
+                  const ev = getEvidenceTier(pt);
                   tooltip.style.display = "block";
                   tooltip.style.left = (e.clientX + 14) + "px";
                   tooltip.style.top = (e.clientY + 14) + "px";
@@ -1811,6 +1840,8 @@
                     預測岩性: <span style="color: #7ee787; font-weight: bold;">${lithName}</span><br>
                     剪力波速 Vs: <b>${pt[4]} m/s</b><br>
                     AI 序列信心度: <b>${(pt[5]*100).toFixed(0)}%</b> (Wellbore-SeqNet)<br>
+                    證據等級: <span style="color: ${ev.tierColor}; font-weight: bold;">${ev.tierTag}</span><br>
+                    距最近鑽井: <b>${ev.wellDistStr}</b><br>
                     座標: ${pt[0]}°E, ${pt[1]}°N
                   `;
                   return;
@@ -1826,15 +1857,19 @@
               const origIdx = validIndices ? validIndices[geomIdx] : geomIdx;
               const pt = currentBasinData.points[origIdx];
               if (pt) {
+                const ev = getEvidenceTier(pt);
                 tooltip.style.display = "block";
                 tooltip.style.left = (e.clientX + 14) + "px";
                 tooltip.style.top = (e.clientY + 14) + "px";
                 const lithName = LITH_META[pt[3]] ? LITH_META[pt[3]].name : "Unknown";
                 tooltip.innerHTML = `
+                  <div style="color: #58a6ff; font-weight: bold; margin-bottom: 2px;">🧊 3D 地質點 (Voxel Point)</div>
                   <b>深度: ${pt[2]} m</b><br>
                   預測岩性: <span style="color: #58a6ff; font-weight: bold;">${lithName}</span><br>
                   剪力波速 Vs: <b>${pt[4]} m/s</b><br>
                   AI 序列信心度: <b>${(pt[5]*100).toFixed(0)}%</b> (Wellbore-SeqNet)<br>
+                  證據等級: <span style="color: ${ev.tierColor}; font-weight: bold;">${ev.tierTag}</span><br>
+                  距最近鑽井: <b>${ev.wellDistStr}</b><br>
                   座標: ${pt[0]}°E, ${pt[1]}°N
                 `;
                 return;

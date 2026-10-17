@@ -1,0 +1,13 @@
+station_code,station_name,basin,lon,lat,vs30_obs_ms,site_class,sediment_depth_lit_m,f0_obs_hz,peak_amp_obs,data_source
+CHY010,布袋 (Budai),Chianan,120.16,23.38,175,Class E (Soft Soil),720.0,0.72,4.8,NCREE EGDT / Kuo et al. (2012)
+CHY015,嘉義市 (Chiayi City),Chianan,120.45,23.48,220,Class D (Mid Alluvium),480.0,0.95,4.1,NCREE EGDT / Lee et al. (2015)
+CHY024,斗六 (Douliu),Chianan,120.54,23.71,310,Class D (Alluvial Apex),320.0,1.25,3.2,NCREE EGDT / Lee et al. (2015)
+CHY029,觸口 (Chukou),Chianan,120.57,23.44,520,Class C (Foothill Semi-Rock),120.0,2.85,2.1,NCREE EGDT / Sokolov et al. (2004)
+CHY041,新營 (Xinying),Chianan,120.31,23.31,195,Class D (Basin Depocenter),620.0,0.82,4.5,NCREE EGDT / Kuo et al. (2012)
+CHY080,新港 (Singang),Chianan,120.35,23.55,245,Class D (Peikang Flank),410.0,1.10,3.7,NCREE EGDT / Lee et al. (2015)
+TAP001,臺北市區 (Taipei Center),Taipei,121.51,25.04,160,Class E (Songshan Soft Clay),280.0,0.88,5.2,NCREE EGDT / Wang et al. (2004)
+TAP022,關渡 (Guandu),Taipei,121.46,25.13,260,Class D (Basin Margin),140.0,1.45,3.4,NCREE EGDT / Wang et al. (2004)
+TCU076,臺中西區 (Taichung West),Taichung,120.65,24.15,275,Class D (Mid Basin),310.0,1.18,3.6,NCREE EGDT / Central Taiwan TSMIP
+TCU084,大坑 (Dakeng),Taichung,120.72,24.18,410,Class C (Foothill Semi-Rock),160.0,2.10,2.5,NCREE EGDT / Central Taiwan TSMIP
+ILA001,羅東 (Luodong),Yilan,121.77,24.68,185,Class E (Lanyang Soft Alluvium),420.0,0.92,4.6,NCREE EGDT / Yilan Downhole Array
+ILA056,蘇澳 (Suao),Yilan,121.84,24.59,340,Class D (South Transition),180.0,1.70,2.9,NCREE EGDT / Yilan Downhole Array

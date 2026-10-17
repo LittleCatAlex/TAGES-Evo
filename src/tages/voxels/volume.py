@@ -41,15 +41,57 @@ class VoxelGridConfig:
     vs_acoustic_bedrock: float = 2150.0  # 地震聲學基盤 (Vs >= 2,150 m/s，進入第三紀半固結/固結泥岩砂岩基底)
 
 
+_ELEV_TREE = None
+_ELEV_VALUES = None
+
+def _get_elev_tree():
+    global _ELEV_TREE, _ELEV_VALUES
+    if _ELEV_TREE is None:
+        from scipy.spatial import cKDTree
+        bh_csv = Path(__file__).resolve().parents[3] / "data" / "interim" / "taiwan_boreholes.csv"
+        if bh_csv.exists():
+            df = pd.read_csv(bh_csv)
+            coords = df[["lon", "lat"]].values
+            _ELEV_VALUES = df["elev_m"].values
+            _ELEV_TREE = cKDTree(coords)
+    return _ELEV_TREE, _ELEV_VALUES
+
+
 def estimate_elevation(lon: np.ndarray, lat: np.ndarray) -> np.ndarray:
-    """由西向東之西南臺灣 (嘉南平原與雲嘉南地區) 地表高程經驗推估 (公尺)。
-    西側沿海 (東石/布袋/北門/七股/臺西) 約 1~5m，
-    平原腹地 (嘉義市/新營/善化/斗六) 約 20~45m，
-    東側麓山帶前緣 (觸口/古坑/白河/楠西) 上升至 80~250m。
+    """臺灣沉積盆地地表高程估算 (公尺)。
+    優先使用全臺 423 口水文觀測井之實測地表高程 (elev_m) 進行 cKDTree 反距離權重插值 (IDW)，
+    真實反映各盆地高程 (臺北 2~20m、蘭陽 1~30m、嘉南 2~45m、臺中 40~180m、屏東 5~90m)。
     """
-    rel_lon = np.clip((lon - 120.05) / 0.65, 0.0, 1.5)
-    elev = 2.0 + 160.0 * (rel_lon ** 2.2) + 12.0 * np.clip((lat - 23.30) / 0.50, -0.5, 1.0)
-    return np.maximum(1.0, elev)
+    lon_arr = np.asarray(lon, dtype=float)
+    lat_arr = np.asarray(lat, dtype=float)
+    shape = lon_arr.shape
+    flat_lon = lon_arr.ravel()
+    flat_lat = lat_arr.ravel()
+
+    tree, elevs = _get_elev_tree()
+    if tree is not None and len(elevs) > 0:
+        query_pts = np.column_stack([flat_lon, flat_lat])
+        dists, idxs = tree.query(query_pts, k=min(4, len(elevs)))
+        if dists.ndim == 1:
+            dists = dists[:, None]
+            idxs = idxs[:, None]
+        weights = 1.0 / np.maximum(dists, 1e-4) ** 2
+        weights_sum = np.sum(weights, axis=1, keepdims=True)
+        interp_elev = np.sum(weights * elevs[idxs], axis=1) / weights_sum.squeeze()
+        exact_mask = dists[:, 0] < 1e-4
+        if np.any(exact_mask):
+            interp_elev[exact_mask] = elevs[idxs[exact_mask, 0]]
+        
+        # 對於向東進入山麓帶前緣 (例如西南臺灣 Lon > 120.45 且無深井點位)，疊加山麓地形自然抬升梯度
+        foothill_boost = np.where((flat_lon > 120.45) & (flat_lon < 120.80) & (flat_lat > 23.10) & (flat_lat < 23.70),
+                                  np.maximum(0.0, (flat_lon - 120.45) * 220.0), 0.0)
+        final_elev = interp_elev + foothill_boost
+        return np.maximum(1.0, final_elev.reshape(shape))
+
+    # 備用保底經驗公式
+    rel_lon = np.clip((flat_lon - 120.05) / 0.65, 0.0, 1.5)
+    elev = 2.0 + 160.0 * (rel_lon ** 2.2) + 12.0 * np.clip((flat_lat - 23.30) / 0.50, -0.5, 1.0)
+    return np.maximum(1.0, elev.reshape(shape))
 
 
 class VoxelVolumeGenerator:
