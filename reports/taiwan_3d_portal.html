@@ -1067,6 +1067,52 @@
     }
 
     // =========================================
+    // 臺灣本島海岸線邊界多邊形與陸域遮罩判斷
+    // =========================================
+    const TAIWAN_MAIN_COASTLINE = [
+      [121.55, 25.32], [121.72, 25.24], [121.92, 25.15], [122.02, 25.01],
+      [121.98, 24.85], [121.88, 24.62], [121.86, 24.45], [121.72, 24.30],
+      [121.68, 24.12], [121.62, 23.85], [121.58, 23.55], [121.48, 23.25],
+      [121.42, 23.05], [121.32, 22.85], [121.18, 22.70], [121.05, 22.55],
+      [120.92, 22.35], [120.88, 21.92], [120.72, 21.88], [120.65, 22.02],
+      [120.62, 22.25], [120.50, 22.38], [120.36, 22.48], [120.24, 22.58],
+      [120.08, 22.92], [120.04, 23.12], [120.06, 23.35], [120.12, 23.65],
+      [120.25, 23.90], [120.30, 24.08], [120.50, 24.32], [120.65, 24.58],
+      [120.74, 24.70], [120.88, 24.88], [121.02, 25.06], [121.18, 25.12],
+      [121.35, 25.20], [121.46, 25.30], [121.55, 25.32]
+    ];
+
+    // 檢查座標是否落在任何既有 6 大預設盆地內
+    function getPresetBasinAt(lon, lat) {
+      const basins = portalData.basins_voxels || {};
+      for (const k of Object.keys(basins)) {
+        const bv = basins[k];
+        if (!bv || !bv.bounds) continue;
+        const b = bv.bounds;
+        if (lon >= b.lon_min && lon <= b.lon_max && lat >= b.lat_min && lat <= b.lat_max) {
+          return { key: k, bv: bv };
+        }
+      }
+      return null;
+    }
+
+    // 判斷給定 (lon, lat) 是否位於臺灣陸域範圍內 (嚴格剔除開闊海域，避免海洋被錯誤預測為陸地岩層)
+    function isPointInTaiwanLand(lon, lat) {
+      if (getPresetBasinAt(lon, lat) !== null) return true;
+      if (lon >= 119.50 && lon <= 119.70 && lat >= 23.20 && lat <= 23.75) return true;
+      let inside = false;
+      const poly = TAIWAN_MAIN_COASTLINE;
+      for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+        const xi = poly[i][0], yi = poly[i][1];
+        const xj = poly[j][0], yj = poly[j][1];
+        const intersect = ((yi > lat) !== (yj > lat)) &&
+          (lon < (xj - xi) * (lat - yi) / (yj - yi) + xi);
+        if (intersect) inside = !inside;
+      }
+      return inside;
+    }
+
+    // =========================================
     // 自訂查詢區域 3D 體素動態採樣與混合無縫合成生成器
     // =========================================
     function getOrCreateCustomROI3DData(roi) {
@@ -1079,21 +1125,42 @@
       const lats = [];
       for (let j = 0; j < nY; j++) lats.push(+(minLat + (maxLat - minLat) * (j / (nY - 1))).toFixed(5));
 
-      // 檢查座標是否落在任何既有 6 大預設盆地內
-      function getPresetBasinAt(lon, lat) {
-        const basins = portalData.basins_voxels || {};
-        for (const k of Object.keys(basins)) {
-          const bv = basins[k];
-          if (!bv || !bv.bounds) continue;
-          const b = bv.bounds;
-          if (lon >= b.lon_min && lon <= b.lon_max && lat >= b.lat_min && lat <= b.lat_max) {
-            return { key: k, bv: bv };
-          }
+      // 1. 收集落在 ROI 內的高精度既有盆地體素點
+      const collectedPoints = [];
+      Object.keys(portalData.basins_voxels || {}).forEach(k => {
+        const bv = portalData.basins_voxels[k];
+        if (!bv || !bv.bounds) return;
+        const b = bv.bounds;
+        if (minLon <= b.lon_max && maxLon >= b.lon_min && minLat <= b.lat_max && maxLat >= b.lat_min) {
+          (bv.points || []).forEach(pt => {
+            if (pt[0] >= minLon && pt[0] <= maxLon && pt[1] >= minLat && pt[1] <= maxLat) {
+              collectedPoints.push(pt);
+            }
+          });
         }
-        return null;
+      });
+
+      // 將既有盆地體素點按經緯度索引為立體地質柱狀群 (Column Index)，供相鄰非盆地區域繼承深度序列
+      const presetColumns = new Map();
+      for (let pIdx = 0; pIdx < collectedPoints.length; pIdx++) {
+        const pt = collectedPoints[pIdx];
+        const colKey = `${pt[0].toFixed(3)}_${pt[1].toFixed(3)}`;
+        let col = presetColumns.get(colKey);
+        if (!col) {
+          col = { lon: pt[0], lat: pt[1], pts: [], bedD: 1000 };
+          presetColumns.set(colKey, col);
+        }
+        col.pts.push(pt);
+      }
+      const presetColList = Array.from(presetColumns.values());
+      for (let c of presetColList) {
+        c.pts.sort((a, b) => a[2] - b[2]);
+        for (let pt of c.pts) {
+          if (pt[3] === 10) { c.bedD = pt[2]; break; }
+        }
       }
 
-      // 1. 產出連續基盤網格 (落入預設盆地區域取用其高精度基盤網格，非預設盆地區依區域構造延伸)
+      // 2. 產出連續平滑基盤網格 (預設盆地內取用高精度反演網格，交界處透過距離指數衰減實現 C^0 連續過渡，杜絕斷崖)
       const bedrockGrid = [];
       for (let j = 0; j < nY; j++) {
         const row = [];
@@ -1110,32 +1177,29 @@
             const iLat = Math.max(0, Math.min(hit.bv.lats.length - 1, Math.round(v * (hit.bv.lats.length - 1))));
             bedD = hit.bv.bedrock_grid[iLat][iLon];
           } else {
+            let minDist = 999;
+            let nearestCol = null;
+            for (let c of presetColList) {
+              const d = Math.hypot(lon - c.lon, lat - c.lat);
+              if (d < minDist) { minDist = d; nearestCol = c; }
+            }
             const distToRidge = Math.abs(lon - 121.0);
-            bedD = Math.max(120, Math.min(950, 780 - distToRidge * 450 + Math.sin(lat * 15 + lon * 20) * 60));
+            const regionalBedD = Math.max(120, Math.min(950, 780 - distToRidge * 450));
+            if (nearestCol && minDist < 0.25) {
+              const w = Math.exp(-minDist / 0.08);
+              bedD = w * nearestCol.bedD + (1 - w) * regionalBedD;
+            } else {
+              bedD = regionalBedD;
+            }
           }
           row.push(Math.round(bedD));
         }
         bedrockGrid.push(row);
       }
 
-      // 2. 收集落在 ROI 內的高精度既有盆地體素點
-      const collectedPoints = [];
-      Object.keys(portalData.basins_voxels || {}).forEach(k => {
-        const bv = portalData.basins_voxels[k];
-        if (!bv || !bv.bounds) return;
-        const b = bv.bounds;
-        if (minLon <= b.lon_max && maxLon >= b.lon_min && minLat <= b.lat_max && maxLat >= b.lat_min) {
-          (bv.points || []).forEach(pt => {
-            if (pt[0] >= minLon && pt[0] <= maxLon && pt[1] >= minLat && pt[1] <= maxLat) {
-              collectedPoints.push(pt);
-            }
-          });
-        }
-      });
-
-      // 3. 針對未被 6 大預設盆地涵蓋的網格位置 (Non-preset columns)，動態合成 3D 地層體素
+      // 3. 針對陸域未被預設盆地涵蓋的網格位置 (Non-preset columns)，動態合成 3D 地層體素
       const synthPoints = [];
-      const nZ = 45;
+      const nZ = 61; // 統一使用 61 層垂直深度切片，步長完全與既有高精度盆地網格吻合
       const localWells = (portalData.boreholes || []).filter(w =>
         w.lon >= minLon - 0.15 && w.lon <= maxLon + 0.15 &&
         w.lat >= minLat - 0.15 && w.lat <= maxLat + 0.15
@@ -1146,12 +1210,25 @@
         for (let i = 0; i < nX; i++) {
           const lon = lons[i];
 
-          // 若該經緯度座標已由 6 大預設盆地的高精度模型涵蓋，則跳過，避免重複生成
+          // 核心過濾 1: 若落在既有 6 大預設盆地內，由 collectedPoints 涵蓋，跳過避免重複
           if (getPresetBasinAt(lon, lat) !== null) {
             continue;
           }
 
+          // 核心過濾 2: 若落在海洋/海峽開闊水域，嚴格跳過，零體素填充，徹底消除海中岩層問題
+          if (!isPointInTaiwanLand(lon, lat)) {
+            continue;
+          }
+
           const bedD = bedrockGrid[j][i];
+
+          // 尋找最近之預設盆地柱狀體，進行地質沉積相比例映射 (無縫承接相鄰 AI 地層厚度)
+          let minColDist = 999;
+          let nearestPresetCol = null;
+          for (let c of presetColList) {
+            const d = Math.hypot(lon - c.lon, lat - c.lat);
+            if (d < minColDist) { minColDist = d; nearestPresetCol = c; }
+          }
 
           // 尋找最近觀測井作地質深度約束
           let nearestW = null;
@@ -1166,39 +1243,62 @@
           }
 
           for (let k = 0; k < nZ; k++) {
-            const depth = 1000.0 * (k / (nZ - 1));
+            const depth = +(1000.0 * (k / (nZ - 1))).toFixed(1);
             let lid = 2; // 預設黏土/泥
             let vs = 260;
 
             if (depth >= bedD) {
-              lid = 10; // 基盤
-              vs = 2200;
-            } else if (depth < 12) {
-              lid = 1; // 表土
-              vs = 180;
-            } else if (depth < 50) {
-              lid = (k % 3 === 0) ? 4 : 2; // 細砂或黏土
-              vs = 290;
-            } else if (depth < 150) {
-              lid = (k % 2 === 0) ? 5 : 6; // 粗砂或互層
-              vs = 440;
-            } else if (depth < 300) {
-              lid = ((i + j) % 3 === 0) ? 7 : 8; // 礫石或泥岩
-              vs = 620;
+              lid = 10; // 結晶基盤
+              vs = 2200 + Math.min(800, (depth - bedD) * 0.8);
+            } else if (nearestPresetCol && minColDist < 0.25) {
+              // 承接相鄰預設盆地 AI 地質模型之層序沉積相，依基盤深度比例等比映射
+              const colSedD = Math.max(30, nearestPresetCol.bedD);
+              const relRatio = depth / Math.max(30, bedD);
+              const targetD = relRatio * colSedD;
+              let bestPt = nearestPresetCol.pts[0];
+              let bestDiff = 9999;
+              for (let pt of nearestPresetCol.pts) {
+                if (pt[3] === 10) continue; // 僅取沉積層相
+                const diff = Math.abs(pt[2] - targetD);
+                if (diff < bestDiff) {
+                  bestDiff = diff;
+                  bestPt = pt;
+                }
+              }
+              lid = bestPt ? bestPt[3] : 2;
+              vs = bestPt ? bestPt[4] : 280;
             } else {
-              lid = ((i * 2 + j) % 2 === 0) ? 8 : 9; // 泥岩或砂岩
-              vs = 750 + depth * 0.7;
+              // 遠離盆地之山麓/山區陸域：生成真實厚層沉積序（表土->黏土/砂->互層->厚礫石->泥岩/砂岩），徹底杜絕條紋狀人造雜訊
+              if (depth < 12) {
+                lid = 1; // 表土
+                vs = 180;
+              } else if (depth < 45) {
+                lid = 2; // 黏土 / 泥
+                vs = 260;
+              } else if (depth < 110) {
+                lid = 5; // 粗砂
+                vs = 420;
+              } else if (depth < 220) {
+                lid = 6; // 砂泥互層
+                vs = 580;
+              } else if (depth < 450) {
+                lid = 7; // 厚礫石層
+                vs = 780;
+              } else {
+                lid = 8; // 泥岩 / 頁岩軟岩
+                vs = 950 + depth * 0.6;
+              }
             }
 
             if (nearestW && minDist < 0.05) {
               if (depth >= nearestW.depth * 0.85 && depth <= nearestW.depth * 1.15) {
-                lid = 7; // 井底礫石/緻密層
+                lid = 7; // 井底礫石/緻密含水層底
                 vs = Math.max(vs, 680);
               }
             }
 
-            const conf = +(0.80 + Math.random() * 0.18).toFixed(2);
-            synthPoints.push([+lon.toFixed(4), +lat.toFixed(4), +depth.toFixed(1), lid, Math.round(vs), conf]);
+            const conf = +(0.85 + (Math.sin(lon * 30 + lat * 20 + depth * 0.1) * 0.08)).toFixed(2);
+            synthPoints.push([+lon.toFixed(4), +lat.toFixed(4), depth, lid, Math.round(vs), conf]);
           }
         }
       }
