@@ -82,3 +82,63 @@ def test_sequence_feature_extractor_and_dataset():
     assert (~mask[0, 40:]).all()
     # 檢查 W2 (長度 60) 全為 True
     assert mask[1, :60].all()
+
+
+def test_extended_sedimentary_features():
+    from tages.features.sequence_features import (
+        EXTENDED_FEATURE_NAMES,
+        compute_compaction_vs,
+        compute_vs_residual
+    )
+    from pathlib import Path
+
+    depths = np.linspace(0, 100, 21)
+    z_msl = 10.0 - depths
+    vp = 1800.0 + depths * 4.0
+    vs = 250.0 + depths * 1.8
+    vp_vs = vp / vs
+    poisson = 0.25 * np.ones_like(vs)
+
+    # 驗證正常壓實波速與殘差
+    comp_vs = compute_compaction_vs(depths)
+    res_vs = compute_vs_residual(vs, depths)
+    assert len(comp_vs) == 21
+    assert (comp_vs > 0).all()
+    assert np.allclose(res_vs, vs - comp_vs)
+
+    # 驗證擴充 17 維特徵
+    df_ext = compute_column_sequence_features(
+        depths=depths,
+        z_msl=z_msl,
+        vp=vp,
+        vs=vs,
+        vp_vs=vp_vs,
+        poisson=poisson,
+        x_twd97=190000.0,
+        y_twd97=2600000.0,
+        dist_to_fault_km=12.5,
+        dist_to_coast_km=8.3,
+        include_sedimentary=True
+    )
+    assert len(df_ext.columns) == 17
+    assert list(df_ext.columns) == EXTENDED_FEATURE_NAMES
+    assert (df_ext["dist_to_fault_km"] == 12.5).all()
+    assert (df_ext["dist_to_coast_km"] == 8.3).all()
+
+
+def test_petrophysics_dataset_structure():
+    from pathlib import Path
+    csv_p = Path("data/processed/petrophysics_aligned_dataset.csv")
+    if not csv_p.exists():
+        pytest.skip("電測資料集尚未生成")
+
+    df = pd.read_csv(csv_p, nrows=500)
+    required_cols = [
+        "station", "depth_m", "gamma", "n64", "n16", "i_gr", "v_shale", "lithology_l2_id"
+    ]
+    for col in required_cols:
+        assert col in df.columns, f"缺失必要電測欄位: {col}"
+
+    valid_igr = df["i_gr"].dropna()
+    assert (valid_igr >= 0.0).all() and (valid_igr <= 1.0).all(), "泥質指數 I_GR 應嚴格介於 [0, 1]"
+

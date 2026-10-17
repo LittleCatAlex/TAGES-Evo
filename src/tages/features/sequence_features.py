@@ -40,6 +40,37 @@ FEATURE_NAMES = [
     "y_twd97_norm"
 ]
 
+SEDIMENTARY_FEATURE_NAMES = [
+    "dist_to_fault_km",
+    "dist_to_coast_km",
+    "vs_residual_ms"
+]
+
+EXTENDED_FEATURE_NAMES = FEATURE_NAMES + SEDIMENTARY_FEATURE_NAMES
+
+
+def compute_compaction_vs(
+    depth_m: np.ndarray,
+    vs0: float = 160.0,
+    z0: float = 8.0,
+    alpha: float = 0.32
+) -> np.ndarray:
+    """依據深度壓密冪次律計算正常壓實背景剪力波速 (m/s)。
+    Vs_comp(z) = Vs0 * (1 + z / z0)^alpha
+    """
+    d_safe = np.maximum(0.0, np.asarray(depth_m, dtype=float))
+    return np.round(vs0 * (1.0 + d_safe / z0) ** alpha, 1)
+
+
+def compute_vs_residual(vs_ms: np.ndarray, depth_m: np.ndarray) -> np.ndarray:
+    """計算實測/層析剪力波速相對於正常壓實背景之殘差波速 (m/s)。
+    正值代表超前固結/礫石/硬岩，負值代表軟弱黏土/欠壓密/異常高孔隙水壓。
+    """
+    vs_arr = np.asarray(vs_ms, dtype=float)
+    vs_comp = compute_compaction_vs(depth_m)
+    return np.round(vs_arr - vs_comp, 1)
+
+
 def compute_column_sequence_features(
     depths: np.ndarray,
     z_msl: np.ndarray,
@@ -49,9 +80,15 @@ def compute_column_sequence_features(
     poisson: np.ndarray,
     x_twd97: float,
     y_twd97: float,
-    max_depth: float | None = None
+    max_depth: float | None = None,
+    dist_to_fault_km: float | None = None,
+    dist_to_coast_km: float | None = None,
+    include_sedimentary: bool = False
 ) -> pd.DataFrame:
-    """針對單一垂直柱/單一井位計算沿深度軸演進的 14 維特徵 DataFrame。"""
+    """針對單一垂直柱/單一井位計算沿深度軸演進的特徵 DataFrame。
+    預設輸出 14 維基礎時序特徵 (FEATURE_NAMES)；
+    若 include_sedimentary=True，則額外附加 3 維構造與沉積特徵 (EXTENDED_FEATURE_NAMES)。
+    """
     n = len(depths)
     max_d = max_depth if (max_depth and max_depth > 0) else max(1.0, float(np.max(depths)))
     rel_depth = np.clip(depths / max_d, 0.0, 1.5)
@@ -107,13 +144,25 @@ def compute_column_sequence_features(
         "x_twd97_norm": x_norm,
         "y_twd97_norm": y_norm
     }
-    return pd.DataFrame(data)[FEATURE_NAMES]
+
+    if include_sedimentary:
+        d_fault = dist_to_fault_km if dist_to_fault_km is not None else 10.0
+        d_coast = dist_to_coast_km if dist_to_coast_km is not None else 15.0
+        data["dist_to_fault_km"] = np.full(n, float(d_fault), dtype=float)
+        data["dist_to_coast_km"] = np.full(n, float(d_coast), dtype=float)
+        data["vs_residual_ms"] = compute_vs_residual(vs, depths)
+        cols = EXTENDED_FEATURE_NAMES
+    else:
+        cols = FEATURE_NAMES
+
+    return pd.DataFrame(data)[cols]
 
 
 class SequenceFeatureExtractor:
     """序列特徵標準化提取器，支援 fit(train_df) 與 transform(df)。"""
 
-    def __init__(self):
+    def __init__(self, feature_names: Sequence[str] | None = None):
+        self.feature_names = list(feature_names) if feature_names is not None else list(FEATURE_NAMES)
         self.scaler = StandardScaler()
         self.fitted = False
 
@@ -121,6 +170,7 @@ class SequenceFeatureExtractor:
         """依井位 group 計算各井的時序衍生特徵並附加回 DataFrame。"""
         out_dfs = []
         station_col = "station_id" if "station_id" in df.columns else ("station" if "station" in df.columns else None)
+        include_sed = any(c in self.feature_names for c in SEDIMENTARY_FEATURE_NAMES)
         
         if station_col:
             grouped = df.groupby(station_col, sort=False)
@@ -135,9 +185,12 @@ class SequenceFeatureExtractor:
                     poisson=grp_sorted["poisson_ratio"].values,
                     x_twd97=float(grp_sorted["x_twd97"].iloc[0]),
                     y_twd97=float(grp_sorted["y_twd97"].iloc[0]),
-                    max_depth=float(grp_sorted["depth_m"].max())
+                    max_depth=float(grp_sorted["depth_m"].max()),
+                    dist_to_fault_km=float(grp_sorted["dist_to_fault_km"].iloc[0]) if "dist_to_fault_km" in grp_sorted.columns else None,
+                    dist_to_coast_km=float(grp_sorted["dist_to_coast_km"].iloc[0]) if "dist_to_coast_km" in grp_sorted.columns else None,
+                    include_sedimentary=include_sed
                 )
-                for c in FEATURE_NAMES:
+                for c in feats.columns:
                     grp_sorted[c] = feats[c].values
                 out_dfs.append(grp_sorted)
             return pd.concat(out_dfs, ignore_index=True)
@@ -151,27 +204,30 @@ class SequenceFeatureExtractor:
                 vp_vs=df["vp_vs_ratio"].values,
                 poisson=df["poisson_ratio"].values,
                 x_twd97=float(df.get("x_twd97", pd.Series([200000.0])).iloc[0]),
-                y_twd97=float(df.get("y_twd97", pd.Series([2600000.0])).iloc[0])
+                y_twd97=float(df.get("y_twd97", pd.Series([2600000.0])).iloc[0]),
+                dist_to_fault_km=float(df["dist_to_fault_km"].iloc[0]) if "dist_to_fault_km" in df.columns else None,
+                dist_to_coast_km=float(df["dist_to_coast_km"].iloc[0]) if "dist_to_coast_km" in df.columns else None,
+                include_sedimentary=include_sed
             )
             df_out = df.copy()
-            for c in FEATURE_NAMES:
+            for c in feats.columns:
                 df_out[c] = feats[c].values
             return df_out
 
     def fit(self, train_df: pd.DataFrame) -> SequenceFeatureExtractor:
         """僅在訓練集井位上擬合標準化尺度。"""
         enriched = self.enrich_dataframe(train_df)
-        X = enriched[FEATURE_NAMES].values
+        X = enriched[self.feature_names].values
         self.scaler.fit(X)
         self.fitted = True
         return self
 
     def transform(self, df: pd.DataFrame) -> np.ndarray:
-        """轉換特徵矩陣為正規化數值 (N, 14)。"""
+        """轉換特徵矩陣為正規化數值 (N, D)。"""
         if not self.fitted:
             raise RuntimeError("SequenceFeatureExtractor 尚未 fit，請先呼叫 fit(train_df)！")
         enriched = self.enrich_dataframe(df)
-        X = enriched[FEATURE_NAMES].values
+        X = enriched[self.feature_names].values
         return self.scaler.transform(X)
 
     def get_state(self) -> dict:
@@ -180,7 +236,7 @@ class SequenceFeatureExtractor:
             "scale": self.scaler.scale_,
             "var": self.scaler.var_,
             "n_features_in": self.scaler.n_features_in_,
-            "feature_names": FEATURE_NAMES
+            "feature_names": self.feature_names
         }
 
     def load_state(self, state: dict):
@@ -188,4 +244,5 @@ class SequenceFeatureExtractor:
         self.scaler.scale_ = state["scale"]
         self.scaler.var_ = state["var"]
         self.scaler.n_features_in_ = state["n_features_in"]
+        self.feature_names = state.get("feature_names", list(FEATURE_NAMES))
         self.fitted = True
