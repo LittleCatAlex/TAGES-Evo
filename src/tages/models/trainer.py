@@ -108,7 +108,12 @@ class WellboreSeqTrainer:
             "lr": current_lr
         }
 
-    def evaluate(self, dataloader: DataLoader) -> Dict[str, Any]:
+    def evaluate(
+        self,
+        dataloader: DataLoader,
+        transition_weight: float = 0.20,
+        use_crf: bool = True
+    ) -> Dict[str, Any]:
         self.model.eval()
         all_true_l2 = []
         all_pred_l2 = []
@@ -129,7 +134,12 @@ class WellboreSeqTrainer:
                 lengths = batch["lengths"]
                 depths_batch = batch.get("depths")
 
-                res = self.model.predict(x, mask=mask)
+                res = self.model.predict(
+                    x,
+                    mask=mask,
+                    transition_weight=transition_weight,
+                    use_crf=use_crf
+                )
                 pred_paths = res["l2_paths"]
                 preds_l1 = res["l1_preds"]
 

@@ -71,7 +71,8 @@ class RockPhysicsConsistencyLoss(nn.Module):
         self,
         scaler_mean: np.ndarray | torch.Tensor | None = None,
         scaler_scale: np.ndarray | torch.Tensor | None = None,
-        l2_classes: list[int] | None = None
+        l2_classes: list[int] | None = None,
+        thresholds: dict | None = None
     ):
         super().__init__()
         self.l2_classes = l2_classes or [2, 3, 4, 5, 6, 7]
@@ -79,6 +80,8 @@ class RockPhysicsConsistencyLoss(nn.Module):
         self.idx_clay = self.l2_classes.index(2) if 2 in self.l2_classes else 0
         self.idx_coarsesand = self.l2_classes.index(5) if 5 in self.l2_classes else min(3, len(self.l2_classes)-1)
         self.idx_gravel = self.l2_classes.index(7) if 7 in self.l2_classes else min(5, len(self.l2_classes)-1)
+
+        self.thresholds = thresholds or {}
 
         # 註冊標準化反變換係數 (若未提供則使用典型全島觀測井平均與標準差)
         # FEATURE_NAMES 索引：depth_m: 0, vs_ms: 4, poisson_ratio: 6
@@ -98,6 +101,17 @@ class RockPhysicsConsistencyLoss(nn.Module):
             self.register_buffer("scale_vs", torch.tensor(90.0))
             self.register_buffer("mean_poisson", torch.tensor(0.32))
             self.register_buffer("scale_poisson", torch.tensor(0.06))
+
+        # 根據資料集物理尺度自適應門檻 (地體層析尺度 Vs > 1000 m/s vs. 淺層工程測井尺度 Vs < 600 m/s)
+        is_crustal_scale = float(self.mean_vs) > 1000.0
+        self.vs_gravel_min = self.thresholds.get("vs_gravel_min", 1650.0 if is_crustal_scale else 200.0)
+        self.vs_gravel_scale = 100.0 if is_crustal_scale else 50.0
+        self.poisson_gravel_max = self.thresholds.get("poisson_gravel_max", 0.330 if is_crustal_scale else 0.40)
+        self.poisson_scale = 0.03 if is_crustal_scale else 0.05
+        self.vs_clay_max = self.thresholds.get("vs_clay_max", 2500.0 if is_crustal_scale else 450.0)
+        self.vs_clay_scale = 100.0
+        self.shallow_depth = self.thresholds.get("shallow_depth", 25.0)
+        self.shallow_vs_min = self.thresholds.get("shallow_vs_min", 1650.0 if is_crustal_scale else 180.0)
 
     def forward(
         self,
@@ -122,18 +136,18 @@ class RockPhysicsConsistencyLoss(nn.Module):
         poisson = x[..., 6] * self.scale_poisson + self.mean_poisson # (無因次)
 
         # 2. 懲罰項計算 (平滑可微分 ReLU 懲罰)
-        # (a) 極低波速 (Vs < 200 m/s) 誤判為純礫石
-        p1 = F.relu((200.0 - vs) / 50.0) * p_gravel
+        # (a) 極低波速誤判為純礫石
+        p1 = F.relu((self.vs_gravel_min - vs) / self.vs_gravel_scale) * p_gravel
 
-        # (b) 高泊松比 (poisson > 0.42) 水飽和泥質區誤判為粗顆粒骨架
-        p2 = F.relu((poisson - 0.42) / 0.05) * (p_gravel + 0.6 * p_coarse)
+        # (b) 高泊松比水飽和泥質區誤判為粗顆粒骨架
+        p2 = F.relu((poisson - self.poisson_gravel_max) / self.poisson_scale) * (p_gravel + 0.6 * p_coarse)
 
-        # (c) 深部高波速區 (Vs > 450 m/s) 誤判為未壓密軟泥
-        p3 = F.relu((vs - 450.0) / 100.0) * p_clay
+        # (c) 深部超高波速區誤判為未壓密軟泥
+        p3 = F.relu((vs - self.vs_clay_max) / self.vs_clay_scale) * p_clay
 
-        # (d) 淺部低波速 (depth < 25m, Vs < 180 m/s) 粗顆粒倒置懲罰
-        is_shallow = (depth < 25.0).float()
-        p4 = F.relu((180.0 - vs) / 50.0) * (p_coarse + p_gravel) * is_shallow
+        # (d) 淺部低波速粗顆粒倒置懲罰
+        is_shallow = (depth < self.shallow_depth).float()
+        p4 = F.relu((self.shallow_vs_min - vs) / self.vs_gravel_scale) * (p_coarse + p_gravel) * is_shallow
 
         penalty = p1 + p2 + p3 + p4
 

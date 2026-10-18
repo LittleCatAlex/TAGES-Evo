@@ -156,15 +156,24 @@ class WellboreSeqNet(nn.Module):
         self,
         x: torch.Tensor,
         mask: torch.Tensor | None = None,
-        transition_weight: float = 0.20
+        transition_weight: float = 0.20,
+        use_crf: bool = True
     ) -> Dict[str, Any]:
         """推論介面：回傳 L2 類別序列、L1 類別、L2 各層機率與信心度。"""
         self.eval()
         with torch.no_grad():
             emissions_l2, logits_l1 = self.extract_emissions(x)
             
-            # CRF 維特比最優路徑 (以 transition_weight 防過度平滑)
-            best_paths_l2 = self.crf.decode(emissions_l2, mask=mask, transition_weight=transition_weight)
+            if use_crf:
+                # CRF 維特比最優路徑 (以 transition_weight 防過度平滑)
+                best_paths_l2 = self.crf.decode(emissions_l2, mask=mask, transition_weight=transition_weight)
+            else:
+                argmax_preds = torch.argmax(emissions_l2, dim=-1).cpu().numpy()
+                best_paths_l2 = []
+                seq_lens = mask.long().sum(dim=1).tolist() if mask is not None else [emissions_l2.shape[1]] * emissions_l2.shape[0]
+                for b in range(len(seq_lens)):
+                    t_len = seq_lens[b]
+                    best_paths_l2.append(argmax_preds[b, :t_len].tolist())
             
             # L1 粗分類
             preds_l1 = torch.argmax(logits_l1, dim=-1).cpu().numpy()

@@ -11,8 +11,8 @@
 本腳本：
 1. 定義嘉義代表性強震測站 (涵蓋海岸帶、平原中心、市區與麓山帶)。
 2. 自 3D 體素地體模型 (chiayi_3d_voxels_1km.npz) 萃取各測站正下方之基盤深度與平均波速。
-3. 執行標準頻譜比法 (SSR) 與 Konno-Ohmachi (1998) 平滑化。
-4. 建立 AI 地質預測模型與地震物理觀測之雙向驗證 (Cross-Validation)！
+3. 採用一維黏彈性共振濾波器正演模擬沉積層響應 (Forward Numerical Simulation)，並執行標準頻譜比法 (SSR) 與 Konno-Ohmachi (1998) 平滑化。
+4. 驗證 3D 地下體素構造與一維剪力波共振理論 (Quarter-Wavelength Resonance) 之數值一致性（實測 TSMIP 測站記象之真實比對規劃於 Phase C 執行）。
 5. 產出 reports/chiayi_ssr_site_effects.png 與 reports/chiayi_ssr_summary.csv。
 """
 from pathlib import Path
@@ -200,11 +200,11 @@ def run_ssr_pipeline():
     width = 0.35
 
     rects1 = ax2.bar(x_pos - width/2, f0_theo_vals, width, label="1/4-Wavelength Theory (f0 = Vs / 4H)", color="#3A86FF", alpha=0.85)
-    rects2 = ax2.bar(x_pos + width/2, f0_ssr_vals, width, label="Strong-Motion SSR Peak (f0_ssr)", color="#FF006E", alpha=0.85)
+    rects2 = ax2.bar(x_pos + width/2, f0_ssr_vals, width, label="1D Forward Simulation SSR Peak (f0_sim)", color="#FF006E", alpha=0.85)
 
     ax2.set_xlabel("Seismic Station (West Coast -> Western Foothills)", fontsize=11)
     ax2.set_ylabel("Resonance Frequency f0 (Hz)", fontsize=11)
-    ax2.set_title("B) Cross-Validation: AI 3D Geological Structure vs Seismic Resonance Physics", fontsize=13, fontweight="bold")
+    ax2.set_title("B) Numerical Forward Validation: 1D Resonance Physics vs 3D Voxel Basin Structure", fontsize=13, fontweight="bold")
     ax2.set_xticks(x_pos)
     ax2.set_xticklabels([f"{r['Station']}\n({r['Name']})\nH={r['Bedrock_Depth_m']}m" for _, r in df_res.iterrows()], fontsize=10)
     ax2.legend(loc="upper left", fontsize=10)
