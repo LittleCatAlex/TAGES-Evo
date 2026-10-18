@@ -115,10 +115,27 @@ def main():
     df_strata = pd.read_csv(strata_path) if strata_path.exists() else df_clean
     print(f"   總有效樣本: {len(df_clean):,} 筆，涵蓋 {df_clean['station_id'].nunique()} 口深水觀測井")
 
-    # 計算類別權重 (用於 Focal Loss 平衡不均勻沉積相)
+    # (Phase B1) 類別平衡反比平方根權重 (Class-Balanced Weights)
     class_counts = df_clean["lithology_id"].value_counts()
-    weights = [float(len(df_clean) / (len(valid_classes) * class_counts.get(c, 1))) for c in valid_classes]
+    inv_sqrt = [1.0 / np.sqrt(max(1, class_counts.get(c, 1))) for c in valid_classes]
+    sum_inv = sum(inv_sqrt)
+    weights = [float(len(valid_classes) * w / sum_inv) for w in inv_sqrt]
     alpha_l2 = torch.tensor(weights, dtype=torch.float32)
+    print(f"   類別平衡權重 (alpha_l2): {[round(w, 3) for w in weights]}")
+
+    # (Phase B1) 從全臺真實觀測井地層分層統計瓦爾特相律轉移矩陣 (Walther's Law Transition Matrix)
+    n_c = len(valid_classes)
+    class_to_idx = {c: i for i, c in enumerate(valid_classes)}
+    empirical_trans = np.zeros((n_c, n_c), dtype=float)
+    st_col = "station" if "station" in df_strata.columns else "station_id"
+    l2_col = "l2" if "l2" in df_strata.columns else "lithology_id"
+    for _, grp in df_strata.groupby(st_col):
+        grp_s = grp.sort_values("top_m") if "top_m" in grp.columns else grp.sort_values("depth_m")
+        seq = grp_s[l2_col].values
+        for i in range(len(seq) - 1):
+            s, d = seq[i], seq[i + 1]
+            if s in class_to_idx and d in class_to_idx:
+                empirical_trans[class_to_idx[s], class_to_idx[d]] += 1.0
 
     # 執行 5-Fold GroupKFold 切分
     print("2. 執行 5-Fold GroupKFold (按 station_id 分組，0% 深度與井位洩漏)...")
@@ -161,32 +178,58 @@ def main():
             dropout=0.2
         )
 
-        loss_fn = HierarchicalSequenceLoss(
-            weight_crf=0.2,
-            weight_focal_l2=1.0,
-            weight_focal_l1=0.3,
-            alpha_l2=alpha_l2
+        # (Phase B1) 以平滑與溫度調節之經驗瓦爾特轉移矩陣初始化 CRF (scale=0.5 防過度平滑坍縮)
+        model.crf.init_from_empirical_matrix(
+            empirical_trans,
+            scale=0.5,
+            temperature=1.5,
+            laplace_smoothing=1.0
         )
+
+        # (Phase B1) 嵌入岩石物理一致性懲罰項 L_phy
+        from tages.models.losses import RockPhysicsConsistencyLoss
+        phy_loss_fn = RockPhysicsConsistencyLoss(
+            scaler_mean=extractor.scaler.mean_,
+            scaler_scale=extractor.scaler.scale_,
+            l2_classes=valid_classes
+        )
+
+        loss_fn = HierarchicalSequenceLoss(
+            weight_crf=0.08,
+            weight_focal_l2=1.50,
+            weight_focal_l1=0.30,
+            weight_phy=0.25,
+            alpha_l2=alpha_l2,
+            phy_loss_fn=phy_loss_fn
+        )
+
+        n_epochs = 25
+        optimizer = torch.optim.AdamW(model.parameters(), lr=2.5e-3, weight_decay=1e-4)
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=n_epochs, eta_min=5e-5)
 
         trainer = WellboreSeqTrainer(
             model=model,
             extractor=extractor,
             l2_classes=valid_classes,
             l1_classes=[0, 1, 2, 3, 4, 5, 6, 7],
-            lr=2e-3,
+            lr=2.5e-3,
             weight_decay=1e-4,
             loss_fn=loss_fn,
-            device=device
+            device=device,
+            scheduler=scheduler
         )
+        trainer.optimizer = optimizer # 綁定同一優化器
 
-        n_epochs = 12
+        best_fold_f1 = 0.0
         for epoch in range(1, n_epochs + 1):
             train_res = trainer.train_epoch(train_loader)
-            if epoch % 3 == 0 or epoch == n_epochs:
+            if epoch % 5 == 0 or epoch == n_epochs:
                 val_res = trainer.evaluate(val_loader)
-                print(f"  Epoch {epoch:02d}/{n_epochs:02d} | Train Loss: {train_res['loss']:.4f} | "
-                      f"Val L2 Acc: {val_res['accuracy_l2']*100:.2f}% | Val Macro F1: {val_res['macro_f1_l2']:.4f} | "
-                      f"Val Weighted F1: {val_res['weighted_f1_l2']:.4f}", flush=True)
+                print(f"  Epoch {epoch:02d}/{n_epochs:02d} | Loss: {train_res['loss']:.4f} (CRF: {train_res['loss_crf']:.2f}, Phy: {train_res.get('loss_phy', 0.0):.3f}) | "
+                      f"LR: {train_res.get('lr', 0.0):.2e} | Val L2 Acc: {val_res['accuracy_l2']*100:.2f}% | Val Macro F1: {val_res['macro_f1_l2']:.4f} | "
+                      f"換層頻率: {val_res['trans_per_100m']:.1f}/100m", flush=True)
+                if val_res["macro_f1_l2"] > best_fold_f1:
+                    best_fold_f1 = val_res["macro_f1_l2"]
 
         val_res = trainer.evaluate(val_loader)
         fold_metrics.append(val_res)
@@ -202,7 +245,7 @@ def main():
                 sample_batch = next(iter(val_loader))
                 x_b = sample_batch["x"].to(device)
                 m_b = sample_batch["mask"].to(device)
-                preds = model.predict(x_b, mask=m_b)
+                preds = model.predict(x_b, mask=m_b, transition_weight=0.15)
                 paths = preds["l2_paths"]
                 
                 # 載入 RF Baseline 進行對比預測

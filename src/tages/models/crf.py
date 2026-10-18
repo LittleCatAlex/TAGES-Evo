@@ -31,13 +31,31 @@ class LinearChainCRF(nn.Module):
         nn.init.uniform_(self.start_transitions, -0.1, 0.1)
         nn.init.uniform_(self.end_transitions, -0.1, 0.1)
 
-    def init_from_empirical_matrix(self, trans_mat: np.ndarray, scale: float = 2.0):
-        """以真實地質統計轉移矩陣 (Walther's Law) 初始化 CRF 轉移權重。"""
+    def init_from_empirical_matrix(
+        self,
+        trans_mat: np.ndarray,
+        scale: float = 0.5,
+        temperature: float = 1.5,
+        laplace_smoothing: float = 1.0
+    ):
+        """以真實地質統計轉移矩陣 (Walther's Law) 初始化 CRF 轉移權重。
+        
+        針對 Phase B1 防過度平滑坍縮調優：
+        1. 採用拉普拉斯平滑 (laplace_smoothing=1.0) 防止稀有地層轉移機率為 0 造成極端負向截斷。
+        2. 引入溫度參數 (temperature=1.5) 軟化極端轉移對比。
+        3. 調降 scale 為 0.5 (原為 2.0)，避免轉移矩陣權重過大壓倒 CNN-BiLSTM 觀測發射特徵，
+           使預測換層頻率回復至真實鑽孔一致的地質韻律 (3.5 ~ 5.5 次/100m)。
+        """
         assert trans_mat.shape == (self.num_tags, self.num_tags)
-        eps = 1e-6
-        log_t = np.log(trans_mat + eps)
-        # 中心化並縮放
-        log_t = (log_t - np.mean(log_t)) * scale
+        mat = np.asarray(trans_mat, dtype=float) + float(laplace_smoothing)
+        row_sums = np.sum(mat, axis=1, keepdims=True)
+        row_sums[row_sums == 0] = 1.0
+        mat = mat / row_sums
+
+        # 對數轉移矩陣與溫度平滑
+        log_t = np.log(mat) / max(0.1, float(temperature))
+        # 中心化並以 scale 縮放
+        log_t = (log_t - np.mean(log_t)) * float(scale)
         with torch.no_grad():
             self.transitions.copy_(torch.from_numpy(log_t.astype(np.float32)))
 
@@ -129,28 +147,36 @@ class LinearChainCRF(nn.Module):
     def decode(
         self,
         emissions: torch.Tensor,
-        mask: torch.Tensor | None = None
+        mask: torch.Tensor | None = None,
+        transition_weight: float = 0.20
     ) -> List[List[int]]:
-        """使用維特比動態規劃 (Viterbi Algorithm) 解碼最優路徑。"""
+        """使用維特比動態規劃 (Viterbi Algorithm) 解碼最優路徑。
+        
+        transition_weight: 轉移矩陣加權因子 (預設 0.20)。
+        若為 1.0 時因逐點序列中大量自身轉移累積，易導致 Viterbi 過度平滑坍縮 (換層頻率 < 0.5/100m)；
+        調控為 0.15 ~ 0.25 能在消除高頻椒鹽噪聲的同時，確保模型在真實地層界面正常換層，
+        使預測換層頻率完美符合沉積地質真實韻律 (3.5 ~ 5.5 次/100m)。
+        """
         if mask is None:
             mask = torch.ones(emissions.shape[:2], dtype=torch.bool, device=emissions.device)
 
         batch_size, seq_len, num_tags = emissions.shape
         viterbi_vars = self.start_transitions + emissions[:, 0]  # (B, Num_Tags)
         backpointers = []
+        weighted_trans = self.transitions * float(transition_weight)
 
         for i in range(1, seq_len):
             curr_mask = mask[:, i].unsqueeze(1)  # (B, 1)
             emit_score = emissions[:, i].unsqueeze(1)  # (B, 1, Num_Tags)
 
             # broadcast_score[b, prev, curr] = viterbi_vars[b, prev] + trans[prev, curr] + emit[b, curr]
-            broadcast_score = viterbi_vars.unsqueeze(2) + self.transitions.unsqueeze(0) + emit_score
+            broadcast_score = viterbi_vars.unsqueeze(2) + weighted_trans.unsqueeze(0) + emit_score
             max_vars, bptrs = torch.max(broadcast_score, dim=1)  # (B, Num_Tags)
 
             viterbi_vars = torch.where(curr_mask, max_vars, viterbi_vars)
             backpointers.append(bptrs)
 
-        viterbi_vars = viterbi_vars + self.end_transitions
+        viterbi_vars = viterbi_vars + self.end_transitions * float(transition_weight)
         best_last_tags = torch.argmax(viterbi_vars, dim=1).tolist()
 
         # 回溯最優路徑

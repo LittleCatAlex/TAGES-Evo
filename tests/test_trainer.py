@@ -26,6 +26,36 @@ def test_masked_focal_loss():
     loss.backward()
     assert logits.grad is not None
 
+
+def test_rock_physics_consistency_loss():
+    from tages.models.losses import RockPhysicsConsistencyLoss
+    loss_fn = RockPhysicsConsistencyLoss()
+    
+    emissions = torch.randn(2, 15, 6, requires_grad=True)
+    x = torch.randn(2, 15, 14)
+    mask = torch.ones(2, 15, dtype=torch.bool)
+    mask[0, 12:] = False
+
+    loss = loss_fn(emissions, x, mask=mask)
+    assert loss.dim() == 0
+    assert loss.item() >= 0.0
+    loss.backward()
+    assert emissions.grad is not None
+
+    # 驗證物理約束行為：在極低波速區 (Vs < 150) 預測礫石時，懲罰應大於預測黏土
+    emissions_gravel = torch.zeros(1, 10, 6)
+    emissions_gravel[:, :, 5] = 10.0 # 強烈預測礫石
+    emissions_clay = torch.zeros(1, 10, 6)
+    emissions_clay[:, :, 0] = 10.0 # 預測黏土
+    
+    # 構造低波速特徵：vs_ms (index 4) 標準化值設為 -2.0 (對應極低波速 ~ 100 m/s)
+    x_low_vs = torch.zeros(1, 10, 14)
+    x_low_vs[:, :, 4] = -2.0
+
+    loss_g = loss_fn(emissions_gravel, x_low_vs)
+    loss_c = loss_fn(emissions_clay, x_low_vs)
+    assert loss_g.item() > loss_c.item(), "低波速區預測礫石之物理懲罰應顯著大於預測黏土"
+
 def test_trainer_train_and_save_load(tmp_path):
     # 建立小型合成訓練井資料
     records = []

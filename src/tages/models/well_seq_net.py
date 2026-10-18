@@ -110,7 +110,7 @@ class WellboreSeqNet(nn.Module):
         """前向提取 L1 Logits 與 L2 CRF 發射分數。
         
         參數：
-            x: (B, T, 14)
+            x: (B, T, in_features)
         回傳：
             emissions_l2: (B, T, n_classes_l2)
             logits_l1: (B, T, n_classes_l1)
@@ -143,22 +143,28 @@ class WellboreSeqNet(nn.Module):
             "logits_l1": logits_l1
         }
 
-    def decode_l2(self, emissions_l2: torch.Tensor, mask: torch.Tensor | None = None) -> List[List[int]]:
+    def decode_l2(
+        self,
+        emissions_l2: torch.Tensor,
+        mask: torch.Tensor | None = None,
+        transition_weight: float = 0.20
+    ) -> List[List[int]]:
         """使用 CRF 維特比演算法解碼最優路徑。"""
-        return self.crf.decode(emissions_l2, mask=mask)
+        return self.crf.decode(emissions_l2, mask=mask, transition_weight=transition_weight)
 
     def predict(
         self,
         x: torch.Tensor,
-        mask: torch.Tensor | None = None
+        mask: torch.Tensor | None = None,
+        transition_weight: float = 0.20
     ) -> Dict[str, Any]:
         """推論介面：回傳 L2 類別序列、L1 類別、L2 各層機率與信心度。"""
         self.eval()
         with torch.no_grad():
             emissions_l2, logits_l1 = self.extract_emissions(x)
             
-            # CRF 維特比最優路徑
-            best_paths_l2 = self.crf.decode(emissions_l2, mask=mask)
+            # CRF 維特比最優路徑 (以 transition_weight 防過度平滑)
+            best_paths_l2 = self.crf.decode(emissions_l2, mask=mask, transition_weight=transition_weight)
             
             # L1 粗分類
             preds_l1 = torch.argmax(logits_l1, dim=-1).cpu().numpy()

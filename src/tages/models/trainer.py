@@ -24,7 +24,8 @@ class WellboreSeqTrainer:
         lr: float = 1e-3,
         weight_decay: float = 1e-4,
         device: str | torch.device = "cpu",
-        loss_fn: HierarchicalSequenceLoss | None = None
+        loss_fn: HierarchicalSequenceLoss | None = None,
+        scheduler: Any | None = None
     ):
         self.device = torch.device(device)
         self.model = model.to(self.device)
@@ -34,6 +35,7 @@ class WellboreSeqTrainer:
         
         self.loss_fn = loss_fn or HierarchicalSequenceLoss()
         self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=lr, weight_decay=weight_decay)
+        self.scheduler = scheduler
         self.best_macro_f1 = 0.0
 
     def apply_sequence_augmentation(self, x: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
@@ -58,6 +60,7 @@ class WellboreSeqTrainer:
         total_loss = 0.0
         total_crf = 0.0
         total_focal = 0.0
+        total_phy = 0.0
         n_batches = len(dataloader)
 
         for batch in dataloader:
@@ -77,7 +80,8 @@ class WellboreSeqTrainer:
                 logits_l1=logits_l1,
                 y_l2=y_l2,
                 y_l1=y_l1,
-                mask=mask
+                mask=mask,
+                x=x
             )
 
             loss = losses["total_loss"]
@@ -88,11 +92,20 @@ class WellboreSeqTrainer:
             total_loss += loss.item()
             total_crf += losses["loss_crf"].item()
             total_focal += losses["loss_focal_l2"].item()
+            if "loss_phy" in losses:
+                total_phy += losses["loss_phy"].item()
+
+        if self.scheduler is not None:
+            self.scheduler.step()
+
+        current_lr = self.optimizer.param_groups[0]["lr"]
 
         return {
             "loss": total_loss / max(1, n_batches),
             "loss_crf": total_crf / max(1, n_batches),
-            "loss_focal": total_focal / max(1, n_batches)
+            "loss_focal": total_focal / max(1, n_batches),
+            "loss_phy": total_phy / max(1, n_batches),
+            "lr": current_lr
         }
 
     def evaluate(self, dataloader: DataLoader) -> Dict[str, Any]:
