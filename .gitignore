@@ -31,6 +31,10 @@ data/interim/*
 !data/interim/taiwan_strata.csv
 !data/interim/chiayi_manifest.csv
 !data/interim/hydro_phys_summary.csv
+!data/interim/school_boreholes.csv
+!data/interim/school_strata.csv
+!data/interim/taiwan_boreholes_combined.csv
+!data/interim/taiwan_strata_combined.csv
 
 data/processed/*.parquet
 data/processed/*.zarr
