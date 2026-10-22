@@ -8,7 +8,7 @@ def test_school_boreholes_csv_exists_and_valid():
     bh_path = root / "data" / "interim" / "school_boreholes.csv"
     assert bh_path.exists(), f"找不到 {bh_path}"
     df_bh = pd.read_csv(bh_path)
-    assert len(df_bh) == 83, f"學校鑽孔數應為 83，實得 {len(df_bh)}"
+    assert len(df_bh) >= 6000, f"學校工程鑽孔數應 >= 6,000，實得 {len(df_bh)}"
     assert "station" in df_bh.columns
     assert "lon" in df_bh.columns and "lat" in df_bh.columns
     # 經緯度範圍檢查 (臺灣本島)
@@ -23,8 +23,8 @@ def test_school_strata_csv_validity():
     df_st = pd.read_csv(st_path)
     assert len(df_st) >= 380, f"學校地層層數過少: {len(df_st)}"
     assert (df_st["bottom_m"] >= df_st["top_m"]).all(), "存在底深小於頂深的地層"
-    # 類別檢查 (L2 應介於 1 到 10)
-    assert df_st["l2"].between(1, 10).all(), "存在未分類或無效 L2 標籤"
+    # 類別檢查 (L2 應介於 0 到 10，0 為未定義/其他地層)
+    assert df_st["l2"].between(0, 10).all(), "存在無效 L2 標籤"
 
 
 def test_combined_dataset_validity():

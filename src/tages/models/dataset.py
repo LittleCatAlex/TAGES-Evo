@@ -40,6 +40,8 @@ class WellboreSequenceDataset(Dataset):
                 grp_sorted = grp_sorted.iloc[::self.stride].reset_index(drop=True)
             if len(grp_sorted) < 2:
                 continue
+            if len(grp_sorted) > 250:
+                grp_sorted = grp_sorted.iloc[:250].reset_index(drop=True)
 
             feats_norm = self.extractor.transform(grp_sorted) # (T, 14)
             y_l2 = np.array([self.l2_to_idx[l] for l in grp_sorted["lithology_id"].values], dtype=np.int64)

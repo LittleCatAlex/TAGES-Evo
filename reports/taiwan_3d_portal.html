@@ -434,7 +434,7 @@
           <div style="font-size: 0.75rem; line-height: 1.5; color: #8b949e;">
             <div>經度範圍: <span id="roi-lon" class="stat-badge">120.08° ~ 120.60°E</span></div>
             <div>緯度範圍: <span id="roi-lat" class="stat-badge">23.15° ~ 23.65°N</span></div>
-            <div>範圍內深井: <span id="roi-wells" class="stat-badge">27 口</span> (全島共 423 口)</div>
+            <div>範圍內鑽井: <span id="roi-wells" class="stat-badge">27 口</span> (全島共 6,711 口: 422 水文深井 + 6,289 工程鑽孔)</div>
           </div>
           <div class="slider-row" style="margin-top: 8px;">
             <span>3D 渲染體素密度: <span id="density-name" class="stat-badge">高密度 (High-Dense)</span></span>
@@ -449,13 +449,18 @@
           </button>
         </div>
 
-        <!-- 全島地質圖資圖例 -->
+        <!-- 全島地質圖資圖例與科學證據分級 -->
         <div class="panel-section">
-          <div class="section-title">全島圖層與地質觀測網</div>
+          <div class="section-title">全島圖層與科學證據分級 (Tier 1~3)</div>
           <div style="font-size: 0.75rem; color: #8b949e; line-height: 1.6;">
-            <div>🟢 深層觀測井 (&lt;100m) | 🔵 (100~200m) | 🟠 (200~300m) | 🔴 (&gt;300m)</div>
+            <div>🟢 觀測與工程鑽孔 (&lt;100m) | 🔵 (100~200m) | 🟠 (200~300m) | 🔴 (&gt;300m)</div>
             <div>⚡ 紅色/橘色粗線: 全台 9 大主要活動斷層帶 (車籠埔、觸口、梅山等)</div>
             <div>🔲 藍色虛線方框: 預設地質平原/盆地可查詢三維體素範圍</div>
+            <div style="margin-top: 6px; padding-top: 6px; border-top: 1px solid #30363d;">
+              <span style="color: #7ee787; font-weight: bold;">● Tier 1 (≤300m)</span>: 鑽井密集校準 + PG-WellboreSeqNet 推論<br>
+              <span style="color: #58a6ff; font-weight: bold;">● Tier 2 (&gt;300m)</span>: TEC 3D 震波層析波速約束外推<br>
+              <span style="color: #f0883e; font-weight: bold;">● Tier 3 (自訂跨區)</span>: 區域構造先驗與相鄰盆地內插
+            </div>
           </div>
         </div>
       </div>

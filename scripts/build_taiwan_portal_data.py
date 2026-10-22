@@ -14,12 +14,16 @@ import pandas as pd
 def main():
     root = Path(__file__).resolve().parents[1]
     bh_csv = root / "data" / "interim" / "taiwan_boreholes.csv"
+    school_bh_csv = root / "data" / "interim" / "school_boreholes.csv"
     npz_path = root / "data" / "processed" / "taiwan_basins_dense.npz"
     out_js = root / "reports" / "taiwan_portal_data.js"
     out_js.parent.mkdir(parents=True, exist_ok=True)
 
-    print("載入全台水文觀測井資料庫...")
+    print("載入全台水文觀測井與工程地質鑽孔資料庫...")
     df_bh = pd.read_csv(bh_csv)
+    if school_bh_csv.exists():
+        df_sch = pd.read_csv(school_bh_csv)
+        df_bh = pd.concat([df_bh, df_sch], ignore_index=True).drop_duplicates(subset=["station"])
     boreholes = []
     for _, r in df_bh.iterrows():
         boreholes.append({
@@ -35,7 +39,7 @@ def main():
             "has_phys": bool(r.get("has_phys", False)),
             "has_c14": bool(r.get("has_c14", False))
         })
-    print(f"  已收錄 {len(boreholes)} 口全台觀測井")
+    print(f"  已收錄 {len(boreholes)} 口全台觀測井與工程鑽孔")
 
     # 全台九大主要活動斷層地表跡線
     faults = [
