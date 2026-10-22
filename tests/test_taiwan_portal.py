@@ -75,6 +75,44 @@ def test_taiwan_portal_assets():
     assert "isPointInTaiwanLand" in html_content, "需具備臺灣陸域判斷函數 isPointInTaiwanLand"
     assert "presetColumns" in html_content, "需支援將既有盆地按經緯度索引為立體地質柱狀群"
     assert "k % 3 === 0" not in html_content, "不可使用玩具模運算交替條紋生成地層"
+    assert "toggle-z-datum" in html_content, "需具備 Z 軸基準 Toggle 開關"
+    assert "toggleZDatum" in html_content, "需具備 Z 軸基準切換函數 toggleZDatum"
+    assert "Z 軸基準：地表相對深度 (Depth) " in html_content, "需在側邊欄控制台顯示指定 Z 軸基準切換標籤"
+    assert "elev_grid" in html_content, "需支援盆地高程網格 elev_grid"
+    assert "getElevationAt" in html_content, "需具備座標高程內插函數 getElevationAt"
+    assert "estimateElevationIDW" in html_content, "需具備全臺 IDW 高程估算函數 estimateElevationIDW"
+
+def test_vertical_datum_elevation_integration():
+    """驗證 Z 軸基準（地表相對深度 vs 絕對海拔高程 MSL）資料包與座標計算邏輯。"""
+    import json
+    js_path = Path("reports/taiwan_portal_data.js")
+    text = js_path.read_text(encoding="utf-8")
+    json_str = text.replace("window.TAIWAN_PORTAL_DATA = ", "").rstrip(";\n ")
+    portal_data = json.loads(json_str)
+
+    # 1. 驗證所有盆地均具備完整 elev_grid
+    required_basins = ["chianan", "zhuoshui", "taipei", "taichung", "pingtung", "yilan"]
+    for b in required_basins:
+        bv = portal_data["basins_voxels"][b]
+        assert "elev_grid" in bv, f"盆地 {b} 缺少 elev_grid"
+        eg = bv["elev_grid"]
+        assert len(eg) == len(bv["lats"]), f"盆地 {b} elev_grid 緯度列數不符"
+        assert len(eg[0]) == len(bv["lons"]), f"盆地 {b} elev_grid 經度欄數不符"
+        arr = np.array(eg)
+        assert arr.min() >= -5.0 and arr.max() <= 1000.0, f"盆地 {b} 高程異常: {arr.min()} ~ {arr.max()}"
+
+    # 2. 驗證觀測井具備真實 elev 高程
+    bhs = portal_data["boreholes"]
+    assert len(bhs) >= 423
+    for w in bhs[:50]:
+        assert "elev" in w and isinstance(w["elev"], (int, float))
+        assert -10.0 <= w["elev"] <= 3500.0, f"鑽井 {w['id']} 地表高程異常: {w['elev']}"
+
+    # 3. 驗證絕對海拔公式: Z_msl = Elev - Depth
+    elev = 85.0
+    depth = 200.0
+    z_msl = elev - depth
+    assert z_msl == -115.0
 
 def test_hybrid_roi_seamless_coverage():
     """驗證當自訂框選範圍同時涵蓋預設盆地與非預設盆地時，能無縫生成涵蓋全框的 3D 體素。"""

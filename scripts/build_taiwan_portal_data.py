@@ -8,8 +8,12 @@
 """
 import json
 from pathlib import Path
+import sys
 import numpy as np
 import pandas as pd
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+from tages.voxels.volume import estimate_elevation
 
 def main():
     root = Path(__file__).resolve().parents[1]
@@ -219,6 +223,13 @@ def main():
             bedrock_eng_grid.append([round(float(bedrock_eng_2d[i, j]), 1) for j in range(n_lon)])
             bedrock_ac_grid.append([round(float(bedrock_ac_2d[i, j]), 1) for j in range(n_lon)])
 
+        # 計算盆地地表絕對高程網格 (Elevation Grid / MSL)
+        grid_lon, grid_lat = np.meshgrid(lons, lats)
+        elev_2d = estimate_elevation(grid_lon, grid_lat)
+        elev_grid = []
+        for i in range(n_lat):
+            elev_grid.append([round(float(elev_2d[i, j]), 1) for j in range(n_lon)])
+
         basins_voxels[b_key] = {
             "bounds": {
                 "lon_min": float(lons.min()), "lon_max": float(lons.max()),
@@ -231,7 +242,8 @@ def main():
             "points": pts,
             "bedrock_grid": bedrock_grid,
             "bedrock_eng_grid": bedrock_eng_grid,
-            "bedrock_ac_grid": bedrock_ac_grid
+            "bedrock_ac_grid": bedrock_ac_grid,
+            "elev_grid": elev_grid
         }
         print(f"  [{basins_meta[b_key]['name']}]: {len(pts):,} 個高密度體素點")
 

@@ -311,6 +311,51 @@
       box-shadow: 0 0 10px rgba(0, 255, 204, 0.4) !important;
     }
 
+    /* Modern iOS-style Toggle Switch */
+    .toggle-switch {
+      position: relative;
+      display: inline-block;
+      width: 40px;
+      height: 22px;
+      flex-shrink: 0;
+    }
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    .toggle-slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #30363d;
+      transition: .25s ease;
+      border-radius: 22px;
+      border: 1px solid #484f58;
+    }
+    .toggle-slider:before {
+      position: absolute;
+      content: "";
+      height: 16px;
+      width: 16px;
+      left: 2px;
+      bottom: 2px;
+      background-color: #8b949e;
+      transition: .25s ease;
+      border-radius: 50%;
+    }
+    .toggle-switch input:checked + .toggle-slider {
+      background-color: #1f6feb;
+      border-color: #58a6ff;
+    }
+    .toggle-switch input:checked + .toggle-slider:before {
+      transform: translateX(18px);
+      background-color: #ffffff;
+    }
+
     /* Tooltip 與 HUD */
     #tooltip-3d {
       position: absolute;
@@ -512,6 +557,21 @@
           <div class="btn-group">
             <button id="btn-mode-cube" class="secondary active" onclick="setRenderMode('cube')">🧊 3D 立體方塊 (預設)</button>
             <button id="btn-mode-point" class="secondary" onclick="setRenderMode('point')">✦ 輕量點雲</button>
+          </div>
+        </div>
+
+        <!-- Z 軸基準切換 (相對深度 Depth vs 絕對海拔 Elevation) -->
+        <div class="panel-section">
+          <div class="section-title">垂直高程基準 (Vertical Datum)</div>
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 4px; padding: 2px 0;">
+            <span id="label-z-datum" style="font-size: 0.76rem; font-weight: 600; color: #c9d1d9;">Z 軸基準：地表相對深度 (Depth) </span>
+            <label class="toggle-switch">
+              <input type="checkbox" id="toggle-z-datum" onchange="toggleZDatum(this.checked)">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          <div style="font-size: 0.7rem; color: #8b949e; margin-top: 5px; line-height: 1.35;">
+            預設以地表平坦化為基準 ($Z \le 0$)；開啟後結合真實水文觀測井之絕對海拔高程 ($Z_{\text{msl}} = \text{Elev} - \text{Depth}$)，精確重現地表起伏與深部構造空間姿態。
           </div>
         </div>
 
@@ -1006,6 +1066,7 @@
     let pointSize = 4.0;
     let maxDisplayDepth = 1000.0;
     let zExaggeration = 20.0;
+    let zDatumMode = "depth"; // "depth" (地表相對深度) 或 "elevation" (絕對海拔高程)
     const activeLithMask = {};
     Object.keys(LITH_META).forEach(k => { activeLithMask[k] = true; });
 
@@ -1115,6 +1176,64 @@
         if (intersect) inside = !inside;
       }
       return inside;
+    }
+
+    // =========================================
+    // 全臺地表高程估算 (IDW 空間反距離加權與雙線性內插)
+    // =========================================
+    function estimateElevationIDW(lon, lat) {
+      if (!portalData.boreholes || portalData.boreholes.length === 0) return 0.0;
+      let num = 0.0, den = 0.0;
+      let nearestDist = 9999.0;
+      let nearestElev = 0.0;
+      for (let i = 0; i < portalData.boreholes.length; i++) {
+        const w = portalData.boreholes[i];
+        const dx = (lon - w.lon) * 102.0;
+        const dy = (lat - w.lat) * 111.0;
+        const dist2 = dx * dx + dy * dy;
+        if (dist2 < nearestDist) {
+          nearestDist = dist2;
+          nearestElev = (w.elev !== undefined && w.elev !== null) ? w.elev : 0.0;
+        }
+        if (dist2 < 1e-4) return (w.elev !== undefined && w.elev !== null) ? w.elev : 0.0;
+        const weight = 1.0 / (dist2 + 1e-3);
+        num += ((w.elev !== undefined && w.elev !== null) ? w.elev : 0.0) * weight;
+        den += weight;
+      }
+      return den > 0 ? (num / den) : nearestElev;
+    }
+
+    function getElevationAt(lon, lat) {
+      if (currentBasinData && currentBasinData.elev_grid && currentBasinData.lats && currentBasinData.lons) {
+        const lats = currentBasinData.lats;
+        const lons = currentBasinData.lons;
+        const nLat = lats.length;
+        const nLon = lons.length;
+        if (nLat >= 2 && nLon >= 2) {
+          const latMin = lats[0], latMax = lats[nLat - 1];
+          const lonMin = lons[0], lonMax = lons[nLon - 1];
+          if (lon >= lonMin && lon <= lonMax && lat >= latMin && lat <= latMax) {
+            const u = (lon - lonMin) / (lonMax - lonMin);
+            const v = (lat - latMin) / (latMax - latMin);
+            const jFloat = u * (nLon - 1);
+            const iFloat = v * (nLat - 1);
+            const j0 = Math.floor(jFloat);
+            const j1 = Math.min(nLon - 1, j0 + 1);
+            const i0 = Math.floor(iFloat);
+            const i1 = Math.min(nLat - 1, i0 + 1);
+            const dj = jFloat - j0;
+            const di = iFloat - i0;
+
+            const e00 = currentBasinData.elev_grid[i0][j0];
+            const e01 = currentBasinData.elev_grid[i0][j1];
+            const e10 = currentBasinData.elev_grid[i1][j0];
+            const e11 = currentBasinData.elev_grid[i1][j1];
+
+            return (1 - di) * ((1 - dj) * e00 + dj * e01) + di * ((1 - dj) * e10 + dj * e11);
+          }
+        }
+      }
+      return estimateElevationIDW(lon, lat);
     }
 
     // =========================================
@@ -1316,13 +1435,25 @@
         ? collectedPoints.concat(synthPoints)
         : (collectedPoints.length > 0 ? collectedPoints : synthPoints);
 
+      // 5. 生成 Custom ROI 之海拔高程網格 (Elevation Grid)
+      const elevGrid = [];
+      for (let j = 0; j < nY; j++) {
+        const row = [];
+        for (let i = 0; i < nX; i++) {
+          row.push(+estimateElevationIDW(lons[i], lats[j]).toFixed(1));
+        }
+        elevGrid.push(row);
+      }
+
       return {
+        is_custom: true,
         bounds: { lon_min: minLon, lon_max: maxLon, lat_min: minLat, lat_max: maxLat, depth_min: 0.0, depth_max: 1000.0 },
         lats: lats,
         lons: lons,
         depths: [0, 50, 100, 200, 400, 600, 800, 1000],
         points: allPoints,
-        bedrock_grid: bedrockGrid
+        bedrock_grid: bedrockGrid,
+        elev_grid: elevGrid
       };
     }
 
@@ -1377,6 +1508,15 @@
         lonToX: (lon) => ((lon - centerLon) / lonSpan) * SCENE_WIDTH,
         latToZ: (lat) => -((lat - centerLat) / latSpan) * sceneLength,
         depthToY: (d) => -(d / 1000.0) * sceneDepthBase * (zExaggeration / 10.0),
+        elevToY: (elev) => (elev / 1000.0) * sceneDepthBase * (zExaggeration / 10.0),
+        getPointY: (lon, lat, depth) => {
+          if (zDatumMode === "elevation") {
+            const elev = getElevationAt(lon, lat);
+            return ((elev - depth) / 1000.0) * sceneDepthBase * (zExaggeration / 10.0);
+          } else {
+            return -(depth / 1000.0) * sceneDepthBase * (zExaggeration / 10.0);
+          }
+        },
         sceneLength
       };
     }
@@ -1460,7 +1600,7 @@
           const lon = pt[0], lat = pt[1], depth = pt[2], lid = pt[3];
 
           const x = ch.lonToX(lon);
-          const y = ch.depthToY(depth);
+          const y = ch.getPointY(lon, lat, depth);
           const z = ch.latToZ(lat);
 
           matrix.setPosition(x, y, z);
@@ -1487,7 +1627,7 @@
           const lon = pt[0], lat = pt[1], depth = pt[2], lid = pt[3];
 
           const x = ch.lonToX(lon);
-          const y = ch.depthToY(depth);
+          const y = ch.getPointY(lon, lat, depth);
           const z = ch.latToZ(lat);
 
           positions.push(x, y, z);
@@ -1526,9 +1666,16 @@
         const x = ch.lonToX(w.lon);
         const z = ch.latToZ(w.lat);
         const wellD = Math.min(w.depth, maxDisplayDepth);
-        const yTop = 0.5;
-        const yBot = ch.depthToY(wellD);
-        const height = Math.abs(yTop - yBot);
+        let yTop, yBot;
+        if (zDatumMode === "elevation") {
+          const elev = (w.elev !== undefined && w.elev !== null) ? w.elev : getElevationAt(w.lon, w.lat);
+          yTop = ch.elevToY(elev);
+          yBot = ch.elevToY(elev - wellD);
+        } else {
+          yTop = 0.5;
+          yBot = ch.depthToY(wellD);
+        }
+        const height = Math.max(0.2, Math.abs(yTop - yBot));
 
         const cylGeom = new THREE.CylinderGeometry(0.6, 0.6, height, 12);
         const cylMat = new THREE.MeshStandardMaterial({ color: 0x00d2ff, roughness: 0.4 });
@@ -1566,7 +1713,10 @@
       for (let i = 0; i < nLat; i++) {
         for (let j = 0; j < nLon; j++) {
           const depth = Math.min(grid[i][j], maxDisplayDepth);
-          pos.setXYZ(idx, ch.lonToX(lons[j]), ch.depthToY(depth), ch.latToZ(lats[i]));
+          const y = (zDatumMode === "elevation")
+            ? ch.elevToY((currentBasinData.elev_grid ? currentBasinData.elev_grid[i][j] : getElevationAt(lons[j], lats[i])) - depth)
+            : ch.depthToY(depth);
+          pos.setXYZ(idx, ch.lonToX(lons[j]), y, ch.latToZ(lats[i]));
           idx++;
         }
       }
@@ -1601,12 +1751,23 @@
 
           const x1 = ch.lonToX(p1[0]), z1 = ch.latToZ(p1[1]);
           const x2 = ch.lonToX(p2[0]), z2 = ch.latToZ(p2[1]);
-          const yTop = 1.0, yBot = ch.depthToY(maxDisplayDepth);
+          let yTop1, yBot1, yTop2, yBot2;
+          if (zDatumMode === "elevation") {
+            const elev1 = getElevationAt(p1[0], p1[1]);
+            const elev2 = getElevationAt(p2[0], p2[1]);
+            yTop1 = ch.elevToY(elev1) + 1.0;
+            yBot1 = ch.elevToY(elev1 - maxDisplayDepth);
+            yTop2 = ch.elevToY(elev2) + 1.0;
+            yBot2 = ch.elevToY(elev2 - maxDisplayDepth);
+          } else {
+            yTop1 = yTop2 = 1.0;
+            yBot1 = yBot2 = ch.depthToY(maxDisplayDepth);
+          }
 
           const geom = new THREE.BufferGeometry();
           const vertices = new Float32Array([
-            x1, yTop, z1,   x2, yTop, z2,   x1, yBot, z1,
-            x2, yTop, z2,   x2, yBot, z2,   x1, yBot, z1
+            x1, yTop1, z1,   x2, yTop2, z2,   x1, yBot1, z1,
+            x2, yTop2, z2,   x2, yBot2, z2,   x1, yBot1, z1
           ]);
           geom.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
           geom.computeVertexNormals();
@@ -1625,9 +1786,29 @@
       const ch = getCoordsHelper(b);
       const xMin = ch.lonToX(b.lon_min), xMax = ch.lonToX(b.lon_max);
       const zMin = ch.latToZ(b.lat_max), zMax = ch.latToZ(b.lat_min);
-      const yTop = 0.0, yBot = ch.depthToY(maxDisplayDepth);
+      let yTop, yBot;
+      if (zDatumMode === "elevation") {
+        let maxElev = 0;
+        let minElev = 0;
+        if (currentBasinData && currentBasinData.elev_grid) {
+          const eg = currentBasinData.elev_grid;
+          for (let r = 0; r < eg.length; r++) {
+            for (let c = 0; c < eg[r].length; c++) {
+              if (eg[r][c] > maxElev) maxElev = eg[r][c];
+              if (eg[r][c] < minElev) minElev = eg[r][c];
+            }
+          }
+        } else {
+          maxElev = 200;
+        }
+        yTop = ch.elevToY(maxElev + 10);
+        yBot = ch.elevToY(minElev - maxDisplayDepth);
+      } else {
+        yTop = 0.0;
+        yBot = ch.depthToY(maxDisplayDepth);
+      }
 
-      const boxGeom = new THREE.BoxGeometry(xMax - xMin, yTop - yBot, zMax - zMin);
+      const boxGeom = new THREE.BoxGeometry(xMax - xMin, Math.max(0.1, Math.abs(yTop - yBot)), zMax - zMin);
       const wireGeom = new THREE.WireframeGeometry(boxGeom);
       const wireMat = new THREE.LineBasicMaterial({ color: 0x30363d });
       const line = new THREE.LineSegments(wireGeom, wireMat);
@@ -1640,14 +1821,33 @@
       if (!camera3d || !controls3d || !currentBasinData) return;
       const b = currentBasinData.bounds;
       const ch = getCoordsHelper(b);
-      const midY = ch.depthToY(maxDisplayDepth / 2.0);
+      let midY = 0;
+      let topY = 0;
+      if (zDatumMode === "elevation") {
+        let avgElev = 0;
+        if (currentBasinData && currentBasinData.elev_grid && currentBasinData.elev_grid.length > 0) {
+          const eg = currentBasinData.elev_grid;
+          let sum = 0, count = 0;
+          for (let r = 0; r < eg.length; r++) {
+            for (let c = 0; c < eg[r].length; c++) {
+              sum += eg[r][c]; count++;
+            }
+          }
+          avgElev = count > 0 ? (sum / count) : 0;
+        }
+        topY = ch.elevToY(avgElev);
+        midY = ch.elevToY(avgElev - maxDisplayDepth / 2.0);
+      } else {
+        topY = 0;
+        midY = ch.depthToY(maxDisplayDepth / 2.0);
+      }
 
       if (view === "perspective") {
-        camera3d.position.set(0, 90, 150);
+        camera3d.position.set(0, topY + 90, 150);
         controls3d.target.set(0, midY, 0);
       } else if (view === "top") {
-        camera3d.position.set(0, 200, 0);
-        controls3d.target.set(0, 0, 0);
+        camera3d.position.set(0, topY + 200, 0);
+        controls3d.target.set(0, topY, 0);
       } else if (view === "ew") {
         camera3d.position.set(0, midY, 160);
         controls3d.target.set(0, midY, 0);
@@ -1730,6 +1930,24 @@
       build3DBoundingBox(currentBasinData.bounds);
     }
 
+    function toggleZDatum(isChecked) {
+      zDatumMode = isChecked ? "elevation" : "depth";
+      const labelEl = document.getElementById("label-z-datum");
+      if (labelEl) {
+        labelEl.innerText = isChecked
+          ? "Z 軸基準：絕對海拔高程 (Elevation)"
+          : "Z 軸基準：地表相對深度 (Depth) ";
+      }
+
+      build3DPointCloud();
+      if (currentBasinData) {
+        build3DBoreholes(currentBasinData.bounds);
+        build3DBedrock();
+        build3DFaults(currentBasinData.bounds);
+        build3DBoundingBox(currentBasinData.bounds);
+      }
+    }
+
     function toggleBoreholes(chk) { boreholeGroup.visible = chk; }
     function toggleBedrock(chk) { bedrockGroup.visible = chk; }
     function toggleFaults(chk) { faultGroup.visible = chk; }
@@ -1784,6 +2002,9 @@
           const item = wellHits[0].object.userData;
           if (item && item.type === "borehole") {
             const w = item.data;
+            const wElev = (w.elev !== undefined && w.elev !== null) ? w.elev : getElevationAt(w.lon, w.lat);
+            const botElev = (wElev - w.depth).toFixed(1);
+            const botElevSign = botElev >= 0 ? `+${botElev}` : `${botElev}`;
             tooltip.style.display = "block";
             tooltip.style.left = (e.clientX + 14) + "px";
             tooltip.style.top = (e.clientY + 14) + "px";
@@ -1791,7 +2012,8 @@
               <b>深層觀測井: ${w.name} (${w.id})</b><br>
               行政區: <b>${w.city}</b> | 地質水區: <b>${w.wsect}</b><br>
               鑽探深度: <span style="color: #00d2ff; font-weight: bold;">${w.depth} m</span><br>
-              地表高程: <b>${w.elev} m</b> | 年份: ${w.year}<br>
+              井口地表高程: <b style="color: #79c0ff;">+${wElev} m</b> | 年份: ${w.year}<br>
+              井底絕對海拔: <b>${botElevSign} m (MSL)</b><br>
               座標: ${w.lon}°E, ${w.lat}°N
             `;
             return;
@@ -1842,9 +2064,13 @@
                   tooltip.style.left = (e.clientX + 14) + "px";
                   tooltip.style.top = (e.clientY + 14) + "px";
                   const lithName = LITH_META[pt[3]] ? LITH_META[pt[3]].name : "Unknown";
+                  const elev = getElevationAt(pt[0], pt[1]);
+                  const zMsl = (elev - pt[2]).toFixed(1);
+                  const zMslSign = zMsl >= 0 ? `+${zMsl}` : `${zMsl}`;
                   tooltip.innerHTML = `
                     <div style="color: #58a6ff; font-weight: bold; margin-bottom: 2px;">🧊 3D 地質立體方塊 (Voxel)</div>
-                    <b>深度: ${pt[2]} m</b><br>
+                    <b>地表相對深度: ${pt[2]} m</b><br>
+                    <b>絕對海拔高程 (MSL): <span style="color: #79c0ff; font-weight: bold;">${zMslSign} m</span> (地表: +${elev.toFixed(1)} m)</b><br>
                     預測岩性: <span style="color: #7ee787; font-weight: bold;">${lithName}</span><br>
                     剪力波速 Vs: <b>${pt[4]} m/s</b><br>
                     AI 序列信心度: <b>${(pt[5]*100).toFixed(0)}%</b> (Wellbore-SeqNet)<br>
@@ -1870,9 +2096,13 @@
                 tooltip.style.left = (e.clientX + 14) + "px";
                 tooltip.style.top = (e.clientY + 14) + "px";
                 const lithName = LITH_META[pt[3]] ? LITH_META[pt[3]].name : "Unknown";
+                const elev = getElevationAt(pt[0], pt[1]);
+                const zMsl = (elev - pt[2]).toFixed(1);
+                const zMslSign = zMsl >= 0 ? `+${zMsl}` : `${zMsl}`;
                 tooltip.innerHTML = `
                   <div style="color: #58a6ff; font-weight: bold; margin-bottom: 2px;">🧊 3D 地質點 (Voxel Point)</div>
-                  <b>深度: ${pt[2]} m</b><br>
+                  <b>地表相對深度: ${pt[2]} m</b><br>
+                  <b>絕對海拔高程 (MSL): <span style="color: #79c0ff; font-weight: bold;">${zMslSign} m</span> (地表: +${elev.toFixed(1)} m)</b><br>
                   預測岩性: <span style="color: #58a6ff; font-weight: bold;">${lithName}</span><br>
                   剪力波速 Vs: <b>${pt[4]} m/s</b><br>
                   AI 序列信心度: <b>${(pt[5]*100).toFixed(0)}%</b> (Wellbore-SeqNet)<br>

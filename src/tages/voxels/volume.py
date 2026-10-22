@@ -132,8 +132,7 @@ def estimate_elevation(lon: np.ndarray, lat: np.ndarray) -> np.ndarray:
     優先使用全臺 423 口水文觀測井之實測地表高程 (elev_m) 進行 cKDTree 反距離權重插值 (IDW)，
     真實反映各盆地高程 (臺北 2~20m、蘭陽 1~30m、嘉南 2~45m、臺中 40~180m、屏東 5~90m)。
     """
-    lon_arr = np.asarray(lon, dtype=float)
-    lat_arr = np.asarray(lat, dtype=float)
+    lon_arr, lat_arr = np.broadcast_arrays(np.asarray(lon, dtype=float), np.asarray(lat, dtype=float))
     shape = lon_arr.shape
     flat_lon = lon_arr.ravel()
     flat_lat = lat_arr.ravel()
