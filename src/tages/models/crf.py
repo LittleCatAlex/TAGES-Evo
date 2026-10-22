@@ -59,6 +59,15 @@ class LinearChainCRF(nn.Module):
         with torch.no_grad():
             self.transitions.copy_(torch.from_numpy(log_t.astype(np.float32)))
 
+    def forward(
+        self,
+        emissions: torch.Tensor,
+        tags: torch.Tensor,
+        mask: torch.Tensor | None = None
+    ) -> torch.Tensor:
+        """計算負對數似然損失 (Negative Log-Likelihood Loss)。相容 PyTorch nn.Module forward 慣例。"""
+        return self.forward_loss(emissions, tags, mask=mask)
+
     def forward_loss(
         self,
         emissions: torch.Tensor,

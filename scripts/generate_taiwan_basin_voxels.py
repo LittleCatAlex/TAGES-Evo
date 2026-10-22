@@ -67,12 +67,28 @@ BASIN_CONFIGS = {
 def main():
     root = Path(__file__).resolve().parents[1]
     vel_csv = root / "data" / "interim" / "taiwan_velocity_3d.csv"
-    model_pt = root / "models" / "well_seq_net_v1.pt"
-    model_path = model_pt if model_pt.exists() else (root / "models" / "tages_rf_augmented.pkl")
+    
+    # 模型載入優先級：特徵蒸餾模型 > 物理引導序列模型 > 增強隨機森林
+    model_distilled = root / "models" / "well_seq_net_distilled.pt"
+    model_v1 = root / "models" / "well_seq_net_v1.pt"
+    model_rf = root / "models" / "tages_rf_augmented.pkl"
+    
+    if model_distilled.exists():
+        model_path = model_distilled
+        model_desc = "特徵蒸餾學生神經網路 (DistilledStudentNet - KD + 虛擬電測輔助頭)"
+    elif model_v1.exists():
+        model_path = model_v1
+        model_desc = "時序地質神經網路 (WellboreSeqNet - ResNet + BiLSTM + CRF)"
+    else:
+        model_path = model_rf
+        model_desc = "增強隨機森林基準模型 (Random Forest)"
+        
     out_npz = root / "data" / "processed" / "taiwan_basins_dense.npz"
+    chianan_single_npz = root / "data" / "processed" / "chianan_3d_voxels_1km.npz"
 
     print("================================================================")
-    print(f"啟動臺灣全島六大代表性盆地與平原高密度 3D 體素模型批次生成 (模型: {model_path.name})...")
+    print(f"啟動臺灣全島六大代表性盆地與平原高密度 3D 體素模型批次生成")
+    print(f"採用地質模型: {model_path.name} [{model_desc}]")
     print("================================================================")
 
     basin_data_dict = {}
@@ -89,6 +105,7 @@ def main():
         
         n_pts = d["lithology_3d"].size
         print(f"  成功計算 {n_pts:,} 個體素點 (形狀: {d['lithology_3d'].shape})")
+        print(f"  工程基盤平均深度: {np.mean(d['bedrock_engineering_2d']):.1f}m | 聲學基盤平均深度: {np.mean(d['bedrock_acoustic_2d']):.1f}m")
         
         basin_data_dict[f"{b_key}_lats"] = d["lats"]
         basin_data_dict[f"{b_key}_lons"] = d["lons"]
@@ -97,8 +114,10 @@ def main():
         basin_data_dict[f"{b_key}_vs"] = d["vs_3d"].astype(np.float32)
         basin_data_dict[f"{b_key}_conf"] = d["confidence_3d"].astype(np.float32)
         basin_data_dict[f"{b_key}_bedrock"] = d["bedrock_depth_2d"].astype(np.float32)
+        basin_data_dict[f"{b_key}_bedrock_ac"] = d["bedrock_acoustic_2d"].astype(np.float32)
+        basin_data_dict[f"{b_key}_bedrock_eng"] = d["bedrock_engineering_2d"].astype(np.float32)
 
-    # 存為單一壓縮檔
+    # 存為單一六大盆地壓縮檔
     np.savez_compressed(out_npz, **basin_data_dict)
     size_mb = out_npz.stat().st_size / 1024 / 1024
     print(f"\n全台灣六大盆地高密度 3D 體素檔已儲存至: {out_npz} (體積: {size_mb:.2f} MB)")

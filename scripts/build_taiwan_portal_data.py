@@ -207,8 +207,17 @@ def main():
                     ])
 
         bedrock_grid = []
+        bedrock_eng_grid = []
+        bedrock_ac_grid = []
+        has_eng = f"{b_key}_bedrock_eng" in npz_data
+        has_ac = f"{b_key}_bedrock_ac" in npz_data
+        bedrock_eng_2d = npz_data[f"{b_key}_bedrock_eng"] if has_eng else bedrock_2d
+        bedrock_ac_2d = npz_data[f"{b_key}_bedrock_ac"] if has_ac else bedrock_2d
+
         for i in range(n_lat):
             bedrock_grid.append([round(float(bedrock_2d[i, j]), 1) for j in range(n_lon)])
+            bedrock_eng_grid.append([round(float(bedrock_eng_2d[i, j]), 1) for j in range(n_lon)])
+            bedrock_ac_grid.append([round(float(bedrock_ac_2d[i, j]), 1) for j in range(n_lon)])
 
         basins_voxels[b_key] = {
             "bounds": {
@@ -220,7 +229,9 @@ def main():
             "lons": [round(float(x), 4) for x in lons],
             "depths": [round(float(x), 1) for x in depths],
             "points": pts,
-            "bedrock_grid": bedrock_grid
+            "bedrock_grid": bedrock_grid,
+            "bedrock_eng_grid": bedrock_eng_grid,
+            "bedrock_ac_grid": bedrock_ac_grid
         }
         print(f"  [{basins_meta[b_key]['name']}]: {len(pts):,} 個高密度體素點")
 

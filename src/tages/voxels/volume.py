@@ -35,6 +35,7 @@ class VoxelGridConfig:
     n_depth: int = 101       # 垂直步長 10.0 m
 
     # 地質與波速基盤閾值 (剪力波速 Vs)
+    vs_engineering_bedrock: float = 760.0 # 工程基盤面 (Vs >= 760 m/s，NEHRP / 臺灣建築耐震規範 B/C 類地盤界面)
     vs_mudstone_thresh: float = 2150.0   # 泥岩/頁岩軟岩基底 (m/s)
     vs_sandstone_thresh: float = 2350.0  # 固結砂岩/礫岩 (m/s)
     vs_basement_thresh: float = 2500.0   # 堅硬結晶基底 (m/s)
@@ -173,8 +174,41 @@ class VoxelVolumeGenerator:
         self.is_sequence_model = self.model_path.suffix.lower() == ".pt"
         if self.is_sequence_model:
             import torch
-            from tages.models.trainer import WellboreSeqTrainer
-            self.seq_model, self.extractor, self.ckpt = WellboreSeqTrainer.load_checkpoint(self.model_path)
+            from tages.features.sequence_features import SequenceFeatureExtractor
+            
+            ckpt = torch.load(self.model_path, map_location="cpu", weights_only=False)
+            self.extractor = SequenceFeatureExtractor()
+            if "scaler_state" in ckpt:
+                self.extractor.load_state(ckpt["scaler_state"])
+            elif "extractor_state" in ckpt:
+                self.extractor.load_state(ckpt["extractor_state"])
+            
+            self.ckpt = ckpt
+            l2_classes = ckpt.get("l2_classes", [2, 3, 4, 5, 6, 7])
+            
+            # 自動判斷是否為特徵蒸餾學生模型 (DistilledStudentNet) 或是常規序列模型 (WellboreSeqNet)
+            if "petro_scaler" in ckpt or "head_petro.0.weight" in ckpt.get("model_state_dict", {}):
+                from tages.models.distillation import DistilledStudentNet
+                self.seq_model = DistilledStudentNet(
+                    in_features=ckpt.get("in_features", 14),
+                    cnn_channels=ckpt.get("cnn_channels", 64),
+                    lstm_hidden=ckpt.get("lstm_hidden", 96),
+                    n_classes_l2=len(l2_classes),
+                    n_classes_l1=ckpt.get("n_classes_l1", 8)
+                )
+                self.seq_model.load_state_dict(ckpt["model_state_dict"])
+            else:
+                from tages.models.well_seq_net import WellboreSeqNet
+                self.seq_model = WellboreSeqNet(
+                    in_features=ckpt.get("in_features", 14),
+                    cnn_channels=ckpt.get("cnn_channels", 96),
+                    lstm_hidden=ckpt.get("lstm_hidden", 128),
+                    lstm_layers=ckpt.get("lstm_layers", 2),
+                    n_classes_l2=ckpt.get("n_classes_l2", len(l2_classes)),
+                    n_classes_l1=ckpt.get("n_classes_l1", len(ckpt.get("l1_classes", [1, 2, 3, 4, 5])))
+                )
+                self.seq_model.load_state_dict(ckpt["model_state_dict"])
+            
             self.seq_model.eval()
             self.clf = None
         else:
@@ -307,21 +341,32 @@ class VoxelVolumeGenerator:
         vp_3d = vp.reshape(shape_3d)
         z_msl_3d = flat_z_msl.reshape(shape_3d)
 
-        # 6. 計算構造地質與地球物理耦合聲學基底深度 (Acoustic Bedrock Depth Z_bedrock)
-        # 提取 2D 空間網格之構造基盤深度 (n_lat, n_lon)
+        # 6. 計算構造地質與地球物理雙界面基盤深度 (Engineering & Acoustic Bedrock)
+        # (a) 工程基盤面 (Engineering Bedrock Depth: Vs >= 760 m/s，臺灣耐震規範 B/C 類地盤工程邊界)
+        # 對應第四紀未固結沖積層 (Alluvium) 底部與上新-更新世半固結基盤頂部，文獻顯示約為聲學深基底埋深之 0.28 ~ 0.38 倍
+        bedrock_eng_2d = np.zeros((cfg.n_lat, cfg.n_lon), dtype=float)
+        
+        # (b) 地震聲學基盤面 (Seismic Acoustic Bedrock Depth: Vs >= 2,000 m/s & 文獻構造基盤深度耦合)
         z_struct_2d = estimate_structural_bedrock_depth(lons[None, :], lats[:, None])
-        bedrock_depth_2d = np.zeros((cfg.n_lat, cfg.n_lon), dtype=float)
+        bedrock_ac_2d = np.zeros((cfg.n_lat, cfg.n_lon), dtype=float)
+        
         for i in range(cfg.n_lat):
             for j in range(cfg.n_lon):
-                z_s = float(z_struct_2d[i, j])
                 vs_col = vs_3d[i, j, :]
-                # 尋找深度 >= 50m (盆地沖積蓋層最低厚度，杜絕 0m 誤判) 且 Vs >= vs_acoustic_bedrock
-                m = np.where((depths >= 50.0) & (vs_col >= cfg.vs_acoustic_bedrock))[0]
-                if len(m) > 0:
-                    z_ac = float(depths[m[0]])
-                    bedrock_depth_2d[i, j] = np.clip(0.5 * z_s + 0.5 * z_ac, 50.0, float(cfg.depth_max))
+                z_s = float(z_struct_2d[i, j])
+                
+                # 計算聲學基盤面 (Vs >= 2,000 m/s 耦合構造地質文獻深度)
+                m_ac = np.where((depths >= 50.0) & (vs_col >= cfg.vs_acoustic_bedrock))[0]
+                if len(m_ac) > 0:
+                    z_ac = float(depths[m_ac[0]])
+                    bedrock_ac_2d[i, j] = np.clip(0.5 * z_s + 0.5 * z_ac, 50.0, float(cfg.depth_max))
                 else:
-                    bedrock_depth_2d[i, j] = np.clip(z_s, 50.0, float(cfg.depth_max))
+                    bedrock_ac_2d[i, j] = np.clip(z_s, 50.0, float(cfg.depth_max))
+
+                # 計算工程基盤面 (未固結覆蓋層底界，約為聲學基底之 0.32 倍，範圍 35~350m)
+                bedrock_eng_2d[i, j] = np.clip(0.32 * bedrock_ac_2d[i, j], 35.0, 350.0)
+
+        bedrock_depth_2d = bedrock_ac_2d.copy()  # 維持原有聲學基盤相容性
 
         # 7. 地質層序與結晶基盤賦值 (Sedimentary Fill -> Transition Bedrock -> Crystalline Basement)
         # 廣播為 3D 深度基底面: (n_lat, n_lon, 1)
@@ -359,6 +404,8 @@ class VoxelVolumeGenerator:
             "z_msl_3d": z_msl_3d,
             "is_extrapolated_3d": extra_3d,
             "bedrock_depth_2d": bedrock_depth_2d,
+            "bedrock_acoustic_2d": bedrock_ac_2d,
+            "bedrock_engineering_2d": bedrock_eng_2d,
             "config": cfg
         }
 
@@ -367,18 +414,23 @@ class VoxelVolumeGenerator:
         out_file = Path(out_path)
         out_file.parent.mkdir(parents=True, exist_ok=True)
         
-        np.savez_compressed(
-            out_file,
-            lats=data["lats"],
-            lons=data["lons"],
-            depths=data["depths"],
-            lithology_3d=data["lithology_3d"].astype(np.int8),
-            confidence_3d=data["confidence_3d"].astype(np.float32),
-            entropy_3d=data["entropy_3d"].astype(np.float32),
-            vs_3d=data["vs_3d"].astype(np.float32),
-            vp_3d=data["vp_3d"].astype(np.float32),
-            z_msl_3d=data["z_msl_3d"].astype(np.float32),
-            is_extrapolated_3d=data["is_extrapolated_3d"].astype(bool),
-            bedrock_depth_2d=data["bedrock_depth_2d"].astype(np.float32)
-        )
+        save_kwargs = {
+            "lats": data["lats"],
+            "lons": data["lons"],
+            "depths": data["depths"],
+            "lithology_3d": data["lithology_3d"].astype(np.int8),
+            "confidence_3d": data["confidence_3d"].astype(np.float32),
+            "entropy_3d": data["entropy_3d"].astype(np.float32),
+            "vs_3d": data["vs_3d"].astype(np.float32),
+            "vp_3d": data["vp_3d"].astype(np.float32),
+            "z_msl_3d": data["z_msl_3d"].astype(np.float32),
+            "is_extrapolated_3d": data["is_extrapolated_3d"].astype(bool),
+            "bedrock_depth_2d": data["bedrock_depth_2d"].astype(np.float32)
+        }
+        if "bedrock_acoustic_2d" in data:
+            save_kwargs["bedrock_acoustic_2d"] = data["bedrock_acoustic_2d"].astype(np.float32)
+        if "bedrock_engineering_2d" in data:
+            save_kwargs["bedrock_engineering_2d"] = data["bedrock_engineering_2d"].astype(np.float32)
+
+        np.savez_compressed(out_file, **save_kwargs)
         print(f"3D 體素地體模型已儲存至: {out_file} (檔案大小約 {out_file.stat().st_size / 1024 / 1024:.2f} MB)")

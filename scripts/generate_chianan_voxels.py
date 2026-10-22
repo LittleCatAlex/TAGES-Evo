@@ -203,8 +203,9 @@ def plot_regional_transects(data: dict, out_png: Path):
 def main():
     root = Path(__file__).resolve().parents[1]
     vel_csv = root / "data" / "interim" / "chianan_velocity_3d.csv"
+    model_distilled = root / "models" / "well_seq_net_distilled.pt"
     model_pt = root / "models" / "well_seq_net_v1.pt"
-    model_path = model_pt if model_pt.exists() else (root / "models" / "tages_rf_augmented.pkl")
+    model_path = model_distilled if model_distilled.exists() else (model_pt if model_pt.exists() else (root / "models" / "tages_rf_augmented.pkl"))
     out_npz = root / "data" / "processed" / "chianan_3d_voxels_1km.npz"
     reports_dir = root / "reports"
     reports_dir.mkdir(parents=True, exist_ok=True)
