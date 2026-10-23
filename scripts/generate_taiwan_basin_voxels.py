@@ -59,7 +59,7 @@ BASIN_CONFIGS = {
         "name": "蘭陽平原 (Lanyang / Yilan Plain)",
         "desc": "沖繩海槽西延弧後張裂三角洲，扇頂巨礫至海濱細泥",
         "lon_min": 121.68, "lon_max": 121.88, "n_lon": 31,
-        "lat_min": 24.65, "lat_max": 24.85, "n_lat": 26,
+        "lat_min": 24.58, "lat_max": 24.85, "n_lat": 26,
         "depth_min": 0.0, "depth_max": 600.0, "n_depth": 51
     }
 }

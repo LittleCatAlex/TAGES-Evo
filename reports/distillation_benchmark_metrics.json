@@ -11,24 +11,26 @@
   },
   "benchmark_comparison": {
     "baseline_student": {
-      "acc_l2": 45.017682546286665,
-      "macro_f1": 0.3294554379209356,
-      "trans_per_100m": 1166.5650220875402,
-      "isolated_noise": 188
+      "acc_l2": 51.518618681090075,
+      "macro_f1": 0.41721066787884614,
+      "trans_per_100m": 3.086407086020941,
+      "isolated_noise": 48
     },
     "distilled_student": {
-      "acc_l2": 42.694681367450244,
-      "macro_f1": 0.29977571846176726,
-      "trans_per_100m": 872.4832539671457,
-      "isolated_noise": 49
+      "acc_l2": 51.43193953262604,
+      "macro_f1": 0.4405259755546636,
+      "trans_per_100m": 2.700606200268323,
+      "isolated_noise": 0
     },
-    "accuracy_delta": -2.323001178836421,
-    "f1_delta": -0.029679719459168363
+    "accuracy_delta": -0.0866791484640359,
+    "f1_delta": 0.023315307675817465
   },
   "pseudo_petrophysics_reconstruction": {
-    "r2_i_gr": 0.17240243257794763,
-    "rmse_i_gr": 1.5017543987292534,
-    "r2_log_n64": 0.16157387924603783,
-    "rmse_log_n64": 1.5053812663910384
+    "r2_i_gr": 0.1821271240496528,
+    "rmse_i_gr": 0.25827994280341765,
+    "rmse_i_gr_standardized": 0.9073490426071221,
+    "r2_log_n64": 0.1209735735280919,
+    "rmse_log_n64": 0.4354825791643746,
+    "rmse_log_n64_standardized": 0.9286043139170221
   }
 }

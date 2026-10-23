@@ -1,16 +1,17 @@
 """井身序列神經網路訓練與評估器 (WellboreSeqNet Trainer & Evaluator)。"""
 from __future__ import annotations
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, Tuple
 import numpy as np
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
-from sklearn.metrics import accuracy_score, f1_score, classification_report, confusion_matrix
+from sklearn.metrics import accuracy_score, f1_score
 
 from tages.models.losses import HierarchicalSequenceLoss
 from tages.models.well_seq_net import WellboreSeqNet
 from tages.features.sequence_features import SequenceFeatureExtractor
+
 
 class WellboreSeqTrainer:
     """井身序列模型端到端訓練器。"""
@@ -28,31 +29,26 @@ class WellboreSeqTrainer:
         scheduler: Any | None = None
     ):
         self.device = torch.device(device)
-        self.model = model.to(self.device)
         self.extractor = extractor
+        if hasattr(model, "bind_extractor"):
+            model.bind_extractor(extractor)
+        self.model = model.to(self.device)
         self.l2_classes = l2_classes or [2, 3, 4, 5, 6, 7]
         self.l1_classes = l1_classes or [1, 2, 3, 4, 5, 6, 7]
-        
+
         self.loss_fn = loss_fn or HierarchicalSequenceLoss()
         self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=lr, weight_decay=weight_decay)
         self.scheduler = scheduler
         self.best_macro_f1 = 0.0
 
     def apply_sequence_augmentation(self, x: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
-        """訓練階段之地質序列資料增強：波速微擾 (Velocity Jitter) 與坐標隨機遮罩 (Coordinate Dropout)。"""
+        """訓練階段之地質序列資料增強：施加輕微速度微擾 (Velocity Jitter)，保留真實空間座標供多尺度傅立葉編碼。"""
         if not self.model.training:
             return x
 
         x_aug = x.clone()
-        # 特徵索引：vp_ms: 3, vs_ms: 4
-        # 施加標準差 0.03 的正規化空間微擾 (相當於約 15~20 m/s 抖動)
-        noise = torch.randn_like(x_aug[:, :, 3:5]) * 0.03
+        noise = torch.randn_like(x_aug[:, :, 3:5]) * 0.02
         x_aug[:, :, 3:5] = x_aug[:, :, 3:5] + noise
-
-        # 坐標遮罩 (x_twd97_norm: 12, y_twd97_norm: 13): 20% 機率歸零，防止模型死記井位坐標
-        if torch.rand(1).item() < 0.2:
-            x_aug[:, :, 12:14] = 0.0
-
         return x_aug
 
     def train_epoch(self, dataloader: DataLoader) -> Dict[str, float]:
@@ -65,6 +61,7 @@ class WellboreSeqTrainer:
 
         for batch in dataloader:
             x = batch["x"].to(self.device)
+            knn_prior = batch["knn_prior"].to(self.device) if "knn_prior" in batch else None
             y_l2 = batch["y_l2"].to(self.device)
             y_l1 = batch["y_l1"].to(self.device)
             mask = batch["mask"].to(self.device)
@@ -72,7 +69,7 @@ class WellboreSeqTrainer:
             x = self.apply_sequence_augmentation(x, mask)
 
             self.optimizer.zero_grad()
-            emissions_l2, logits_l1 = self.model.extract_emissions(x)
+            emissions_l2, logits_l1 = self.model.extract_emissions(x, knn_prior=knn_prior)
 
             losses = self.loss_fn(
                 model=self.model,
@@ -111,7 +108,7 @@ class WellboreSeqTrainer:
     def evaluate(
         self,
         dataloader: DataLoader,
-        transition_weight: float = 0.20,
+        transition_weight: float = 0.06,
         use_crf: bool = True
     ) -> Dict[str, Any]:
         self.model.eval()
@@ -120,7 +117,6 @@ class WellboreSeqTrainer:
         all_true_l1 = []
         all_pred_l1 = []
 
-        # 地質層序品質指標：換層次數與孤立噪點
         total_transitions = 0
         isolated_noise_count = 0
         total_depth_m = 0.0
@@ -128,6 +124,7 @@ class WellboreSeqTrainer:
         with torch.no_grad():
             for batch in dataloader:
                 x = batch["x"].to(self.device)
+                knn_prior = batch["knn_prior"].to(self.device) if "knn_prior" in batch else None
                 y_l2 = batch["y_l2"].cpu().numpy()
                 y_l1 = batch["y_l1"].cpu().numpy()
                 mask = batch["mask"].to(self.device)
@@ -138,7 +135,8 @@ class WellboreSeqTrainer:
                     x,
                     mask=mask,
                     transition_weight=transition_weight,
-                    use_crf=use_crf
+                    use_crf=use_crf,
+                    knn_prior=knn_prior
                 )
                 pred_paths = res["l2_paths"]
                 preds_l1 = res["l1_preds"]
@@ -155,12 +153,11 @@ class WellboreSeqTrainer:
                     all_true_l1.extend(true_seq_l1)
                     all_pred_l1.extend(pred_seq_l1)
 
-                    # 計算換層頻率
                     p = np.array(pred_seq_l2)
                     if len(p) > 1:
                         transitions = np.sum(p[:-1] != p[1:])
                         total_transitions += int(transitions)
-                    
+
                     if depths_batch is not None:
                         d_seq = depths_batch[b, :t_len].cpu().numpy()
                         span = float(d_seq[-1] - d_seq[0]) if len(d_seq) > 1 else 1.0
@@ -168,9 +165,8 @@ class WellboreSeqTrainer:
                     else:
                         total_depth_m += len(p) * 2.0
 
-                    # 統計孤立單點噪聲 (A-B-A 模式)
                     for k in range(1, len(p) - 1):
-                        if p[k-1] == p[k+1] and p[k] != p[k-1]:
+                        if p[k - 1] == p[k + 1] and p[k] != p[k - 1]:
                             isolated_noise_count += 1
 
         all_true_l2 = np.array(all_true_l2)
@@ -223,7 +219,7 @@ class WellboreSeqTrainer:
     def load_checkpoint(path: str | Path, device: str = "cpu") -> Tuple[WellboreSeqNet, SequenceFeatureExtractor, dict]:
         in_path = Path(path)
         ckpt = torch.load(in_path, map_location=device, weights_only=False)
-        
+
         extractor = SequenceFeatureExtractor()
         extractor.load_state(ckpt["scaler_state"])
 
@@ -235,7 +231,8 @@ class WellboreSeqTrainer:
             n_classes_l2=ckpt.get("n_classes_l2", len(ckpt["l2_classes"])),
             n_classes_l1=ckpt.get("n_classes_l1", len(ckpt["l1_classes"]))
         )
-        model.load_state_dict(ckpt["model_state_dict"])
+        model.load_state_dict(ckpt["model_state_dict"], strict=False)
+        model.bind_extractor(extractor)
         model.to(device)
         model.eval()
         return model, extractor, ckpt

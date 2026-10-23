@@ -1,17 +1,13 @@
 """地球物理電測監督預訓練與知識特徵蒸餾模組 (Wireline Supervised Pretraining & Knowledge Distillation)。
 
-核心動機：
-1. 384 口深水觀測井擁有 130 萬筆連續地球物理測井 (自然伽瑪 I_GR、視電阻率 N64、泥質含量 V_shale)，
-   具備直接區分泥/砂/礫石的高解析物理先驗。
-2. 盆地三維空間網格 (3D Voxels) 僅有震波層析波速 (Vp, Vs) 與空間坐標，缺乏井下電測儀器數據。
-3. 透過教師-學生特徵蒸餾架構：
-   - 教師網路 (Teacher): 接收 17 維特徵 (14 維時序物理 + 3 維實測電測)，輸出高純度岩性機率分佈。
-   - 學生網路 (Student): 僅接收 14 維時序物理特徵，透過 KL 散度蒸餾教師機率分佈，
-     並利用多任務輔助頭預測「虛擬電測」(Pseudo I_GR & Pseudo log(N64))。
-   - 使得學生網路在全臺任意 3D 體素節點推論時，皆能調用蒸餾自百萬筆電測資料庫的岩石物理知識！
+核心架構：
+1. 教師網路 (PetrophysicsTeacher): 接收 17 維特徵 (14 維時序物理 + 3 維實測電測)，結合近場空間錨定先驗輸出高純度岩性機率分佈。
+2. 學生網路 (DistilledStudentNet): 僅需 14 維空間與震波特徵，內建固定基準深度 (z_norm, z_log)、多尺度空間傅立葉位置編碼、
+   近場 K-NN / IDW 相律先驗門控、少數類 Logit Adjustment 以及虛擬電測輔助預測頭 (Pseudo I_GR & Pseudo log10(N64))。
 """
 from __future__ import annotations
-from typing import Any, Dict, List, Optional, Tuple
+import math
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 import numpy as np
 import torch
 import torch.nn as nn
@@ -22,7 +18,7 @@ from tages.models.well_seq_net import MultiScaleConv1DBlock
 
 
 class PetrophysicsTeacher(nn.Module):
-    """電測監督教師網路：以 17 維完整岩石物理特徵為輸入進行高精準岩相分類。"""
+    """電測監督教師網路：以 17 維完整岩石物理特徵與近場空間錨定為輸入進行高精準岩相分類。"""
 
     def __init__(
         self,
@@ -40,6 +36,10 @@ class PetrophysicsTeacher(nn.Module):
         self.n_classes_l1 = n_classes_l1
 
         self.conv_in = nn.Conv1d(in_features, cnn_channels, kernel_size=1)
+        self.aux_conv_in = nn.Conv1d(n_classes_l2 + 1, cnn_channels, kernel_size=1)
+        nn.init.normal_(self.aux_conv_in.weight, mean=0.0, std=0.02)
+        nn.init.zeros_(self.aux_conv_in.bias)
+
         self.block1 = MultiScaleConv1DBlock(cnn_channels, cnn_channels)
         self.block2 = MultiScaleConv1DBlock(cnn_channels, cnn_channels)
 
@@ -52,7 +52,7 @@ class PetrophysicsTeacher(nn.Module):
             batch_first=True,
             dropout=dropout if lstm_layers > 1 else 0.0
         )
-        bilstm_out_dim = lstm_hidden * 2  # 192
+        bilstm_out_dim = lstm_hidden * 2
 
         self.head_l1 = nn.Sequential(
             nn.Linear(bilstm_out_dim, 64),
@@ -66,35 +66,43 @@ class PetrophysicsTeacher(nn.Module):
             nn.Dropout(dropout),
             nn.Linear(128, n_classes_l2)
         )
+        self.knn_prior_weight = nn.Parameter(torch.tensor(1.25, dtype=torch.float32))
 
-    def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        """
-        x: (Batch, Seq_T, 17)
-        回傳:
-          logits_l2: (Batch, Seq_T, n_classes_l2)
-          logits_l1: (Batch, Seq_T, n_classes_l1)
-          h_feat: (Batch, Seq_T, bilstm_out_dim)
-        """
-        # (B, T, C) -> (B, C, T)
-        h = x.transpose(1, 2)
-        h = self.conv_in(h)
+    def forward(
+        self,
+        x: torch.Tensor,
+        knn_prior: Optional[torch.Tensor] = None
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        B, T, _ = x.shape
+        device = x.device
+        if knn_prior is None:
+            knn_prior_t = torch.zeros((B, T, self.n_classes_l2 + 1), dtype=x.dtype, device=device)
+            knn_prior_t[..., :self.n_classes_l2] = 1.0 / float(self.n_classes_l2)
+        else:
+            knn_prior_t = knn_prior.to(device)
+
+        h = self.conv_in(x.transpose(1, 2)) + self.aux_conv_in(knn_prior_t.transpose(1, 2))
         h = self.block1(h)
         h = self.block2(h)
 
-        # (B, C, T) -> (B, T, C)
-        h_seq = h.transpose(1, 2)
-        h_seq = self.dropout(h_seq)
+        h_seq = self.dropout(h.transpose(1, 2))
         lstm_out, _ = self.bilstm(h_seq)
 
         logits_l1 = self.head_l1(lstm_out)
         l2_in = torch.cat([lstm_out, logits_l1], dim=-1)
         logits_l2 = self.head_l2(l2_in)
 
+        p_knn = knn_prior_t[..., :self.n_classes_l2]
+        alpha_near = knn_prior_t[..., self.n_classes_l2:self.n_classes_l2 + 1]
+        prior_log = torch.log(torch.clamp(p_knn, min=0.05, max=1.0))
+        prior_log = prior_log - torch.mean(prior_log, dim=-1, keepdim=True)
+        logits_l2 = logits_l2 + alpha_near * torch.clamp(self.knn_prior_weight, 0.2, 1.8) * prior_log
+
         return logits_l2, logits_l1, lstm_out
 
 
 class DistilledStudentNet(nn.Module):
-    """特徵蒸餾學生網路：僅需 14 維空間與震波特徵，具備虛擬電測輔助預測頭與瓦爾特相律 CRF。"""
+    """特徵蒸餾學生網路：僅需 14 維空間與震波特徵，具備虛擬電測輔助預測頭、近場空間先驗門控與瓦爾特相律 CRF。"""
 
     def __init__(
         self,
@@ -104,7 +112,7 @@ class DistilledStudentNet(nn.Module):
         lstm_layers: int = 2,
         n_classes_l2: int = 6,
         n_classes_l1: int = 8,
-        n_petro_targets: int = 2,  # 預測 I_GR 與 log10(N64)
+        n_petro_targets: int = 2,
         dropout: float = 0.2
     ):
         super().__init__()
@@ -112,8 +120,26 @@ class DistilledStudentNet(nn.Module):
         self.n_classes_l2 = n_classes_l2
         self.n_classes_l1 = n_classes_l1
         self.n_petro_targets = n_petro_targets
+        self._bound_extractor = None
 
+        default_mean = np.zeros(max(14, in_features), dtype=np.float32)
+        default_mean[0] = 45.0
+        default_scale = np.ones(max(14, in_features), dtype=np.float32)
+        default_scale[0] = 35.0
+        self.register_buffer("scaler_mean", torch.from_numpy(default_mean))
+        self.register_buffer("scaler_scale", torch.from_numpy(default_scale))
+
+        default_adj = np.zeros(n_classes_l2, dtype=np.float32)
+        if n_classes_l2 == 6:
+            default_adj = np.array([0.0, 0.22, 0.0, 0.05, 0.05, 0.0], dtype=np.float32)
+        self.register_buffer("logit_adjustment", torch.from_numpy(default_adj))
+
+        self.aux_dim = 14 + n_classes_l2 + 1
         self.conv_in = nn.Conv1d(in_features, cnn_channels, kernel_size=1)
+        self.aux_conv_in = nn.Conv1d(self.aux_dim, cnn_channels, kernel_size=1)
+        nn.init.normal_(self.aux_conv_in.weight, mean=0.0, std=0.02)
+        nn.init.zeros_(self.aux_conv_in.bias)
+
         self.block1 = MultiScaleConv1DBlock(cnn_channels, cnn_channels)
         self.block2 = MultiScaleConv1DBlock(cnn_channels, cnn_channels)
 
@@ -141,39 +167,118 @@ class DistilledStudentNet(nn.Module):
             nn.Linear(128, n_classes_l2)
         )
 
-        # 輔助虛擬電測回歸頭 (Reconstructs pseudo-Gamma & pseudo-Resistivity)
+        # 輔助虛擬電測回歸頭 (結合雙向時序特徵與跨尺度物理特徵預測 I_GR 與 log10(N64))
         self.head_petro = nn.Sequential(
-            nn.Linear(bilstm_out_dim, 64),
+            nn.Linear(bilstm_out_dim + in_features + self.aux_dim, 96),
             nn.ReLU(),
-            nn.Linear(64, n_petro_targets)
+            nn.Dropout(0.1),
+            nn.Linear(96, 48),
+            nn.ReLU(),
+            nn.Linear(48, n_petro_targets)
         )
 
-        # 瓦爾特相律條件隨機場
+        self.knn_prior_weight = nn.Parameter(torch.tensor(0.85, dtype=torch.float32))
         self.crf = LinearChainCRF(num_tags=n_classes_l2)
 
-    def forward(self, x: torch.Tensor) -> Dict[str, torch.Tensor]:
-        """
-        x: (Batch, Seq_T, 14)
-        回傳:
-          logits_l2: (Batch, Seq_T, n_classes_l2)
-          logits_l1: (Batch, Seq_T, n_classes_l1)
-          pred_petro: (Batch, Seq_T, 2)
-          lstm_out: (Batch, Seq_T, dim)
-        """
-        h = x.transpose(1, 2)
-        h = self.conv_in(h)
+    def bind_extractor(self, extractor: Any):
+        self._bound_extractor = extractor
+        if hasattr(extractor, "scaler") and hasattr(extractor.scaler, "mean_"):
+            mean_arr = np.asarray(extractor.scaler.mean_, dtype=np.float32)
+            scale_arr = np.asarray(extractor.scaler.scale_, dtype=np.float32)
+            n = min(len(mean_arr), len(self.scaler_mean))
+            with torch.no_grad():
+                self.scaler_mean[:n].copy_(torch.from_numpy(mean_arr[:n]))
+                self.scaler_scale[:n].copy_(torch.from_numpy(scale_arr[:n]))
+        if getattr(extractor, "class_priors", None) is not None:
+            self.set_class_priors(extractor.class_priors)
+
+    def set_class_priors(self, priors: np.ndarray | Sequence[float], tau: float = 0.18):
+        p = np.asarray(priors, dtype=np.float32)
+        if len(p) != self.n_classes_l2:
+            return
+        p = np.clip(p / np.maximum(np.sum(p), 1e-6), 1e-4, 1.0)
+        mean_p = float(np.mean(p))
+        adj = np.clip(np.maximum(0.0, float(tau) * np.log(mean_p / p)), 0.0, 0.32).astype(np.float32)
+        with torch.no_grad():
+            self.logit_adjustment.copy_(torch.from_numpy(adj).to(self.logit_adjustment.device))
+
+    def _compute_aux_features(
+        self,
+        x: torch.Tensor,
+        knn_prior: Optional[torch.Tensor] = None
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        B, T, D = x.shape
+        device = x.device
+        depth_m = torch.clamp(x[..., 0] * self.scaler_scale[0] + self.scaler_mean[0], min=0.0)
+        z_norm = torch.clamp(depth_m / 350.0, 0.0, 1.0).unsqueeze(-1)
+        z_log = (torch.log1p(depth_m) / math.log1p(350.0)).unsqueeze(-1)
+
+        if D >= 14:
+            dx_m = (x[..., 12] * self.scaler_scale[12] + self.scaler_mean[12]) * 100000.0
+            dy_m = (x[..., 13] * self.scaler_scale[13] + self.scaler_mean[13]) * 100000.0
+        else:
+            dx_m = torch.zeros_like(depth_m)
+            dy_m = torch.zeros_like(depth_m)
+
+        sin_cos_list = []
+        for wl in (500.0, 2000.0, 10000.0):
+            omega = 2.0 * math.pi / wl
+            sin_cos_list.append(torch.sin(dx_m * omega).unsqueeze(-1))
+            sin_cos_list.append(torch.cos(dx_m * omega).unsqueeze(-1))
+            sin_cos_list.append(torch.sin(dy_m * omega).unsqueeze(-1))
+            sin_cos_list.append(torch.cos(dy_m * omega).unsqueeze(-1))
+        spatial_enc = torch.cat(sin_cos_list, dim=-1)
+
+        if knn_prior is not None:
+            knn_prior_t = knn_prior.to(device)
+        elif self._bound_extractor is not None and getattr(self._bound_extractor, "has_spatial_prior", False):
+            d_np = depth_m.detach().cpu().numpy()
+            x97_np = (dx_m[:, 0].detach().cpu().numpy()) + 200000.0
+            y97_np = (dy_m[:, 0].detach().cpu().numpy()) + 2600000.0
+            priors_batch = []
+            for b in range(B):
+                p_col = self._bound_extractor.compute_knn_prior_for_column(
+                    depths=d_np[b],
+                    x_twd97=float(x97_np[b]),
+                    y_twd97=float(y97_np[b]),
+                    exclude_station_id=None
+                )
+                priors_batch.append(p_col)
+            knn_prior_t = torch.from_numpy(np.stack(priors_batch, axis=0)).to(device)
+        else:
+            knn_prior_t = torch.zeros((B, T, self.n_classes_l2 + 1), dtype=x.dtype, device=device)
+            knn_prior_t[..., :self.n_classes_l2] = 1.0 / float(self.n_classes_l2)
+
+        p_knn = knn_prior_t[..., :self.n_classes_l2]
+        alpha_near = knn_prior_t[..., self.n_classes_l2:self.n_classes_l2 + 1]
+        aux_feats = torch.cat([z_norm, z_log, spatial_enc, p_knn, alpha_near], dim=-1)
+        return aux_feats, p_knn, alpha_near
+
+    def forward(
+        self,
+        x: torch.Tensor,
+        knn_prior: Optional[torch.Tensor] = None
+    ) -> Dict[str, torch.Tensor]:
+        aux_feats, p_knn, alpha_near = self._compute_aux_features(x, knn_prior=knn_prior)
+
+        h = F.relu(self.conv_in(x.transpose(1, 2)) + self.aux_conv_in(aux_feats.transpose(1, 2)))
         h = self.block1(h)
         h = self.block2(h)
 
-        h_seq = h.transpose(1, 2)
-        h_seq = self.dropout(h_seq)
+        h_seq = self.dropout(h.transpose(1, 2))
         lstm_out, _ = self.bilstm(h_seq)
 
         logits_l1 = self.head_l1(lstm_out)
         l2_in = torch.cat([lstm_out, logits_l1], dim=-1)
         logits_l2 = self.head_l2(l2_in)
 
-        pred_petro = self.head_petro(lstm_out)
+        prior_log = torch.log(torch.clamp(p_knn, min=0.05, max=1.0))
+        prior_log = prior_log - torch.mean(prior_log, dim=-1, keepdim=True)
+        gate_w = torch.clamp(self.knn_prior_weight, min=0.2, max=1.8)
+        logits_l2 = logits_l2 + alpha_near * gate_w * prior_log
+
+        petro_in = torch.cat([lstm_out, x, aux_feats], dim=-1)
+        pred_petro = self.head_petro(petro_in)
 
         return {
             "logits_l2": logits_l2,
@@ -186,14 +291,15 @@ class DistilledStudentNet(nn.Module):
         self,
         x: torch.Tensor,
         mask: Optional[torch.Tensor] = None,
-        transition_weight: float = 0.20,
-        use_crf: bool = True
+        transition_weight: float = 0.06,
+        use_crf: bool = True,
+        knn_prior: Optional[torch.Tensor] = None
     ) -> Dict[str, Any]:
         """相容 WellboreSeqNet 推論介面"""
         self.eval()
         with torch.no_grad():
-            res = self.forward(x)
-            emissions = res["logits_l2"]
+            res = self.forward(x, knn_prior=knn_prior)
+            emissions = res["logits_l2"] + self.logit_adjustment.view(1, 1, -1)
             logits_l1 = res["logits_l1"]
             pred_petro = res["pred_petro"]
 
@@ -201,7 +307,12 @@ class DistilledStudentNet(nn.Module):
             preds_l1 = torch.argmax(logits_l1, dim=-1).cpu().numpy()
 
             if use_crf:
-                paths = self.crf.decode(emissions, mask=mask, transition_weight=transition_weight)
+                paths = self.crf.decode(
+                    emissions,
+                    mask=mask,
+                    transition_weight=transition_weight,
+                    suppress_isolated_spikes=True
+                )
                 scores = [0.0] * x.shape[0]
             else:
                 best_idx = torch.argmax(emissions, dim=-1)
@@ -233,7 +344,7 @@ class DistillationLoss(nn.Module):
         weight_ce: float = 1.0,
         weight_kd: float = 0.8,
         weight_aux_petro: float = 0.5,
-        weight_crf: float = 0.08
+        weight_crf: float = 0.15
     ):
         super().__init__()
         self.temperature = temperature
@@ -255,35 +366,23 @@ class DistillationLoss(nn.Module):
         petro_mask: Optional[torch.Tensor] = None,
         crf_module: Optional[LinearChainCRF] = None
     ) -> Dict[str, torch.Tensor]:
-        """
-        student_logits_l2: (B, T, C)
-        teacher_logits_l2: (B, T, C) or None
-        student_pred_petro: (B, T, 2)
-        true_petro: (B, T, 2) or None
-        targets_l2: (B, T)
-        mask: (B, T) bool
-        petro_mask: (B, T) bool (樣本是否具備實測電測值)
-        """
         B, T, C = student_logits_l2.shape
         flat_mask = mask.view(-1)
         total_valid = flat_mask.sum().clamp(min=1.0)
 
-        # 1. 地質標籤交叉熵硬損失 (Hard Cross-Entropy Loss)
         ce_per_token = self.ce_loss(
             student_logits_l2.view(-1, C),
             targets_l2.view(-1)
         )
         loss_ce = (ce_per_token * flat_mask).sum() / total_valid
 
-        # 2. 教師網路機率分佈軟蒸餾 (KL Divergence Soft Loss)
         if teacher_logits_l2 is not None:
             t = self.temperature
             p_teacher = F.softmax(teacher_logits_l2 / t, dim=-1)
             log_p_student = F.log_softmax(student_logits_l2 / t, dim=-1)
-            kl_div = F.kl_div(log_p_student, p_teacher, reduction="none").sum(dim=-1)  # (B, T)
+            kl_div = F.kl_div(log_p_student, p_teacher, reduction="none").sum(dim=-1)
 
             if petro_mask is not None:
-                # 優先在具有電測監督之井位施加強蒸餾
                 kd_mask = mask & petro_mask
             else:
                 kd_mask = mask
@@ -291,15 +390,13 @@ class DistillationLoss(nn.Module):
         else:
             loss_kd = torch.tensor(0.0, device=student_logits_l2.device)
 
-        # 3. 虛擬電測輔助預測損失 (Auxiliary Pseudo-Petrophysics MSE Loss)
         if true_petro is not None and petro_mask is not None and petro_mask.any():
-            mse_per_token = self.mse_loss(student_pred_petro, true_petro).mean(dim=-1)  # (B, T)
+            mse_per_token = self.mse_loss(student_pred_petro, true_petro).mean(dim=-1)
             valid_p = (mask & petro_mask).float()
             loss_petro = (mse_per_token * valid_p).sum() / valid_p.sum().clamp(min=1.0)
         else:
             loss_petro = torch.tensor(0.0, device=student_logits_l2.device)
 
-        # 4. CRF 序列層序損失
         if crf_module is not None:
             if hasattr(crf_module, "forward_loss"):
                 crf_nll = crf_module.forward_loss(student_logits_l2, targets_l2, mask=mask)

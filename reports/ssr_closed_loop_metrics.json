@@ -1,0 +1,13 @@
+{
+  "n_stations": 12,
+  "f0_voxel_vs_obs": {
+    "pearson_r": 0.8285,
+    "r2": 0.657,
+    "rmse_hz": 0.35,
+    "mean_rel_error_pct": 20.97
+  },
+  "acoustic_bedrock_vs_lit_depth": {
+    "pearson_r": 0.9533,
+    "rmse_m": 69.0
+  }
+}

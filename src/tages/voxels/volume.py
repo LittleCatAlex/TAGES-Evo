@@ -62,27 +62,31 @@ def estimate_structural_bedrock_depth(lon: np.ndarray, lat: np.ndarray) -> np.nd
     dist_ridge = np.abs(lo - 121.0)
     z_bed = np.clip(780.0 - dist_ridge * 450.0, 150.0, 850.0)
 
-    # 1. 臺北盆地 (半地塹：西深東淺)
+    # 1. 臺北盆地 (半地塹：五股-萬華-松山沉積槽深，北側關渡火山緣與東南山麓淺)
     mask_tp = (la >= 24.95) & (la <= 25.15) & (lo >= 121.40) & (lo <= 121.65)
     if np.any(mask_tp):
-        u = np.clip((lo[mask_tp] - 121.42) / 0.20, 0.0, 1.0)
-        v = np.clip((la[mask_tp] - 25.00) / 0.12, 0.0, 1.0)
-        tp_depth = 280.0 - u * 200.0 + (1.0 - v) * 30.0
-        z_bed[mask_tp] = np.clip(tp_depth, 60.0, 320.0)
+        u = np.clip((lo[mask_tp] - 121.44) / 0.16, 0.0, 1.0)
+        north_margin = np.maximum(0.0, (la[mask_tp] - 25.075) / 0.045) * 145.0
+        south_margin = np.maximum(0.0, (25.015 - la[mask_tp]) / 0.05) * 90.0
+        tp_depth = 295.0 - u * 110.0 - north_margin - south_margin
+        z_bed[mask_tp] = np.clip(tp_depth, 65.0, 320.0)
 
-    # 2. 蘭陽平原 (西頂淺東岸深)
-    mask_yl = (la >= 24.62) & (la <= 24.88) & (lo >= 121.65) & (lo <= 121.90)
+    # 2. 蘭陽平原 (西側扇頂與南側蘇澳板岩山麓淺，中東側羅東-五結三角洲平原深)
+    mask_yl = (la >= 24.58) & (la <= 24.88) & (lo >= 121.65) & (lo <= 121.90)
     if np.any(mask_yl):
-        u = np.clip((lo[mask_yl] - 121.68) / 0.18, 0.0, 1.0)
-        yl_depth = 120.0 + u * 300.0
+        u = np.clip((lo[mask_yl] - 121.68) / 0.14, 0.0, 1.0)
+        south_slate_margin = np.maximum(0.0, (24.66 - la[mask_yl]) / 0.07) * 290.0
+        north_margin = np.maximum(0.0, (la[mask_yl] - 24.80) / 0.07) * 160.0
+        yl_depth = 150.0 + u * 290.0 - south_slate_margin - north_margin
         z_bed[mask_yl] = np.clip(yl_depth, 90.0, 460.0)
 
-    # 3. 臺中盆地 (車籠埔斷層下盤軸心深)
+    # 3. 臺中盆地 (車籠埔斷層下盤：盆地西/中軸線深，東側大坑/豐原逆衝山麓淺)
     mask_tc = (la >= 24.05) & (la <= 24.32) & (lo >= 120.55) & (lo <= 120.80)
     if np.any(mask_tc):
+        east_foothill = np.maximum(0.0, (lo[mask_tc] - 120.68) / 0.06) * 200.0
         dist_axis = np.abs(lo[mask_tc] - 120.65)
-        tc_depth = 480.0 - (dist_axis / 0.10) * 220.0
-        z_bed[mask_tc] = np.clip(tc_depth, 180.0, 520.0)
+        tc_depth = 345.0 - (dist_axis / 0.10) * 95.0 - east_foothill
+        z_bed[mask_tc] = np.clip(tc_depth, 140.0, 500.0)
 
     # 4. 濁水溪沖積扇 (扇頂淺沿海深)
     mask_zs = (la >= 23.65) & (la <= 23.95) & (lo >= 120.15) & (lo <= 120.68)
@@ -91,14 +95,14 @@ def estimate_structural_bedrock_depth(lon: np.ndarray, lat: np.ndarray) -> np.nd
         zs_depth = 240.0 + u * 400.0
         z_bed[mask_zs] = np.clip(zs_depth, 200.0, 680.0)
 
-    # 5. 嘉南平原 (北港基底高區 vs 臺南凹陷)
+    # 5. 嘉南平原 (北港基底高區 Peikang High ~390m vs 臺南前陸深槽 Tainan Depocenter >900m，東緣觸口斷層山麓帶抬升)
     mask_cn = (la >= 23.00) & (la <= 23.68) & (lo >= 120.05) & (lo <= 120.65)
     if np.any(mask_cn):
         dist_pk = np.hypot((lo[mask_cn] - 120.25) / 0.35, (la[mask_cn] - 23.58) / 0.25)
-        south_dip = np.maximum(0.0, (23.50 - la[mask_cn]) / 0.45) * 520.0
-        east_uplift = np.maximum(0.0, (lo[mask_cn] - 120.45) / 0.18) * 300.0
-        cn_depth = 460.0 + dist_pk * 200.0 + south_dip - east_uplift
-        z_bed[mask_cn] = np.clip(cn_depth, 220.0, 1000.0)
+        south_dip = np.maximum(0.0, (23.52 - la[mask_cn]) / 0.36) * 520.0
+        east_foothill = np.maximum(0.0, (lo[mask_cn] - 120.44) / 0.085) * 420.0
+        cn_depth = 370.0 + dist_pk * 140.0 + south_dip - east_foothill
+        z_bed[mask_cn] = np.clip(cn_depth, 120.0, 1000.0)
 
     # 6. 屏東平原 (潮州斷層以西槽地)
     mask_pt = (la >= 22.45) & (la <= 22.82) & (lo >= 120.40) & (lo <= 120.70)
@@ -195,7 +199,9 @@ class VoxelVolumeGenerator:
                     n_classes_l2=len(l2_classes),
                     n_classes_l1=ckpt.get("n_classes_l1", 8)
                 )
-                self.seq_model.load_state_dict(ckpt["model_state_dict"])
+                self.seq_model.load_state_dict(ckpt["model_state_dict"], strict=False)
+                if hasattr(self.seq_model, "bind_extractor"):
+                    self.seq_model.bind_extractor(self.extractor)
             else:
                 from tages.models.well_seq_net import WellboreSeqNet
                 self.seq_model = WellboreSeqNet(
@@ -206,7 +212,9 @@ class VoxelVolumeGenerator:
                     n_classes_l2=ckpt.get("n_classes_l2", len(l2_classes)),
                     n_classes_l1=ckpt.get("n_classes_l1", len(ckpt.get("l1_classes", [1, 2, 3, 4, 5])))
                 )
-                self.seq_model.load_state_dict(ckpt["model_state_dict"])
+                self.seq_model.load_state_dict(ckpt["model_state_dict"], strict=False)
+                if hasattr(self.seq_model, "bind_extractor"):
+                    self.seq_model.bind_extractor(self.extractor)
             
             self.seq_model.eval()
             self.clf = None
@@ -268,8 +276,10 @@ class VoxelVolumeGenerator:
 
         if self.is_sequence_model:
             import torch
-            # 組織垂直柱時序特徵矩陣: (N_col, n_depth, 14)
+            # 組織垂直柱時序特徵矩陣: (N_col, n_depth, 14) 與近場空間錨定先驗: (N_col, n_depth, 7)
             feats_list = []
+            knn_list = []
+            has_knn_tree = getattr(self.extractor, "_tree_2d", None) is not None
             for c in range(n_cols):
                 s = slice(c * n_depth, (c + 1) * n_depth)
                 c_df = compute_column_sequence_features(
@@ -285,8 +295,17 @@ class VoxelVolumeGenerator:
                 )
                 c_norm = self.extractor.scaler.transform(c_df.values)
                 feats_list.append(c_norm)
+                if has_knn_tree:
+                    c_knn = self.extractor.compute_knn_prior_for_column(
+                        depths=flat_depth[s],
+                        x_twd97=float(flat_x97[c * n_depth]),
+                        y_twd97=float(flat_y97[c * n_depth]),
+                        exclude_station_id=None
+                    )
+                    knn_list.append(c_knn)
             
             feats_all = np.array(feats_list, dtype=np.float32)
+            knn_all = np.array(knn_list, dtype=np.float32) if has_knn_tree else None
 
             pred_lith = np.zeros(shape_3d, dtype=np.int64).ravel()
             pred_conf = np.zeros(shape_3d, dtype=np.float32).ravel()
@@ -298,8 +317,12 @@ class VoxelVolumeGenerator:
             for b_start in range(0, n_cols, batch_size):
                 b_end = min(b_start + batch_size, n_cols)
                 batch_t = torch.tensor(feats_all[b_start:b_end], dtype=torch.float32)
+                batch_knn = torch.tensor(knn_all[b_start:b_end], dtype=torch.float32) if knn_all is not None else None
                 with torch.no_grad():
-                    res = self.seq_model.predict(batch_t)
+                    try:
+                        res = self.seq_model.predict(batch_t, knn_prior=batch_knn)
+                    except TypeError:
+                        res = self.seq_model.predict(batch_t)
                 
                 for idx_in_batch, col_c in enumerate(range(b_start, b_end)):
                     path = res["l2_paths"][idx_in_batch]
@@ -352,18 +375,24 @@ class VoxelVolumeGenerator:
         for i in range(cfg.n_lat):
             for j in range(cfg.n_lon):
                 vs_col = vs_3d[i, j, :]
+                lith_col_ij = lith_3d[i, j, :]
                 z_s = float(z_struct_2d[i, j])
                 
-                # 計算聲學基盤面 (Vs >= 2,000 m/s 耦合構造地質文獻深度)
-                m_ac = np.where((depths >= 50.0) & (vs_col >= cfg.vs_acoustic_bedrock))[0]
+                # 計算聲學基盤面 (Vs >= 2,000 m/s 且相較地表具顯著波速阻抗躍升 dVs >= 180 m/s，耦合構造地質文獻深度)
+                m_ac = np.where((depths >= 60.0) & (vs_col >= cfg.vs_acoustic_bedrock) & ((vs_col - vs_col[0]) >= 180.0))[0]
                 if len(m_ac) > 0:
                     z_ac = float(depths[m_ac[0]])
-                    bedrock_ac_2d[i, j] = np.clip(0.5 * z_s + 0.5 * z_ac, 50.0, float(cfg.depth_max))
+                    bedrock_ac_2d[i, j] = np.clip(0.65 * z_s + 0.35 * z_ac, 60.0, float(cfg.depth_max))
                 else:
-                    bedrock_ac_2d[i, j] = np.clip(z_s, 50.0, float(cfg.depth_max))
+                    bedrock_ac_2d[i, j] = np.clip(z_s, 60.0, float(cfg.depth_max))
 
-                # 計算工程基盤面 (未固結覆蓋層底界，約為聲學基底之 0.32 倍，範圍 35~350m)
-                bedrock_eng_2d[i, j] = np.clip(0.32 * bedrock_ac_2d[i, j], 35.0, 350.0)
+                # 計算工程基盤面 (Vs >= 760 m/s 未固結覆蓋層底界：耦合聲學基盤深度與 3D 體素淺部粗礫/細泥預測相比例)
+                sh_mask = depths <= min(200.0, bedrock_ac_2d[i, j])
+                lith_sh = lith_col_ij[sh_mask] if np.any(sh_mask) else lith_col_ij
+                gravel_frac = float(np.mean(np.isin(lith_sh, [5, 7]))) if len(lith_sh) > 0 else 0.0
+                fine_frac = float(np.mean(np.isin(lith_sh, [2, 3, 4]))) if len(lith_sh) > 0 else 0.5
+                eng_ratio = np.clip(0.32 + 0.05 * fine_frac - 0.08 * gravel_frac, 0.22, 0.38)
+                bedrock_eng_2d[i, j] = np.clip(eng_ratio * bedrock_ac_2d[i, j], 35.0, 350.0)
 
         bedrock_depth_2d = bedrock_ac_2d.copy()  # 維持原有聲學基盤相容性
 

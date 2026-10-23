@@ -1,8 +1,8 @@
 {
   "chianan_basin_structures": {
     "peikang_high": {
-      "mean_acoustic_bedrock_depth_m": 392.4172668457031,
-      "min_acoustic_bedrock_depth_m": 256.96258544921875,
+      "mean_acoustic_bedrock_depth_m": 404.36871337890625,
+      "min_acoustic_bedrock_depth_m": 372.74761962890625,
       "literature_expected_range_m": [
         400.0,
         600.0
@@ -10,20 +10,20 @@
       "consistent_with_cgs_pk_wells": true
     },
     "tainan_depocenter": {
-      "mean_acoustic_bedrock_depth_m": 923.3170776367188,
+      "mean_acoustic_bedrock_depth_m": 893.6699829101562,
       "max_acoustic_bedrock_depth_m": 1000.0,
       "literature_expected_threshold_m": 900.0,
       "consistent_with_foreland_trough": true
     },
-    "dip_gradient_m_per_10km": 144.9357932817413
+    "dip_gradient_m_per_10km": 133.5793801614121
   },
   "zhuoshui_aquifer_hydrodynamics": {
-    "apex_coarse_fraction_pct": 77.1255060728745,
+    "apex_coarse_fraction_pct": 58.502024291497975,
     "distal_coarse_fraction_pct": 0.0,
-    "exponential_decay_f0": 0.971122469016106,
-    "exponential_decay_rate_k": 0.13152670802574457,
-    "characteristic_decay_length_km": 7.6030185428518715,
-    "decay_r2_score": 0.9171973544713335,
+    "exponential_decay_f0": 0.6710023319365843,
+    "exponential_decay_rate_k": 0.0833521053971552,
+    "characteristic_decay_length_km": 11.997297431603089,
+    "decay_r2_score": 0.9364960923163508,
     "consistent_with_sedimentological_sorting": true
   }
 }
