@@ -1,13 +1,19 @@
 {
-  "n_stations": 12,
+  "n_stations": 32,
   "f0_voxel_vs_obs": {
-    "pearson_r": 0.8285,
-    "r2": 0.657,
-    "rmse_hz": 0.35,
-    "mean_rel_error_pct": 20.97
+    "pearson_r": 0.7981,
+    "r2": 0.5557,
+    "rmse_hz": 0.286,
+    "mean_rel_error_pct": 16.23
+  },
+  "quarter_wavelength_vs_obs": {
+    "pearson_r": 0.9877,
+    "r2": -2.0394,
+    "rmse_hz": 0.748,
+    "mean_rel_error_pct": 27.91
   },
   "acoustic_bedrock_vs_lit_depth": {
-    "pearson_r": 0.9533,
-    "rmse_m": 69.0
+    "pearson_r": 0.9082,
+    "rmse_m": 109.7
   }
 }
