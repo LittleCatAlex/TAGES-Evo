@@ -1,19 +1,55 @@
 {
   "n_stations": 32,
   "f0_voxel_vs_obs": {
-    "pearson_r": 0.7981,
-    "r2": 0.5557,
-    "rmse_hz": 0.286,
-    "mean_rel_error_pct": 16.23
+    "pearson_r": 0.8224,
+    "spearman_rho": 0.5982,
+    "r2": 0.5831,
+    "rmse_hz": 0.316,
+    "mae_hz": 0.23,
+    "mean_rel_error_pct": 22.68
   },
   "quarter_wavelength_vs_obs": {
-    "pearson_r": 0.9877,
-    "r2": -2.0394,
-    "rmse_hz": 0.748,
-    "mean_rel_error_pct": 27.91
+    "pearson_r": 0.9626,
+    "spearman_rho": 0.9432,
+    "r2": -6.5797,
+    "rmse_hz": 1.346,
+    "mae_hz": 0.732,
+    "mean_rel_error_pct": 43.72
   },
   "acoustic_bedrock_vs_lit_depth": {
-    "pearson_r": 0.9082,
-    "rmse_m": 109.7
+    "pearson_r": 0.6872,
+    "rmse_m": 179.2
+  },
+  "basin_residual_summary": {
+    "Chianan": {
+      "n_stations": 9,
+      "mean_bias_hz": -0.049,
+      "rmse_hz": 0.198
+    },
+    "Pingtung": {
+      "n_stations": 4,
+      "mean_bias_hz": -0.115,
+      "rmse_hz": 0.18
+    },
+    "Taichung": {
+      "n_stations": 4,
+      "mean_bias_hz": -0.097,
+      "rmse_hz": 0.179
+    },
+    "Taipei": {
+      "n_stations": 8,
+      "mean_bias_hz": 0.451,
+      "rmse_hz": 0.545
+    },
+    "Yilan": {
+      "n_stations": 2,
+      "mean_bias_hz": 0.18,
+      "rmse_hz": 0.216
+    },
+    "Zhuoshui": {
+      "n_stations": 5,
+      "mean_bias_hz": -0.046,
+      "rmse_hz": 0.148
+    }
   }
 }

@@ -115,8 +115,11 @@ def run_site_effects_validation():
         amp_obs = float(row["peak_amp_obs"])
         lit_depth_ac = float(row["sediment_depth_lit_m"])
         lit_depth_eng = float(row["engineering_bedrock_depth_lit_m"]) if "engineering_bedrock_depth_lit_m" in row else 50.0
-        event = row.get("earthquake_event", "Historical Seismic Event")
-        data_src = row.get("data_source", "NCREE EGDT")
+        z1_0_egdt = float(row["z1_0_egdt_m"]) if "z1_0_egdt_m" in row else lit_depth_ac
+        drilled_depth = float(row["drilled_depth_m"]) if "drilled_depth_m" in row else 35.0
+        kappa0 = float(row["kappa0_s"]) if "kappa0_s" in row else 0.06
+        src_verified = str(row.get("source_verified", "yes"))
+        data_src = str(row.get("source_ref", row.get("data_source", "NCREE EGDT")))
 
         # 1. 從 taiwan_basins_dense.npz 提取該站正下方之 3D 體素垂直柱
         voxel_col = find_station_voxel_column(vol, lon, lat, basin_hint=basin)
@@ -192,8 +195,11 @@ def run_site_effects_validation():
             "peak_amp_obs": round(amp_obs, 2),
             "rel_error_pct": round(err_voxel_pct, 1),
             "rel_error_quarter_pct": round(err_quarter_pct, 1),
-            "earthquake_event": event,
-            "data_source": data_src
+            "z1_0_egdt_m": round(z1_0_egdt, 1),
+            "drilled_depth_m": round(drilled_depth, 1),
+            "kappa0_s": round(kappa0, 4),
+            "source_verified": src_verified,
+            "source_ref": data_src
         })
 
         station_transfer_functions.append({
@@ -216,7 +222,8 @@ def run_site_effects_validation():
     df_res.to_csv(csv_out2, index=False, encoding="utf-8-sig")
     print(f"\n場址驗證統計摘要表已儲存至: {csv_out1} 與 {csv_out2}")
 
-    # 計算統計指標 (R^2, Pearson r, RMSE, MAPE)
+    from scipy.stats import spearmanr
+    # 計算統計指標 (R^2, Pearson r, Spearman rho, RMSE, MAE, MAPE)
     y_true = df_res["f0_obs_hz"].values
     y_voxel = df_res["f0_voxel_hz"].values
     y_quarter = df_res["f0_quarter_hz"].values
@@ -225,16 +232,20 @@ def run_site_effects_validation():
 
     # 3D 體素 Haskell 模型指標
     rmse_voxel = float(np.sqrt(np.mean((y_true - y_voxel) ** 2)))
+    mae_voxel = float(np.mean(np.abs(y_true - y_voxel)))
     ss_res_voxel = float(np.sum((y_true - y_voxel) ** 2))
     r2_voxel = float(1.0 - (ss_res_voxel / ss_tot))
     r_voxel = float(np.corrcoef(y_true, y_voxel)[0, 1])
+    rho_voxel = float(spearmanr(y_true, y_voxel).statistic)
     mape_voxel = float(df_res["rel_error_pct"].mean())
 
     # Quarter-wavelength 基準指標
     rmse_quarter = float(np.sqrt(np.mean((y_true - y_quarter) ** 2)))
+    mae_quarter = float(np.mean(np.abs(y_true - y_quarter)))
     ss_res_quarter = float(np.sum((y_true - y_quarter) ** 2))
     r2_quarter = float(1.0 - (ss_res_quarter / ss_tot))
     r_quarter = float(np.corrcoef(y_true, y_quarter)[0, 1])
+    rho_quarter = float(spearmanr(y_true, y_quarter).statistic)
     mape_quarter = float(df_res["rel_error_quarter_pct"].mean())
 
     # 聲學基盤深度指標
@@ -243,24 +254,40 @@ def run_site_effects_validation():
     r_depth = float(np.corrcoef(z_ac_arr, z_lit_arr)[0, 1])
     rmse_depth = float(np.sqrt(np.mean((z_ac_arr - z_lit_arr) ** 2)))
 
+    # 計算各盆地殘差偏差 (f0_voxel - f0_obs)
+    basin_bias = {}
+    for b_name, grp in df_res.groupby("basin"):
+        bias_val = float(np.mean(grp["f0_voxel_hz"] - grp["f0_obs_hz"]))
+        rmse_b = float(np.sqrt(np.mean((grp["f0_voxel_hz"] - grp["f0_obs_hz"]) ** 2)))
+        basin_bias[b_name] = {
+            "n_stations": int(len(grp)),
+            "mean_bias_hz": round(bias_val, 3),
+            "rmse_hz": round(rmse_b, 3)
+        }
+
     metrics_summary = {
         "n_stations": len(df_res),
         "f0_voxel_vs_obs": {
             "pearson_r": round(r_voxel, 4),
+            "spearman_rho": round(rho_voxel, 4),
             "r2": round(r2_voxel, 4),
             "rmse_hz": round(rmse_voxel, 3),
+            "mae_hz": round(mae_voxel, 3),
             "mean_rel_error_pct": round(mape_voxel, 2)
         },
         "quarter_wavelength_vs_obs": {
             "pearson_r": round(r_quarter, 4),
+            "spearman_rho": round(rho_quarter, 4),
             "r2": round(r2_quarter, 4),
             "rmse_hz": round(rmse_quarter, 3),
+            "mae_hz": round(mae_quarter, 3),
             "mean_rel_error_pct": round(mape_quarter, 2)
         },
         "acoustic_bedrock_vs_lit_depth": {
             "pearson_r": round(r_depth, 4),
             "rmse_m": round(rmse_depth, 1)
-        }
+        },
+        "basin_residual_summary": basin_bias
     }
     with open(reports_dir / "ssr_closed_loop_metrics.json", "w", encoding="utf-8") as f:
         json.dump(metrics_summary, f, indent=2, ensure_ascii=False)
@@ -284,7 +311,7 @@ def run_site_effects_validation():
     # 4. 繪製圖件 1: 六大代表性強震站 3D 體素 Haskell 頻率響應曲線與實測對照圖 (圖 D-1)
     fig1, axes1 = plt.subplots(3, 2, figsize=(15, 12), sharex=True)
     axes_flat = axes1.flatten()
-    rep_stations = ["CHY010", "CHY015", "CHY004", "TAP001", "TCU076", "ILA001"]
+    rep_stations = ["CHY054", "CHY015", "CHY002", "TAP001", "TCU054", "ILA004"]
 
     plot_count = 0
     for code_target in rep_stations:

@@ -6,7 +6,7 @@
 > **學科子類別**：地質科學 / 地球科學（Geosciences, GES）  
 > **關鍵詞（最多三個）**：物理引導機器學習、瓦爾特相律、強震場址效應  
 > **審查盲審規範**：本作品恪遵臺灣國際科展（TISF）與國際科展（ISEF）雙盲審查規範，全篇不揭露作者姓名、指導教師與就讀學校。所有數據、程式碼與圖表均為作者獨立整理、統計與繪製。  
-> **版本日期**：2026-10-23  
+> **版本日期**：2026-10-25  
 
 ---
 
@@ -14,29 +14,29 @@
 
 ### 中文摘要（約 350 字，結構化四段）
 【研究目的】
-臺灣主要平原與都會盆地人口密集，其淺部（0–1 km）沉積層的三維非均質岩性分佈直接控制含水層儲集架構與強震場址共振效應。傳統地球物理研究面臨「全島震波層析網格過粗、無法解析米級砂泥層，而水文鑽井在水平空間上高度稀疏」的跨尺度矛盾；純數據驅動的機器學習模型則經常在垂直剖面上產生違反沉積常理的孤立跳變噪聲與岩相倒置。本研究旨在建立結合沉積相律、近場空間錨定與岩石物理先驗的物理引導序列神經網路，重建具備地質連續性的盆地三維結構，並進行三維體素驅動之一維強震場址效應閉環正演。
+臺灣主要平原與都會盆地人口密集，其淺部（0–1 km）沉積層的三維非均質岩性分佈直接控制含水層儲集架構與強震場址共振效應。傳統地球物理研究面臨「全島震波層析網格過粗、無法解析米級砂泥層，而水文鑽井在水平空間上高度稀疏」的跨尺度矛盾；純數據驅動的機器學習模型則經常在垂直剖面上產生違反沉積常理的孤立跳變噪聲。本研究旨在建立結合沉積相律、近場空間錨定與岩石物理先驗的序列神經網路，重建具備地質連續性的盆地三維結構，並進行三維體素驅動之一維強震場址效應閉環正演與物理極限檢驗。
 
 【研究過程與方法】
-本研究整合全臺 422 口深層水文觀測井（116,960 筆深度採樣）、臺灣公開工程地質鑽探柱狀圖資料庫之 6,288 口工程地質鑽孔（220,704 筆深度採樣）、384 口井原位地球物理電測（1,314,619 筆深度對齊紀錄）與中研院 TEC LEE2025 全島 3D 震波速度場，建構固定物理基準深度歸一化（$z_{\text{norm}}$、$z_{\text{log}}$）、多尺度空間傅立葉位置編碼與零洩漏雙尺度 K-NN 近場岩相先驗。提出 PG-WellboreSeqNet 模型，結合多尺度 1D-ResNet、雙向長短期記憶網路（BiLSTM）、少數類對數先驗補償（Logit Adjustment）與以瓦爾特相律經驗轉移矩陣初始化之線性鏈條件隨機場（CRF），並加入岩石物理一致性損失（$\mathcal{L}_{\text{phy}}$）；進一步建立原位電測知識蒸餾管線，將 17 維教師網路之實測電測表徵蒸餾至 14 維學生網路；在 3D 體素重構中明確區分工程基盤（$V_s \ge 760\text{ m/s}$）與地殼聲學基盤（$V_s \ge 2,000\text{ m/s}$），並直接提取全臺六大盆地 32 座代表性 TSMIP 強震測站正下方之 3D 體素岩性柱代入一維 Haskell–Thomson 多層黏彈性傳遞矩陣計算理論共振主頻 $f_{0,\text{voxel}}$。
+本研究整合全臺 422 口深層水文觀測井（116,960 筆深度採樣）、經濟部地質調查及礦業管理中心（GSMMA）地質資料整合查詢系統公開之 6,288 口工程地質鑽孔（220,704 筆深度採樣）、384 口井原位地球物理電測（1,314,619 筆深度對齊紀錄）與中研院 TEC LEE2025 全島 3D 震波速度場，建構固定物理基準深度歸一化（$z_{\text{norm}}$、$z_{\text{log}}$）、多尺度空間傅立葉位置編碼與零洩漏雙尺度 K-NN 近場岩相先驗。提出 PG-WellboreSeqNet 模型，結合多尺度 1D-ResNet、雙向長短期記憶網路（BiLSTM）、少數類對數先驗補償（Logit Adjustment）與以瓦爾特相律經驗轉移矩陣初始化之線性鏈條件隨機場（CRF）及單點尖峰濾除，並量化診斷區域層析波速尺度下之岩石物理一致性損失（$\mathcal{L}_{\text{phy}}$）；進一步建立原位電測知識蒸餾管線，將 17 維教師網路之實測電測表徵蒸餾至 14 維學生網路；在 3D 體素重構中建立文獻約束之雙界面基盤結構先驗（工程基盤 $V_s \ge 760\text{ m/s}$ 與地殼聲學基盤 $V_s \ge 2,000\text{ m/s}$），並提取全臺六大盆地 32 座國震中心（NCREE）EGDT 強震測站正下方之 3D 體素岩性柱，在全臺統一經驗耦合參數下代入一維 Haskell–Thomson 多層黏彈性傳遞矩陣計算理論共振主頻 $f_{0,\text{voxel}}$。
 
 【研究結果】
-在 422 口水文深井的完整 5 折盲測中，PG-WellboreSeqNet 的六類沉積相平均準確率為 35.27%（Macro F1 為 0.2665，高於無物理損失消融組之 0.2564），將垂直剖面的孤立單點跳變噪聲由物理增強隨機森林的 1,012 處降至 0 處，且透過對數先驗補償使少數類粉土召回率由 0.00% 提升至 5.12%（精確率 20.09%）。全面整編 6,288 口公開工程地質鑽孔（自原始掃描 31,904 張圖檔中嚴格排除 17,624 張非柱狀圖或異常紀錄，保留 14,280 張有效柱狀圖；與深井合併為 5,541 口有效沉積相井、287,148 筆樣本）後，PG-WellboreSeqNet 於 5,541 口混合井之 5 折交叉驗證準確率躍升至 48.98%（Macro F1 達 0.3949，換層頻率 4.0 次/100m，孤立噪聲 0 處），在 5,119 口工程鑽孔上的折外盲測（OOF）準確率由零樣本外推的 26.52%（超越隨機森林之 25.41%）大幅提升至 60.31%（Macro F1 達 0.5073）；在 15 km 空間盲測中由 36.66% 提升至 37.83%（+1.17%），定量界定出「局部工區近場內插錨定」與「跨盆地遠場外推」的物理尺度邊界。在原位電測知識蒸餾實驗中，學生網路之 Macro F1 由 0.4172 提升至 0.4405（L2 準確率 51.43%，換層頻率 2.7 次/100m，孤立噪聲由 48 處降至 0 處），並於物理尺度重建虛擬電測曲線（$I_{\text{GR}}\ R^2=0.182, \text{RMSE}=0.258$；$\log_{10}(\text{N64})\ R^2=0.121, \text{RMSE}=0.435$）。全臺六大盆地 3D 體素反演重現嘉南盆地北港基盤高區（平均 404.4 m）向南傾沒至臺南前陸深槽（平均 893.7 m，傾沒梯度 133.6 m/10 km），並於濁水溪沖積扇 0–300 m 主含水層定量重現粗粒相由扇頂（58.5%）向扇尾（0.0%）之水動力指數衰減規律（$F(x) = 0.671 e^{-x/12.0}$，$R^2 = 0.936$）。直接由 3D 體素模型提取 32 座 TSMIP 強震站地層柱驅動一維波傳閉環正演，聲學基盤深度 $Z_{\text{ac}}$ 與文獻深度高度吻合（$r = 0.9082, \text{RMSE} = 109.7\text{ m}$），且完全不依賴測站實測 $V_{s30}$ 之體素正演主頻 $f_{0,\text{voxel}}$ 與實測主頻 $f_{0,\text{obs}}$ 呈顯著正相關（Pearson $r = 0.8285, R^2 = 0.6570, \text{RMSE} = 0.350\text{ Hz}$）。
+在 422 口水文深井的完整 5 折盲測中，PG-WellboreSeqNet 的六類沉積相平均準確率為 35.27%（Macro F1 為 0.2665，與無物理損失消融組之 0.2564 呈統計持平；點準確率略低於物理增強隨機森林之 35.97%），但透過 CRF 結合單點尖峰濾除將垂直剖面的孤立單點跳變噪聲由隨機森林的 1,012 處降至 0 處，且透過對數先驗補償使少數類粉土召回率由 0.00% 提升至 5.12%（精確率 20.09%）。全面整編 GSMMA 公開之 6,288 口工程地質鑽孔（自原始掃描 31,904 張圖檔中嚴格排除 17,624 張非柱狀圖或異常紀錄，保留 14,280 張有效柱狀圖；與深井合併為 5,541 口有效沉積相井、287,148 筆樣本）後，PG-WellboreSeqNet 於 5,541 口混合井之 5 折交叉驗證準確率提升至 48.98%（Macro F1 達 0.3949，換層頻率 4.0 次/100m，孤立噪聲 0 處；隨機森林為 51.97%，噪聲 2,270 處），在 5,119 口工程鑽孔上的折外盲測（OOF）準確率由零樣本外推的 26.52%（超越隨機森林之 25.41%）大幅提升至 60.31%（Macro F1 達 0.5073）；在 15 km 空間盲測中由 36.66% 提升至 37.83%（+1.17%），定量界定出「局部工區近場內插錨定」與「跨盆地遠場外推」的物理尺度邊界。在原位電測知識蒸餾實驗中，學生網路之 Macro F1 由 0.4172 提升至 0.4405（L2 準確率 51.43%，換層頻率 2.7 次/100m，孤立噪聲由 48 處降至 0 處），並於物理尺度重建虛擬電測曲線（$I_{\text{GR}}\ R^2=0.182, \text{RMSE}=0.258$；$\log_{10}(\text{N64})\ R^2=0.121, \text{RMSE}=0.435$）。全臺六大盆地 3D 體素模型重現嘉南盆地北港基盤高區（平均 404.4 m）向南傾沒至臺南前陸深槽（平均 893.7 m，傾沒梯度 133.6 m/10 km），並於濁水溪沖積扇 0–300 m 主含水層定量重現粗粒相由扇頂（58.5%）向扇尾（0.0%）之水動力指數衰減規律（$F(x) = 0.671 e^{-x/12.0}$，$R^2 = 0.936$）。直接由 3D 體素模型提取 32 座 NCREE EGDT 強震站地層柱驅動一維波傳閉環正演，聲學基盤結構先驗深度 $Z_{\text{ac}}$ 與文獻深度呈正向一致（$r = 0.6872, \text{RMSE} = 179.2\text{ m}$），且完全不依賴測站實測 $V_{s30}$ 之體素正演主頻 $f_{0,\text{voxel}}$ 與基準主頻 $f_{0,\text{obs}}$ 呈顯著正相關（Pearson $r = 0.8224$, Spearman $\rho = 0.5982$, $R^2 = 0.5831$, $\text{RMSE} = 0.316\text{ Hz}$, $\text{MAE} = 0.230\text{ Hz}$），相較傳統四分之一波長基準（$\text{RMSE} = 1.346\text{ Hz}, R^2 = -6.5797$）有效消除山前高波速測站之系統性高估偏移，並由臺北半地塹盆地之正演殘差（平均高估 $+0.451\text{ Hz}$）定量印證一維模型在複雜邊界盆地中的物理極限。
 
 【結論與應用】
-本研究證實沉積相律、固定基準對數深度、近場空間錨定與原位電測蒸餾能有效抑制地質機器學習中的垂直椒鹽噪聲與跨尺度錯位，並完成由三維體素模型直接驅動強震場址共振主頻預測之端到端閉環驗證，可作為都會耐震微區劃與地下水含水層評估的定量建模基礎。
+本研究證實沉積相律、固定基準對數深度、近場空間錨定與原位電測蒸餾能在維持合理分類精度下有效抑制地質機器學習中的垂直椒鹽噪聲與跨尺度錯位，並完成由三維體素模型直接驅動強震場址共振主頻預測之端到端閉環驗證與誤差機制解析，可作為都會耐震微區劃與地下水含水層評估的定量建模參考。
 
 **關鍵字**：物理引導機器學習、瓦爾特相律、強震場址效應
 
 ---
 
 ### 英文摘要（Abstract in English, ≤250 words）
-[Objective] Subsurface 3D lithological heterogeneity in Taiwan's sedimentary basins governs aquifer architecture and earthquake site amplification. However, regional seismic tomography is too coarse (~km scale) to resolve metre-scale sand–mud layers, whereas boreholes are spatially sparse. Purely data-driven classifiers frequently generate unphysical vertical noise. We develop PG-WellboreSeqNet, a physics- and stratigraphy-guided sequence network that reconstructs basin lithofacies by coupling seismic petrophysics, near-field spatial anchoring, and Walther's Law of Facies.
+[Objective] Subsurface 3D lithofacies in Taiwan's basins govern aquifer architecture and seismic site amplification. Regional tomography lacks metre-scale resolution, while sparse boreholes cause data-driven models to produce vertical noise. We develop PG-WellboreSeqNet to reconstruct basin lithofacies by coupling seismic priors, spatial anchoring, and Walther's Law.
 
-[Methods] We integrated 422 deep hydrogeological wells (116,960 records), 6,288 public engineering boreholes (220,704 records), 384 wireline-logged wells (1,314,619 aligned gamma-ray and resistivity records), and the TEC LEE2025 3D velocity model. Features combine fixed-reference logarithmic depth ($z_{\text{norm}}, z_{\text{log}}$), multiscale spatial sinusoidal encoding, and zero-leakage dual-scale K-NN facies priors. The architecture couples multiscale 1D-ResNet blocks, a 2-layer BiLSTM, logit adjustment for minority facies, and a row-centered Linear-Chain CRF regularised by rock-physics consistency loss ($\mathcal{L}_{\text{phy}}$). A petrophysics distillation pipeline transfers wireline representations ($I_{\text{GR}}$, $\log_{10}(\text{N64})$) from a 17D teacher to a 14D student network. Across six basins (297,540 voxels), we distinguish engineering bedrock ($V_s \ge 760\text{ m/s}$) from seismic acoustic bedrock ($V_s \ge 2,000\text{ m/s}$) and extract 3D voxel columns beneath 12 TSMIP stations to drive 1D Haskell–Thomson viscoelastic wave propagation.
+[Methods] We integrated 422 deep wells, 6,288 GSMMA boreholes, 384 wireline-logged wells, and the LEE2025 velocity model. Features combine logarithmic depth, sinusoidal encoding, and dual-scale K-NN priors. The network couples 1D-ResNet, BiLSTM, logit adjustment, and a Linear-Chain CRF with spike filtering and physics loss. Knowledge distillation transfers wireline representations from a 17D teacher to a 14D student network. Across six basins, we extract 3D columns beneath 32 NCREE EGDT stations to drive unified 1D Haskell–Thomson wave propagation.
 
-[Results] On 422 deep wells (5-fold GroupKFold), PG-WellboreSeqNet achieved 35.27% accuracy (Macro F1: 0.2665), eliminating vertical salt-and-pepper noise from 1,012 spots (Random Forest) to 0 while restoring minority silt recall to 5.12%. Integrating 6,288 engineering boreholes (14,280 valid charts retained after excluding 17,624 invalid records from 31,904 raw scans; 5,541 combined sedimentary wells, 287,148 samples) raised PG-WellboreSeqNet 5-fold accuracy to 48.98% (Macro F1: 0.3949; 4.0 transitions/100m; 0 noise) and boosted engineering borehole out-of-fold accuracy from 26.52% (zero-shot) to 60.31% (F1: 0.5073). Knowledge distillation raised student Macro F1 from 0.4172 to 0.4405 (0 noise) and reconstructed physical-scale wireline logs ($I_{\text{GR}}$ RMSE = 0.258; $\log_{10}(\text{N64})$ RMSE = 0.435). 3D voxels captured the foreland dip from Peikang High (404.4 m) to Tainan Depocenter (893.7 m; 133.6 m/10 km) and exponential coarse-fraction decay across the Zhuoshui Fan ($R^2 = 0.936$). End-to-end 3D voxel-driven site frequencies at 12 TSMIP stations correlated well with observations ($r = 0.8285$, $R^2 = 0.6570$, RMSE = 0.350 Hz).
+[Results] On 422 deep wells, PG-WellboreSeqNet achieved 35.27% accuracy (F1: 0.2665), eliminating 1,012 isolated noise spots to 0 and restoring silt recall to 5.12%. Adding 6,288 boreholes raised 5-fold accuracy to 48.98% (F1: 0.3949; 0 noise) and borehole accuracy from 26.52% to 60.31%. Distillation raised student F1 to 0.4405 and predicted wireline logs (GR RMSE: 0.258; N64 RMSE: 0.435). 3D voxels captured the Peikang–Tainan dip and Zhuoshui Fan decay (R2: 0.936). Voxel-driven frequencies at 32 EGDT stations matched reference values (r = 0.8224, R2 = 0.5831, RMSE = 0.316 Hz vs. 1.346 Hz).
 
-[Conclusions] Stratigraphic priors, cross-scale depth encoding, and wireline distillation effectively suppress vertical artefacts and enable closed-loop 3D-to-1D seismic site-effect prediction.
+[Conclusions] Stratigraphic priors, depth encoding, and wireline distillation suppress vertical artefacts and enable closed-loop 3D-to-1D site-effect evaluation.
 
 **Keywords**: Physics-Guided Machine Learning, Walther's Law, Strong-Motion Site Effects
 
@@ -64,7 +64,7 @@
 | :---: | :--- | :--- | :--- |
 | **Q1** | **沉積相序學與跨尺度外推** | 臺灣主要沉積盆地的地下垂直岩相序列如何反映構造與水動力差異？結合瓦爾特相律（Walther's Law）約束的序列模型、固定基準對數深度與局部加密工程鑽孔，在「垂直噪聲抑制」、「工區近場內插」與「跨區遠場外推」上各自呈現何種表現與限制？ | 參、一與參、二：執行 422 口水文井與 6,288 口公開工程鑽孔（有效沉積相井共 5,541 口、287,148 筆沉積相樣本）之 5-Fold GroupKFold、15 km 空間盲測，並計算六大盆地相界轉移機率矩陣與馬可夫熵 |
 | **Q2** | **井下岩石物理與特徵蒸餾** | 面對不同年度、不同鑽探包商造成的自然伽瑪（GR）儀器計數尺度差異，如何透過井內標準化建立全臺 384 口井的岩石物理模板（RPT），並透過教師—學生知識蒸餾將原位電測約束遷移至無測井之三維體素空間？ | 參、三：分析 384 口井、131.4 萬筆電測資料，建立井內分位數標準化泥質指數（$I_{\text{GR}}$）與視電阻率（N64）模板，並評估 17 維教師網路對 14 維學生網路之蒸餾成效與物理尺度重構誤差 |
-| **Q3** | **三維體素與強震場址效應閉環** | 直接自三維體素模型提取強震站下方之預測岩性柱與雙界面基盤深度（工程基盤 $V_s \ge 760\text{ m/s}$ vs. 聲學基盤 $V_s \ge 2,000\text{ m/s}$），代入多層黏彈性介質波傳理論（Haskell–Thomson 傳遞矩陣法），在臺灣不同構造型態盆地的共振主頻預測表現與殘差成因為何？ | 參、四：檢驗六大盆地三維構造幾何，針對全臺 32 座 TSMIP 強震站進行波傳閉環正演與四分之一波長對照，探討沉積相波阻抗比 $\alpha$ 對加速度反應譜 $S_a(T)/\text{PGA}$ 之控制機制，解密 2016 美濃地震臺南長週期共振震害，產出嘉南盆地 1,296 點高解析空間微區劃 |
+| **Q3** | **三維體素與強震場址效應閉環** | 直接自三維體素模型提取強震站下方之預測岩性柱與雙界面基盤深度（工程基盤 $V_s \ge 760\text{ m/s}$ vs. 聲學基盤 $V_s \ge 2,000\text{ m/s}$），代入多層黏彈性介質波傳理論（Haskell–Thomson 傳遞矩陣法），在臺灣不同構造型態盆地的共振主頻預測表現與殘差成因為何？ | 參、四：檢驗六大盆地三維構造幾何，針對全臺 32 座 NCREE EGDT 強震站進行全臺統一參數波傳閉環正演與四分之一波長對照，探討沉積相波阻抗比 $\alpha$ 對近似加速度反應譜 $S_a(T)/\text{PGA}$ 之控制機制，進行歷史地震長週期場址放大定性機制探討，並產出嘉南盆地 1,296 點空間微區劃 |
 
 ### 三、可證偽之科學假說（Scientific Hypotheses）
 依據上述問題，本研究提出三個具明確證偽標準的科學假說：
@@ -110,7 +110,7 @@
 flowchart TD
     subgraph Data_Sources["多源異質地球物理與鑽探資料庫"]
         A["地調中心水文地質深井<br/>(422 口觀測井, 116,960 筆分層)"]
-        A2["臺灣公開工程地質鑽探柱狀圖資料庫<br/>(6,288 口工程鑽孔, 44,080 層分層)"]
+        A2["經濟部地調中心 (GSMMA) 地質資料整合查詢系統<br/>(6,288 口公開工程鑽孔, 44,080 層分層)"]
         B["井下原位地球物理電測<br/>(384 口觀測井, 1,314,619 筆對齊點)"]
         C["中研院 TEC LEE2025 震波層析<br/>(全島 2,600 節點, Vp 與 Vs)"]
         D["NCREE EGDT / CWA TSMIP<br/>(32 座代表性強震站實測 Vs30 與 f0)"]
@@ -134,9 +134,9 @@ flowchart TD
 | :--- | :--- | :--- | :--- | :--- |
 | **1. 全臺水文地質深井分層資料庫** | 經濟部地質調查及礦業管理中心（原中央地質調查所） | 423 口井基本資料（422 口具完整六大沉積相紀錄），共 101,428 層原始地層、細分為 116,960 筆深度點 | `data/raw/hydro/rock/*.json`<br/>`data/interim/taiwan_strata.csv`<br/>`data/processed/dataset_v1.csv` | [臺灣水文地質資訊系統](https://hydro.gsmma.gov.tw/)<br/>[地質雲加值應用平台](https://geocloud.gsmma.gov.tw/)<br/>[水文資訊網](https://gweb.wra.gov.tw/HydroInfoCore/) |
 | **2. 井下原位地球物理電測資料庫** | 經濟部地質調查及礦業管理中心 | 384 口深層觀測井具連續電測 JSON（自然伽瑪 GR、自然電位 SP、16 吋與 64 吋視電阻率 N16/N64），以 0.1 m 步長對齊共 1,314,619 筆樣本 | `data/raw/hydro/phys/*.json`<br/>`data/processed/petrophysics_aligned_dataset.csv`<br/>`reports/phys_logging_benchmark_table.csv` | [臺灣水文地質資訊系統](https://hydro.gsmma.gov.tw/)<br/>[地質資料整合查詢系統](https://twgeoref.gsmma.gov.tw/GipOpenWeb/wSite/mp) |
-| **3. 臺灣公開工程地質鑽探柱狀圖資料庫** | 整合自經濟部地調中心地質資料整合查詢系統與國震中心公開工程鑽探報告 | 涵蓋 218 個公開工程專案；自原始掃描之 31,904 張圖檔中，嚴格排除 17,624 張非地層柱狀圖或深度異常紀錄（稽核成因記錄於 `reports/ocr_error_audit.json`），最終保留 14,280 張有效工程地質鑽探柱狀圖（對應 6,288 口有效工程鑽孔、44,080 層原始地層、細分為 220,704 筆 1 m 步長深度點；其中未固結沉積相有效井為 5,119 口、170,188 筆深度點；座標經 TWD67/TWD97 轉換校正，100.00% 落於臺灣陸地邊界內） | `data/borehole_final_results.json`<br/>`data/interim/school_boreholes.csv`<br/>`data/processed/dataset_combined.csv` | [地質資料整合查詢系統](https://twgeoref.gsmma.gov.tw/GipOpenWeb/wSite/mp)<br/>[工程地質探勘資料庫 EGDT](https://egdt.ncree.org.tw/) |
+| **3. 臺灣公開工程地質鑽探柱狀圖資料庫** | 經濟部地質調查及礦業管理中心（GSMMA）地質資料整合查詢系統 | 涵蓋 218 個公開工程專案；自原始掃描之 31,904 張圖檔中，嚴格排除 17,624 張非地層柱狀圖或深度異常紀錄（稽核成因記錄於 `reports/ocr_error_audit.json`），最終保留 14,280 張有效工程地質鑽探柱狀圖（對應 6,288 口有效工程鑽孔、44,080 層原始地層、細分為 220,704 筆 1 m 步長深度點；其中未固結沉積相有效井為 5,119 口、170,188 筆深度點；座標經 TWD67/TWD97 轉換校正，100.00% 落於臺灣陸地邊界內） | `data/borehole_final_results.json`<br/>`data/interim/school_boreholes.csv`<br/>`data/processed/dataset_combined.csv` | [GSMMA 地質資料整合查詢系統](https://twgeoref.gsmma.gov.tw/GipOpenWeb/wSite/mp) |
 | **4. 全島三維震波層析速度模型 (`LEE2025`)** | 成功大學李恩瑞教授團隊 / 中央研究院臺灣地震科學資料中心（TECDC） | 全島 2,600 個三維網格節點（經度 119.5°–122.5°E、緯度 21.5°–25.5°N、深度 -2 km 至 15 km），含 $V_p$、$V_s$ 與 $V_p/V_s$ | `data/raw/tec/vp_LEE2025_*.json`<br/>`data/raw/tec/vs_LEE2025_*.json`<br/>`data/interim/taiwan_velocity_3d.csv` | [TEC 3D 速度模型互動平台](https://tecdc.earth.sinica.edu.tw/data/VelocityModel/interactive3D.php)<br/>API: `https://tecdc.earth.sinica.edu.tw/data/VelocityModel/get_3d_Data.php` |
-| **5. 強震測站場址參數與共振主頻基準** | 國家地震工程研究中心（NCREE）EGDT 資料庫 & Kuo et al. (2012, 2016) | 全臺六大代表性盆地 32 座 TSMIP 強震測站之鑽孔實測 $V_{s30}$、地盤分類（Class C/D/E）與文獻實測共振主頻 $f_{0,\text{obs}}$ | `data/raw/seismic/tsmip_site_truth.csv`<br/>`reports/chianan_ssr_summary.csv` | [工程地質探勘資料庫 EGDT](https://egdt.ncree.org.tw/)<br/>[CWA GDMS 地球物理資料管理系統](https://gdms.cwa.gov.tw/) |
+| **5. 強震測站場址參數與共振主頻基準** | 國家地震工程研究中心（NCREE）EGDT 資料庫、Kuo et al. (2012, 2016) & 國震中心報告 NCREE-17-004 | 全臺六大代表性盆地 32 座 NCREE EGDT 公開強震測站之 PS-Logging 鑽孔實測 $V_{s30}$、鑽井深度、$Z_{1.0}$、$\kappa_0$、地盤分類（Class C/D/E）與基準共振主頻 $f_{0,\text{obs}}$（逐站來源記錄於 `source_ref` 與 `egdt_station_verification_2026.md`） | `data/raw/seismic/tsmip_egdt_site_truth.csv`<br/>`data/raw/seismic/tsmip_site_truth.csv`<br/>`reports/tsmip_closed_loop_summary.csv` | [工程地質探勘資料庫 EGDT](https://egdt.ncree.org.tw/)<br/>[CWA GDMS 地球物理資料管理系統](https://gdms.cwa.gov.tw/) |
 | **6. 臺灣活動斷層空間分佈數據** | 經濟部地質調查及礦業管理中心（2021 年版活動斷層圖） | 全臺 9 條控制盆地邊界之主要活動斷層（車籠埔、觸口、梅山、山腳、三義、大甲、新化、潮州、池上斷層）地表跡線座標 | `scripts/build_taiwan_portal_data.py`<br/>`src/tages/features/sequence_features.py` | [臺灣活動斷層觀測系統](https://fault.gsmma.gov.tw/)<br/>[政府資料開放平臺 (資料集 6076)](https://data.gov.tw/dataset/6076) |
 | **7. 沉積相標準化分類表** | 本研究依地調中心水文地質岩性描述語料歸納 | L1 八大工程地質主類、L2 十大細分岩性（其中未固結沉積物為六大核心類別：`Class 2` 黏土/泥、`Class 3` 粉土、`Class 4` 細砂、`Class 5` 粗砂、`Class 6` 砂泥互層、`Class 7` 礫石） | `src/tages/labels/lithology.py` | 專案內部標準化分類字典 |
 
@@ -194,21 +194,25 @@ flowchart LR
 
 ---
 
-#### 3.3 物理引導損失函數（Physics-Guided Loss Function）
+#### 3.3 物理引導損失函數（Physics-Guided Loss Function）與地殼層析波速尺度診斷
 總損失函數結合序列負對數似然、類別平衡 Focal Loss 與岩石物理一致性懲罰項（實作於 `src/tages/models/losses.py`）：
 $$\mathcal{L}_{\text{total}} = w_{\text{crf}} \mathcal{L}_{\text{CRF}} + w_{\text{L2}} \mathcal{L}_{\text{Focal-L2}} + w_{\text{L1}} \mathcal{L}_{\text{Focal-L1}} + \lambda_{\text{phy}} \mathcal{L}_{\text{phy}}$$
 
-本研究將權重設定為以點分類與少數類平衡為主導之 $w_{\text{L2}} = 1.0$、$w_{\text{L1}} = 0.30$、$w_{\text{crf}} = 0.15$ 與 $\lambda_{\text{phy}} = 0.08$。$\mathcal{L}_{\text{phy}}$ 針對預測機率分佈 $P(y_t = c)$ 施加四項可微物理邊界懲罰：
-1. **高剪力波速區誤判軟泥懲罰**：$\mathcal{L}_{\text{mud}} = \text{ReLU}\left(\frac{V_s - V_{s,\text{mud\_max}}}{\sigma_v}\right) \cdot P(\text{Clay/Mud})$
-2. **低剪力波速區誤判緻密礫石懲罰**：$\mathcal{L}_{\text{gravel}} = \text{ReLU}\left(\frac{V_{s,\text{gravel\_min}} - V_s}{\sigma_v}\right) \cdot P(\text{Gravel})$
-3. **高泊松比飽和軟土區誤判粗骨架相懲罰**：$\mathcal{L}_{\nu} = \text{ReLU}\left(\frac{\nu - \nu_{\text{max}}}{\sigma_\nu}\right) \cdot \left[ P(\text{Gravel}) + 0.6 P(\text{Coarse Sand}) \right]$
-4. **淺部極低速高泊松比軟泥區粗粒倒置懲罰**：考量臺灣山前沖積扇（屏東、臺中、濁水溪扇頂）在淺表 0–25 m 本即富含高波速礫石與粗砂，若對所有 $z < 25\text{ m}$ 樣本無條件懲罰粗粒相將誤殺大量真實淺層礫石層。故本研究將淺部倒置懲罰嚴格限定於**同時滿足淺部（$z < 25\text{ m}$）、極低剪力波速（$V_s < 180\text{ m/s}$）與高泊松比（$\nu > 0.38$）之軟泥特徵區**：
+本研究將權重設定為以點分類與少數類平衡為主導之 $w_{\text{L2}} = 1.0$、$w_{\text{L1}} = 0.30$、$w_{\text{crf}} = 0.15$ 與 $\lambda_{\text{phy}} = 0.08$。$\mathcal{L}_{\text{phy}}$ 針對預測機率分佈 $P(y_t = c)$ 設計四項可微物理邊界懲罰閘門：
+1. **高剪力波速區誤判軟泥懲罰**：$\mathcal{L}_{\text{mud}} = \text{ReLU}\left(\frac{V_s - V_{s,\text{mud\_max}}}{\sigma_v}\right) \cdot P(\text{Clay/Mud})$（門檻 $V_{s,\text{mud\_max}} = 2,500\text{ m/s}$）
+2. **低剪力波速區誤判緻密礫石懲罰**：$\mathcal{L}_{\text{gravel}} = \text{ReLU}\left(\frac{V_{s,\text{gravel\_min}} - V_s}{\sigma_v}\right) \cdot P(\text{Gravel})$（門檻 $V_{s,\text{gravel\_min}} = 1,150\text{ m/s}$）
+3. **高泊松比飽和軟土區誤判粗骨架相懲罰**：$\mathcal{L}_{\nu} = \text{ReLU}\left(\frac{\nu - \nu_{\text{max}}}{\sigma_\nu}\right) \cdot \left[ P(\text{Gravel}) + 0.6 P(\text{Coarse Sand}) \right]$（門檻 $\nu_{\text{max}} = 0.37$）
+4. **淺部極低速高泊松比軟泥區粗粒倒置懲罰**：為避免對山前沖積扇淺表礫石層造成誤殺，將淺部倒置懲罰限定於同時滿足淺部（$z < 25\text{ m}$）、極低剪力波速（$V_s < 180\text{ m/s}$）與高泊松比（$\nu > 0.38$）之軟泥特徵區：
    $$\mathcal{L}_{\text{invert}} = \text{ReLU}\left(\frac{180 - V_s}{\sigma_v}\right) \cdot \text{ReLU}\left(\frac{\nu - 0.38}{\sigma_\nu}\right) \cdot \left[ P(\text{Coarse}) + P(\text{Gravel}) \right] \cdot \mathbb{I}(z < 25\text{m})$$
+
+> [!IMPORTANT]
+> **地殼層析波速尺度與物理懲罰閘門觸發率之誠實診斷（`reports/phys_loss_activation_audit.json`）**：
+> 經對全臺混合資料集 $N = 287,148$ 筆樣本進行特徵分佈與變異數分解（`scripts/audit_physics_loss_activation.py`），`LEE2025` 區域震波層析模型於 0–300 m 深度內插所得之 `vs_ms` 範圍為 **1503.3–2987.1 m/s**（均值 1981.1 m/s，中位數 1899.7 m/s），泊松比範圍為 **0.162–0.363**。單因子變異數分析顯示 `vs_ms` 的井間解釋變異量高達 $\eta^2_{\text{well}} = 0.9999$（井內平均標準差僅 3.1 m/s，井內對六類岩相之 $\eta^2 = 0.0004$）。這證實公里級地殼層析波速在模型中主要提供**跨盆地宏觀構造位置代理（Macro-Structural Spatial Proxy）**，而非直接反映米級工程土壤剪力波速（150–400 m/s）。因此，四項物理損失閘門在實際訓練中僅第 1 項高波速泥質閘門（$V_s > 2,500\text{ m/s}$）實質觸發 **6.19%**（17,772 筆樣本），其餘三項針對工程土壤尺度設計之閘門在 `LEE2025` 特徵下的觸發率皆為 **0.00%**。這項定量診斷解釋了為何消融實驗中有無 $\mathcal{L}_{\text{phy}}$ 的整體準確率接近，也凸显了引入「井下原位電測知識蒸餾（3.4 節）」以補強米級垂直物理分辨力的必要性。
 
 ---
 
 #### 3.4 原位電測預訓練與知識特徵蒸餾至 3D 空間推論
-為克服「3D 盆地空間體素無井下電測探棒，無法直接將實測自然伽瑪與視電阻率作為輸入特徵」的限制，本研究於 `src/tages/models/distillation.py` 建立**教師—學生知識特徵蒸餾架構（Petrophysics Distillation Pipeline）**：
+為克服「3D 盆地空間體素無井下電測探棒，且公里級層析波速缺乏米級垂直解析度」的雙重限制，本研究於 `src/tages/models/distillation.py` 建立**教師—學生知識特徵蒸餾架構（Petrophysics Distillation Pipeline）**：
 1. **教師網路（PetrophysicsTeacher，17 維輸入）**：
    在 384 口具備原位測井的深層水文觀測井中，對齊 104,131 筆深度樣本。教師網路接收 14 維空間震波特徵加上 3 維實測電測標準化特徵（$I_{\text{GR}}$、$\log_{10}(\text{N64})$ 與 Larionov $V_{\text{sh}}$），預訓練出對地下岩石物理具高分辨力的潛在特徵空間。
 2. **學生網路（DistilledStudentNet，14 維輸入）**：
@@ -219,17 +223,20 @@ $$\mathcal{L}_{\text{total}} = w_{\text{crf}} \mathcal{L}_{\text{CRF}} + w_{\tex
 
 ---
 
-### 四、三維體素雙界面基盤定義與一維多層 Haskell–Thomson 黏彈性波傳閉環正演
+### 四、三維體素雙界面基盤結構先驗與一維多層 Haskell–Thomson 黏彈性波傳閉環正演
 本研究於 `src/tages/voxels/volume.py`、`src/tages/seismic/wave_propagator.py` 與 `scripts/run_chianan_ssr_analysis.py` 建立由 3D 體素直接驅動 1D 強震場址波傳正演之閉環驗證流程（Thomson, 1950; Haskell, 1953; Kramer, 1996）：
 
-1. **工程基盤面與地震聲學基盤面之雙界面物理定義**：
-   - **工程基盤面（Engineering Bedrock, $Z_{\text{eng}}$）**：定義為剪力波速達 $V_s \ge 760\text{ m/s}$（對應 NEHRP 與臺灣建築物耐震設計規範之 B/C 類堅硬地盤邊界），代表第四紀未固結沖積層（Alluvium）底界與上新—更新世緻密礫石或半固結岩層頂界，直接控制 0.5–5.0 Hz 強震場址共振主頻。
-   - **地震聲學基盤面（Seismic Acoustic Bedrock, $Z_{\text{ac}}$）**：定義為深部剪力波速達 $V_s \ge 2,000\text{ m/s}$ 且相較地表具顯著波速阻抗躍升（$\Delta V_s \ge 180\text{ m/s}$）並耦合盆地構造幾何之深部界面，代表晚第三紀固結砂泥岩或中生代/古生代結晶基底頂面。
-2. **由 3D 體素岩性柱直接建構一維多層黏彈性介質參數（100% 盲測，不使用測站實測 $V_{s30}$）**：
-   針對全臺六大盆地 32 座 TSMIP 強震測站，直接自 `data/processed/taiwan_basins_dense.npz` 檢索測站正下方之 3D 體素垂直柱，提取其工程基盤深度 $Z_{\text{eng}}$、聲學基盤深度 $Z_{\text{ac}}$ 與逐層預測岩相序列 $L(z) \in \{2, \dots, 10\}$：
-   - 依據各預測岩相賦予工程岩石物理基準參數 $(V_{s0}, \rho_0, Q_{s0})$，結合有效應力深度壓密項 $(1 + z/36)^{0.26}$ 與盆地基盤埋深剛度調製項，離散為置於工程基盤半空間（$V_{s,\text{bedrock}} = 760\text{ m/s}, \rho_{\text{bedrock}} = 2.35\text{ g/cm}^3$）之上的一維多層黏彈性土柱。
-   - 計算各層複數剪力模數 $G_m^* = \rho_m V_{s,m}^2 (1 + i / Q_{s,m})$、複數剪力波速 $V_{s,m}^* = \sqrt{G_m^* / \rho_m}$ 與複數波數 $k_m^* = \omega / V_{s,m}^*$。
-   - 由地表向下連乘單層傳遞矩陣 $\mathbf{A}(\omega) = \prod_{m=1}^{N-1} \mathbf{a}_m(\omega)$，求解地表自由表面相對於入射 SH 波之理論頻域放大函數 $|H(f)|$，提取第一顯著共振峰頻率作為 3D 體素模型閉環預測主頻 $f_{0,\text{voxel}}$，並與文獻實測主頻 $f_{0,\text{obs}}$ 進行獨立統計檢定。
+1. **文獻約束之工程基盤面與地震聲學基盤面雙界面結構先驗（Structure Prior）**：
+   由於全臺水文鑽井深度多在 300 m 以內而 `LEE2025` 地殼層析在淺部垂直解析度有限，本研究結合區域層析波速梯度、淺部鑽孔粗粒相比例與各盆地地球物理文獻構造範圍，建立雙界面結構先驗模型：
+   - **工程基盤面（Engineering Bedrock, $Z_{\text{eng}}$）**：代表第四紀鬆軟沖積層與下部緻密礫石/半固結岩盤（對應工程規範 $V_s \ge 760\text{ m/s}$ 之 B/C 類堅硬基盤）之等效阻抗躍升邊界，控制 0.5–5.0 Hz 場址共振效應。
+   - **地震聲學基盤面（Seismic Acoustic Bedrock, $Z_{\text{ac}}$）**：代表深部新第三紀固結岩盤或前第三紀基底（$V_s \ge 2,000\text{ m/s}$）之深部構造界面，用於檢驗三維體素模型之深部盆地幾何與文獻基盤深度的一致性（Consistency Check）。
+2. **由 3D 體素岩性柱建構全臺統一參數之一維多層黏彈性介質剖面（不使用測站實測 $V_{s30}$，無分盆地人工調參）**：
+   針對全臺六大盆地 32 座 NCREE EGDT 強震測站，直接自 `data/processed/taiwan_basins_dense.npz` 檢索測站正下方之 3D 體素垂直柱，提取其工程基盤深度 $Z_{\text{eng}}$、聲學基盤深度 $Z_{\text{ac}}$ 與逐層預測岩相序列 $L(z) \in \{2, \dots, 10\}$。為確保跨盆地評估之客觀性，**全臺六大盆地嚴格採用完全相同的經驗耦合公式（不含任何針對特定盆地或測站的專屬分支參數）**：
+   - **有效共振土柱深度（$H_{\text{eff}}$）**：考慮深部半固結層之高阻抗屏蔽效應，由體素工程基盤深度 $Z_{\text{eng}}$ 映射有效共振阻抗界面深度：
+     $$H_{\text{eff}} = \text{clip}\left(24.0 + 0.165 \, Z_{\text{eng}},\; 28.0\text{ m},\; 68.0\text{ m}\right)$$
+   - **逐層剪力波速與有效應力壓密耦合**：依據各體素預測岩相賦予工程岩石物理基準參數 $(V_{s0}, \rho_0, Q_{s0})$（如黏土 $V_{s0}=160\text{ m/s}, \rho_0=1.85\text{ g/cm}^3, Q_{s0}=18$；細砂 $V_{s0}=205\text{ m/s}, \rho_0=1.93\text{ g/cm}^3, Q_{s0}=22$；粗砂 $V_{s0}=250\text{ m/s}, \rho_0=2.00\text{ g/cm}^3, Q_{s0}=26$；礫石 $V_{s0}=370\text{ m/s}, \rho_0=2.12\text{ g/cm}^3, Q_{s0}=35$），結合有效覆壓深度壓密指數 `0.25` 與盆地沉積厚度剛度調整因子 $s_b = \text{clip}(1.18 - 0.00048 \, Z_{\text{ac}}, 0.78, 1.15)$：
+     $$V_s(z) = \text{clip}\left(V_{s0}(L(z)) \cdot s_b \cdot \left(1 + \frac{z}{40.0}\right)^{0.25},\; 125.0\text{ m/s},\; 680.0\text{ m/s}\right)$$
+   - **黏彈性傳遞矩陣求解**：將土柱置於彈性工程基盤半空間（$V_{s,\text{bedrock}} = 760\text{ m/s}, \rho_{\text{bedrock}} = 2.35\text{ g/cm}^3$）之上，以線性黏彈性一階近似計算各層複數剪力波速 $V_{s,m}^* = V_{s,m}\left(1 + \frac{i}{2 Q_{s,m}}\right)$、複數剪力模數 $G_m^* = \rho_m (V_{s,m}^*)^2$ 與複數波數 $k_m^* = \omega / V_{s,m}^*$。由地表向下連乘單層傳遞矩陣 $\mathbf{A}(\omega) = \prod_{m=1}^{N-1} \mathbf{a}_m(\omega)$，求解地表自由表面相對於垂直入射 SH 波之理論頻域放大函數 $|H(f)|$，提取第一顯著共振峰頻率作為 3D 體素閉環預測主頻 $f_{0,\text{voxel}}$。
 
 ---
 
@@ -256,14 +263,16 @@ $$\mathcal{L}_{\text{total}} = w_{\text{crf}} \mathcal{L}_{\text{CRF}} + w_{\tex
 
 ---
 
-#### 1.2 空間區塊盲測（Spatial Block CV）與物理損失消融討論
+#### 1.2 空間區塊盲測（Spatial Block CV）、物理損失消融與點準確率權衡討論
 為檢驗模型在遠離現有鑽井網時的跨區外推能力，本研究依 $15\text{ km} \times 15\text{ km}$ 地理網格進行空間區塊盲測（位於測試網格內的所有鑽井共 22,676 筆樣本完全不參與訓練）：
-- **隨機分井 GroupKFold（5-Fold）**：Physics RF 為 `35.97% / Macro F1 0.3197`，PG-WellboreSeqNet 為 `35.27% / Macro F1 0.2665`。
-- **15 km 空間區塊盲測（Spatial Block CV）**：Physics RF 為 `42.51% / Macro F1 0.3444`，PG-WellboreSeqNet 為 `41.42% / Macro F1 0.2896`（較改進前之 35.30% / 0.2166 大幅提升 +6.12% Accuracy 與 +0.0730 Macro F1）。
+- **隨機分井 GroupKFold（5-Fold）**：Raw RF 為 `36.13% / Macro F1 0.3228`，Physics RF 為 `35.97% / Macro F1 0.3197`，RF+Markov 為 `36.36% / Macro F1 0.3187`，PG-WellboreSeqNet 為 `35.27% / Macro F1 0.2665`。
+- **15 km 空間區塊盲測（Spatial Block CV）**：Physics RF 為 `42.51% / Macro F1 0.3444`，PG-WellboreSeqNet 為 `41.42% / Macro F1 0.2896`（較導入對數深度與遠場門控前之 35.30% / 0.2166 提升 +6.12% Accuracy 與 +0.0730 Macro F1）。
 
-**科學討論與消融分析**：
-1. **近場先驗平滑退化機制顯著改善跨區外推穩健性**：過去序列模型在 15 km 空間盲測表現偏低，主因是依賴單井相對深度 $z/z_{\text{max}}$ 與過度僵硬的 CRF 自轉移權重。導入固定基準對數深度 $z_{\text{log}}$ 與遠場自動衰減門控 $\alpha_{\text{near}}$ 後，PG-WellboreSeqNet 在 15 km 跨區盲測之準確率提升至 `41.42%`，與隨機森林（`42.51%`）表現相當，且同時維持 0 處垂直孤立噪聲。
-2. **物理損失項（$\mathcal{L}_{\text{phy}}$）的完整 5 折消融對比**：在完全相同的 5 折基準下，加入修正後之軟泥區抗倒置物理損失（第 8 組，$\lambda_{\text{phy}}=0.08$）相較於無物理損失組（第 7 組，$\lambda_{\text{phy}}=0.0$），L2 Macro F1 由 `0.2564` 提升至 `0.2665`（+0.0101），L1 大類準確率由 `41.55%` 提升至 `41.87%`，換層頻率亦由原本過度平滑的 `0.3 次/100m` 提升至 `1.7 次/100m`（在融合淺孔之 5,541 口井資料集則達 `4.0 次/100m`），證實僅針對低波速高泊松比軟泥區（$V_s < 180\text{ m/s}, \nu > 0.38, z < 25\text{ m}$）施加抗倒置懲罰，能在不誤殺山前沖積扇淺部真實礫石層的前提下提升各類別均衡度。
+**科學討論與誠實消融分析**：
+1. **點分類準確率（Point Accuracy）與地層序列結構之權衡**：
+   必須客觀指出，在 422 口水文深井的點對點分類準確率與 Macro F1 上，樹狀模型（Raw RF `36.13%`、RF+Markov `36.36%`）仍略高於深度序列模型 PG-WellboreSeqNet（`35.27%`）。這是因為在數百口井的表格型座標與平滑層析特徵上，隨機森林能透過軸平行切分快速記憶局部深度區間眾數；然而純隨機森林（Physics RF）付出了產生 **1,012 處垂直單點跳變噪聲**的代價，而直接外掛強馬可夫平滑（RF+Markov）則導致換層頻率暴跌至僅 `0.2 次/100m`（將整口井過度平滑為單一厚層）。PG-WellboreSeqNet 的價值在於維持與隨機森林相近的點準確率（差距 $< 0.9\%$）與適度換層能力（`1.7 次/100m`）的同時，透過 CRF 解碼結合單點尖峰濾除將孤立椒鹽噪聲徹底壓制為 0 處。
+2. **物理損失項（$\mathcal{L}_{\text{phy}}$）的完整 5 折消融對比與尺度成因**：
+   在完全相同的 5 折基準下，完整模型組（第 8 組，$\lambda_{\text{phy}}=0.08$）相較於無物理損失消融組（第 7 組，$\lambda_{\text{phy}}=0.0$），L2 Macro F1 由 `0.2564 ± 0.0354` 微幅變化至 `0.2665 ± 0.0278`（+0.0101），L2 Accuracy 為 `35.27%` vs. `35.37%`（-0.10%）。兩組差異遠小於 5 折交叉驗證之折間標準差（$\sim 3.1\% - 3.3\%$），在統計上屬於**持平（Statistically Indistinguishable）**。結合貳、3.3 節之特徵診斷（`reports/phys_loss_activation_audit.json`），這是因為輸入之 `LEE2025` 地殼層析波速在 0–300 m 介於 1,503–2,987 m/s（井間變異佔比 $\eta^2 = 0.9999$），四項物理懲罰閘門中僅 $V_s > 2,500\text{ m/s}$ 之高波速泥質懲罰有 6.19% 觸發率，其餘三項針對工程土壤波速設計之閘門觸發率為 0%。這項誠實的消融結果證明：單靠公里級地殼層析波速不足以在米級深度上提供強力的岩石物理邊界約束，必須進一步透過**井下原位電測知識蒸餾（參、三）**方能注入真實的米級岩石物理訊號。
 
 ---
 
@@ -286,14 +295,14 @@ $$\mathcal{L}_{\text{total}} = w_{\text{crf}} \mathcal{L}_{\text{CRF}} + w_{\tex
 ![圖 3-2 盲測鑽孔地層剖面預測與單點椒鹽噪聲抑制對照圖](reports/well_seq_vs_rf_columns.png)
 
 1. **少數類粉土（Class 3, Silt）召回率歸零問題之修復**：
-   在未加對數先驗補償前，因粉土樣本僅佔 6.1%（3,555 / 58,075 點）且缺乏 CRF 類別權重，序列模型對粉土之召回率為 `0.00%`。引入 Logit Adjustment（$\tau=0.22$）與列中心化轉移矩陣後，PG-WellboreSeqNet 對粉土之召回率提升至 **5.12%**（精確率達 **20.09%**，F1 為 **0.0816**），同時黏土/泥召回率達 **43.52%**（F1 為 **0.3787**，超越隨機森林之 0.3512）、細砂召回率達 **24.84%**（F1 為 **0.2728**，超越隨機森林之 0.2364）、礫石召回率達 **70.32%**。
-2. **垂直孤立椒鹽噪聲徹底歸零**：
-   物理增強隨機森林在 5 折盲測中累計產生 **1,012 處**「A–B–A」單點跳變噪聲（如圖 3-2 所示，厚層地層中頻繁出現孤立單點異質跳變），而 PG-WellboreSeqNet 經由 CRF 序列解碼將孤立單點噪聲降至 **0 處**。
+   在未加對數先驗補償前，因粉土樣本僅佔 6.1%（3,555 / 58,075 點）且缺乏 CRF 類別權重，序列模型對粉土之召回率為 `0.00%`。引入 Logit Adjustment（$\tau=0.22$）與列中心化轉移矩陣後，PG-WellboreSeqNet 對粉土之召回率提升至 **5.12%**（精確率達 **20.09%**，F1 為 **0.0816**），同時黏土/泥召回率達 **43.52%**（F1 為 **0.3787**，高於隨機森林之 0.3512）、細砂召回率達 **24.84%**（F1 為 **0.2728**，高於隨機森林之 0.2364）、礫石召回率達 **70.32%**。
+2. **垂直孤立椒鹽噪聲歸零與換層頻率之平滑限制**：
+   物理增強隨機森林在 5 折盲測中累計產生 **1,012 處**「A–B–A」單點跳變噪聲（如圖 3-2 所示，厚層地層中頻繁出現孤立單點異質跳變），而 PG-WellboreSeqNet 經由 CRF 序列解碼結合後處理單點尖峰濾除（Spike Filter）將孤立單點噪聲降至 **0 處**。然而亦需指出，真實地層之換層頻率達 `34.0 次/100m`（含薄互層真實交替），而序列模型在水文深井與混合井的換層頻率分別為 `1.7 次/100m` 與 `4.0 次/100m`，顯示模型主要重建 **20–50 m 尺度的主導沉積相包裹體（Dominant Facies Envelopes）**，對次公尺至公尺級微薄層仍存在平滑化效應。
 
 ---
 
-#### 1.4 臺灣公開工程地質鑽孔（6,288 口工程鑽井）跨尺度融合與近場空間錨定分析
-為探討大規模加入淺層工程地質鑽孔能否提升三維地質預測表現，本研究於 `scripts/integrate_school_boreholes.py` 整編了臺灣公開工程地質鑽探柱狀圖資料庫之 218 個工程標案。自原始掃描之 **31,904 張**圖檔中，嚴格排除 **17,624 張**非地層柱狀圖或深度異常紀錄（品質控制統計記錄於 `reports/ocr_error_audit.json`），最終保留 **14,280 張**有效工程地質鑽探柱狀圖，對應 **6,288 口獨立工程地質鑽孔**（共 44,080 層原始地層、細分為 220,704 筆 1 m 步長深度點）。其中 **5,119 口**具未固結沉積相紀錄（共 170,188 筆有效沉積相樣本，包含 13,164 層粉土相），與原 422 口水文深井合併為 **5,541 口有效沉積相鑽井（共 287,148 筆沉積相樣本）**。實測數據整理如表 3-2 與圖 3-3 所示：
+#### 1.4 經濟部地調中心（GSMMA）公開工程地質鑽孔（6,288 口工程鑽井）跨尺度融合與近場空間錨定分析
+為探討大規模加入淺層工程地質鑽孔能否提升三維地質預測表現，本研究於 `scripts/integrate_school_boreholes.py` 整編了經濟部地質調查及礦業管理中心（GSMMA）「地質資料整合查詢系統」公開之 218 個工程專案鑽探資料。自原始掃描之 **31,904 張**圖檔中，嚴格排除 **17,624 張**非地層柱狀圖或深度異常紀錄（品質控制統計記錄於 `reports/ocr_error_audit.json`），最終保留 **14,280 張**有效工程地質鑽探柱狀圖，對應 **6,288 口獨立工程地質鑽孔**（共 44,080 層原始地層、細分為 220,704 筆 1 m 步長深度點）。其中 **5,119 口**具未固結沉積相紀錄（共 170,188 筆有效沉積相樣本，包含 13,164 層粉土相），與原 422 口水文深井合併為 **5,541 口有效沉積相鑽井（共 287,148 筆沉積相樣本）**。實測數據整理如表 3-2 與圖 3-3 所示：
 
 **表 3-2 臺灣公開工程鑽孔跨尺度融合前後之全島盲測、空間區塊盲測與工區本地評估對照表（本表為作者自製）**
 
@@ -301,7 +310,7 @@ $$\mathcal{L}_{\text{total}} = w_{\text{crf}} \mathcal{L}_{\text{CRF}} + w_{\tex
 | :--- | :---: | :---: | :---: | :--- |
 | **1. 全島 5-Fold GroupKFold — Raw RF** (L2 Acc / F1) | 36.13% / 0.3228 | **52.02%** / **0.4348** | **+15.88%** / **+0.1120** | 大規模工程鑽孔加密了平原與都會工區的空間採樣，坐標高程特徵在鄰井支撐下內插精度顯著躍升 |
 | **2. 全島 5-Fold GroupKFold — Physics RF** (L2 Acc / F1) | 35.97% / 0.3197 | **51.97%** / **0.4294** | **+16.00%** / **+0.1097** | 結合 14 維物理特徵準確率達 51.97%，但垂直孤立椒鹽噪聲高達 **2,270 處**，反映點分類模型在淺部互層的劇烈震盪 |
-| **3. 全島 5-Fold GroupKFold — PG-WellboreSeqNet** | 35.27% / 0.2665 (噪聲 0) | **48.98%** / **0.3949** (噪聲 0) | **+13.71%** / **+0.1284** | 導入固定對數深度 $z_{\text{log}}$、雙尺度近場先驗與同質分桶後，準確率由舊版 35.02% 大幅躍升至 **48.98%**（第 3 折達 51.30%），換層頻率達 **4.0 次/100m**，且維持 **0 處孤立噪聲** |
+| **3. 全島 5-Fold GroupKFold — PG-WellboreSeqNet** | 35.27% / 0.2665 (噪聲 0) | **48.98%** / **0.3949** (噪聲 0) | **+13.71%** / **+0.1284** | 導入固定對數深度 $z_{\text{log}}$、雙尺度近場先驗與同質分桶後，準確率由舊版 35.02% 大幅躍升至 **48.98%**（第 3 折達 51.30%），換層頻率達 **4.0 次/100m**，且維持 **0 處孤立噪聲**（點準確率較 RF 低約 3.0%） |
 | **4. 工程鑽孔本地評估 (Zero-shot $\to$ OOF — Physics RF)** | 25.41% (Zero-shot) | **62.64%** (GroupKFold OOF) | **+37.22%** | 同工區相鄰鑽孔進入訓練後，工程淺孔折外盲測精度提升 +37.22% |
 | **5. 工程鑽孔本地評估 (Zero-shot $\to$ OOF — PG-WellboreSeqNet)** | **26.52%** (Zero-shot) | **60.31%** (GroupKFold OOF) | **+33.79%** | 移除 $z/z_{\text{max}}$ 改用固定基準深度後，Zero-shot 準確率（26.52%）超越隨機森林（25.41%）；融合訓練後 OOF 準確率達 **60.31%**（Macro F1 達 **0.5073**） |
 | **6. 15 km 空間區塊盲測 (Spatial Block CV)** | 36.66% | **37.83%** | **+1.17%** | 抽離 15 km 地理區塊之跨區遠場外推準確率提升 +1.17%，增幅遠低於工區近場內插（+33.79% ~ +37.22%） |
@@ -310,9 +319,9 @@ $$\mathcal{L}_{\text{total}} = w_{\text{crf}} \mathcal{L}_{\text{CRF}} + w_{\tex
 
 **關鍵科學發現與跨尺度機制解析**：
 1. **固定物理基準深度與雙尺度近鄰檢索解決了跨尺度融合退化問題**：
-   在早期實驗中，由於採用單井相對深度 $z/z_{\text{max}}$ 且淺層工程孔與深井混批產生大量 Padding 偏置，PG-WellboreSeqNet 在 5,541 口混合井的準確率曾跌至 35.02%（Zero-shot 僅 23.55%）。改用固定基準深度（$z_{\text{norm}} = \min(z/350, 1)$、$z_{\text{log}} = \ln(1+z)/\ln(351)$）、雙尺度近鄰檢索（同時檢索最近淺孔與深井）及同質長度分桶後，Zero-shot 準確率提升至 **26.52%**（超越隨機森林之 25.41%），混合 5 折準確率提升至 **48.98%**（工程鑽孔 OOF 達 **60.31%**、Macro F1 達 **0.5073**），且將隨機森林產生的 2,270 處垂直孤立噪聲完全消除為 **0 處**。
+   在早期實驗中，由於採用單井相對深度 $z/z_{\text{max}}$ 且淺層工程孔與深井混批產生大量 Padding 偏置，PG-WellboreSeqNet 在 5,541 口混合井的準確率曾跌至 35.02%（Zero-shot 僅 23.55%）。改用固定基準深度（$z_{\text{norm}} = \min(z/350, 1)$、$z_{\text{log}} = \ln(1+z)/\ln(351)$）、雙尺度近鄰檢索（同時檢索最近淺孔與深井）及同質長度分桶後，Zero-shot 準確率提升至 **26.52%**（超越隨機森林之 25.41%），混合 5 折準確率提升至 **48.98%**（工程鑽孔 OOF 達 **60.31%**、Macro F1 達 **0.5073**），雖然在混合資料集之點準確率仍略低於隨機森林（`48.98%` vs. `51.97%`），但成功將隨機森林產生的 **2,270 處**垂直孤立噪聲完全消除為 **0 處**。
 2. **「近場空間錨定效應」與「遠場地球物理外推限制」之定量分野**：
-   6,288 口工程鑽孔分佈於 218 個工程標案工區，工區內部鑽孔間距僅數十至數百公尺。在按井分組（GroupKFold）驗證下，同工區鄰井提供了高解析度的水平相律錨定，使工程淺孔折外盲測精度達 60.31%–62.64%；然而當改用 $15\text{ km} \times 15\text{ km}$ 空間區塊盲測（將整個工區與周邊十餘公里鑽孔全數抽離）時，外推精度僅由 36.66% 提升至 37.83%（+1.17%）。這定量證實：**密集工程鑽孔能為都會工區的三維淺部非均質性提供強大的近場內插錨定，但超過 10 公里以上的跨盆地遠場外推，依然受限於背景震波層析網格的公里級平滑解析度**，完全印證假說一（H1）。
+   6,288 口工程鑽孔分佈於 218 個工程專案工區，工區內部鑽孔間距僅數十至數百公尺。在按井分組（GroupKFold）驗證下，同工區鄰井提供了高解析度的水平相律錨定，使工程淺孔折外盲測精度達 60.31%–62.64%；然而當改用 $15\text{ km} \times 15\text{ km}$ 空間區塊盲測（將整個工區與周邊十餘公里鑽孔全數抽離）時，外推精度僅由 36.66% 提升至 37.83%（+1.17%）。這定量證實：**密集工程鑽孔能為都會工區的三維淺部非均質性提供強大的近場內插錨定，但超過 10 公里以上的跨盆地遠場外推，依然受限於背景震波層析網格的公里級平滑解析度**，完全印證假說一（H1）。
 
 ---
 
@@ -426,157 +435,173 @@ $$\mathcal{L}_{\text{total}} = w_{\text{crf}} \mathcal{L}_{\text{CRF}} + w_{\tex
 
 ---
 
-#### 4.3 三維體素模型驅動一維多層 Haskell–Thomson 強震場址主頻閉環驗證與四分之一波長粗略模型對比（32 座 TSMIP 測站）
-為避免使用測站實測 $V_{s30}$ 與文獻基盤深度調參可能造成的同源循環驗證，本研究於 `scripts/run_chianan_ssr_analysis.py` 與 `scripts/run_ssr_analysis.py` 直接從 `data/processed/taiwan_basins_dense.npz` 提取全臺六大沉積盆地共 32 座代表性 TSMIP 強震站正下方的 3D 體素預測岩性柱、工程基盤深度 $Z_{\text{eng}}$ 與聲學基盤深度 $Z_{\text{ac}}$，建構一維多層黏彈性波傳剖面並代入 Haskell–Thomson 傳遞矩陣計算理論共振主頻 $f_{0,\text{voxel}}$，與氣象署/國震中心權威實測主頻 $f_{0,\text{obs}}$ 進行外部獨立盲測比對，同時與工程界常用的傳統四分之一波長粗略公式（Quarter-Wavelength Baseline：$f_{0,\text{quarter}} = V_{s30} / (4 H_{\text{eng}})$）進行定量對比（完整檢驗數據記錄於 `reports/tsmip_closed_loop_summary.csv` 與 `reports/tsmip_closed_loop_metrics.json`）：
+#### 4.3 三維體素模型驅動一維多層 Haskell–Thomson 強震場址主頻閉環驗證與四分之一波長基準對比（32 座 NCREE EGDT 測站）
+為避免使用測站實測 $V_{s30}$ 與分盆地人工調參可能造成的同源循環驗證，本研究於 `scripts/run_chianan_ssr_analysis.py` 與 `scripts/run_ssr_analysis.py` 直接從 `data/processed/taiwan_basins_dense.npz` 提取全臺六大沉積盆地共 **32 座經核實之 NCREE EGDT 公開強震測站**（逐站官方座標、PS-Logging 鑽探深度、實測 $V_{s30}$、$Z_{1.0}$ 與來源文獻詳列於 `data/raw/seismic/tsmip_egdt_site_truth.csv` 及 `data/raw/seismic/source_notes/egdt_station_verification_2026.md`）正下方的 3D 體素預測岩性柱、工程基盤深度 $Z_{\text{eng}}$ 與聲學基盤深度 $Z_{\text{ac}}$。在**全臺統一經驗耦合參數（無任何分盆地調參）**下建構一維多層黏彈性波傳剖面並代入 Haskell–Thomson 傳遞矩陣計算理論共振主頻 $f_{0,\text{voxel}}$，與 EGDT/文獻基準主頻 $f_{0,\text{obs}}$ 進行比對，同時與傳統四分之一波長單層公式（Quarter-Wavelength Baseline：$f_{0,\text{quarter}} = V_{s30,\text{obs}} / (4 H_{\text{eng,\text{lit}}})$）進行多指標對照（完整檢驗數據記錄於 `reports/tsmip_closed_loop_summary.csv` 與 `reports/tsmip_closed_loop_metrics.json`）：
 
-**表 3-5 全臺六大盆地 32 座 TSMIP 強震測站 3D 體素閉環驅動 Haskell–Thomson 正演結果與傳統粗略公式對照表（本表為作者自製，數據由腳本實測產出）**
+**表 3-5 全臺六大盆地 32 座 NCREE EGDT 強震測站 3D 體素閉環驅動 Haskell–Thomson 正演結果與四分之一波長基準對照表（本表為作者自製，數據由腳本實測產出）**
 
-| 測站代碼 | 測站名稱 | 所屬盆地 | 3D 體素主導相 | 體素聲學基盤 $Z_{\text{ac}}$ (m) | 文獻基盤深度 (m) | 體素 $V_{s30}$ (m/s) | 實測 $V_{s30}$ (m/s) | 實測主頻 $f_{0,\text{obs}}$ (Hz) | **體素正演 $f_{0,\text{voxel}}$ (Hz)** | 四分之一波長 $f_{0,\text{quarter}}$ (Hz) | 體素誤差 (%) | 四分之一波長誤差 (%) |
+| 測站代碼 | 測站名稱 (EGDT) | 所屬盆地 | 3D 體素主導相 | 體素聲學基盤 $Z_{\text{ac}}$ (m) | 文獻基盤深度 (m) | 體素 $V_{s30}$ (m/s) | 實測 $V_{s30}$ (m/s) | 基準主頻 $f_{0,\text{obs}}$ (Hz) | **體素正演 $f_{0,\text{voxel}}$ (Hz)** | 四分之一波長 $f_{0,\text{quarter}}$ (Hz) | 體素誤差 (%) | 四分之一波長誤差 (%) |
 | :--- | :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| **CHY010** | 布袋 (Budai) | 嘉南平原 | FineSand | 693.4 | 720.0 | 158.5 | 175 | 0.72 | **0.68** | 0.75 | 4.9% | 4.8% |
-| **CHY015** | 嘉義市 (Chiayi City) | 嘉南平原 | ClayMud | 472.0 | 480.0 | 167.1 | 220 | 0.95 | **0.79** | 1.06 | 16.4% | 11.3% |
-| **CHY028** | 朴子 (Puzi) | 嘉南平原 | FineSand | 515.3 | 520.0 | 177.3 | 210 | 0.88 | **0.81** | 0.97 | 8.0% | 10.5% |
-| **CHY029** | 觸口 (Chukou) | 嘉南平原 | FineSand | 120.0 | 120.0 | 290.9 | 520 | 2.85 | **2.12** | 5.91 | 25.5% | 107.3% |
-| **CHY035** | 麻豆 (Madou) | 嘉南平原 | FineSand | 1000.0 | 680.0 | 159.3 | 190 | 0.76 | **0.67** | 0.85 | 12.0% | 11.6% |
-| **CHY041** | 新營 (Xinying) | 嘉南平原 | FineSand | 831.7 | 620.0 | 159.3 | 195 | 0.82 | **0.67** | 0.89 | 18.4% | 8.1% |
-| **CHY054** | 善化 (Shanhua) | 嘉南平原 | FineSand | 1000.0 | 610.0 | 148.2 | 205 | 0.84 | **0.62** | 0.97 | 25.9% | 15.1% |
-| **CHY080** | 新港 (Singang) | 嘉南平原 | ClayMud | 412.4 | 410.0 | 174.9 | 245 | 1.10 | **0.86** | 1.33 | 22.1% | 21.0% |
-| **CHY004** | 麥寮 (Mailiao) | 濁水溪扇 | FineSand | 621.0 | 580.0 | 155.7 | 165 | 0.75 | **0.72** | 0.71 | 4.6% | 5.2% |
-| **CHY024** | 斗六 (Douliu) | 濁水溪扇 | ClayMud | 341.6 | 320.0 | 195.9 | 310 | 1.25 | **1.06** | 2.04 | 15.2% | 63.2% |
-| **CHY025** | 西螺 (Xiluo) | 濁水溪扇 | Gravel | 405.1 | 380.0 | 190.9 | 265 | 1.05 | **1.12** | 1.51 | 6.9% | 43.4% |
-| **CHY026** | 虎尾 (Huwei) | 濁水溪扇 | ClayMud | 430.5 | 440.0 | 172.4 | 235 | 0.98 | **0.90** | 1.22 | 7.8% | 24.9% |
-| **CHY074** | 臺西 (Taixi) | 濁水溪扇 | FineSand | 640.0 | 620.0 | 164.7 | 170 | 0.73 | **0.70** | 0.72 | 4.1% | 1.3% |
-| **TAP001** | 臺北市區 (Taipei Center) | 臺北盆地 | Silt | 249.2 | 280.0 | 200.6 | 160 | 0.88 | **1.15** | 0.73 | 31.1% | 17.4% |
-| **TAP003** | 松山 (Songshan) | 臺北盆地 | ClayMud | 207.9 | 220.0 | 220.8 | 175 | 0.96 | **1.12** | 0.91 | 16.9% | 5.1% |
-| **TAP005** | 萬華 (Wanhua) | 臺北盆地 | SandMudMixed | 253.8 | 260.0 | 234.3 | 170 | 0.91 | **1.08** | 0.82 | 18.2% | 10.2% |
-| **TAP012** | 新莊 (Xinzhuang) | 臺北盆地 | ClayMud | 290.4 | 240.0 | 214.1 | 190 | 1.02 | **0.98** | 1.03 | 3.8% | 1.2% |
-| **TAP020** | 景美 (Jingmei) | 臺北盆地 | Silt | 184.2 | 110.0 | 216.7 | 295 | 1.65 | **1.42** | 2.63 | 14.0% | 59.6% |
-| **TAP022** | 關渡 (Guandu) | 臺北盆地 | ClayMud | 136.2 | 140.0 | 254.9 | 260 | 1.45 | **1.54** | 2.03 | 6.5% | 40.1% |
-| **TCU065** | 霧峰 (Wufeng) | 臺中盆地 | Gravel | 230.8 | 350.0 | 250.0 | 245 | 1.08 | **1.54** | 1.28 | 43.0% | 18.2% |
-| **TCU071** | 大里 (Dali) | 臺中盆地 | SandMudMixed | 316.5 | 330.0 | 224.8 | 255 | 1.12 | **1.03** | 1.39 | 8.2% | 23.7% |
-| **TCU075** | 豐原 (Fengyuan) | 臺中盆地 | Gravel | 145.2 | 260.0 | 311.9 | 320 | 1.35 | **2.40** | 2.22 | 78.1% | 64.6% |
-| **TCU076** | 臺中西區 (Taichung West) | 臺中盆地 | Gravel | 341.8 | 310.0 | 233.1 | 275 | 1.18 | **1.09** | 1.64 | 7.5% | 38.7% |
-| **TCU084** | 大坑 (Dakeng) | 臺中盆地 | Gravel | 145.2 | 160.0 | 311.9 | 410 | 2.10 | **2.40** | 3.94 | 14.5% | 87.7% |
-| **KAU047** | 潮州 (Chaozhou) | 屏東平原 | ClayMud | 378.2 | 290.0 | 180.2 | 310 | 1.32 | **0.97** | 2.04 | 26.8% | 54.5% |
-| **KAU048** | 屏東市 (Pingtung City) | 屏東平原 | ClayMud | 487.4 | 450.0 | 165.3 | 230 | 1.02 | **0.78** | 1.15 | 23.7% | 12.7% |
-| **KAU050** | 里港 (Ligang) | 屏東平原 | Gravel | 487.4 | 360.0 | 205.3 | 280 | 1.15 | **1.18** | 1.59 | 3.0% | 38.3% |
-| **KAU087** | 萬丹 (Wandan) | 屏東平原 | ClayMud | 505.6 | 490.0 | 163.2 | 215 | 0.96 | **0.75** | 1.03 | 22.2% | 7.7% |
-| **ILA001** | 羅東 (Luodong) | 蘭陽平原 | ClayMud | 329.5 | 420.0 | 201.4 | 185 | 0.92 | **1.04** | 0.86 | 13.5% | 6.9% |
-| **ILA051** | 宜蘭市 (Yilan City) | 蘭陽平原 | ClayMud | 288.1 | 380.0 | 197.6 | 195 | 0.98 | **1.09** | 0.97 | 11.3% | 0.5% |
-| **ILA056** | 蘇澳 (Suao) | 蘭陽平原 | ClayMud | 153.3 | 180.0 | 244.9 | 340 | 1.70 | **1.67** | 2.66 | 1.8% | 56.2% |
-| **ILA058** | 礁溪 (Jiaoxi) | 蘭陽平原 | SandMudMixed | 289.3 | 260.0 | 215.9 | 250 | 1.28 | **1.33** | 1.56 | 3.6% | 22.1% |
+| **CHY004** | 頂湖國小 (口湖) | 嘉南平原 | FineSand | 397.4 | 681.0 | 194.7 | 273.0 | 0.88 | **0.97** | 1.24 | 9.8% | 41.0% |
+| **CHY006** | 梅山國小 (梅山) | 嘉南平原 | SandMudMixed | 120.0 | 54.3 | 297.1 | 422.7 | 2.25 | **2.42** | 4.80 | 7.5% | 113.5% |
+| **CHY015** | 白河國小 (白河) | 嘉南平原 | ClayMud | 758.8 | 227.0 | 148.2 | 224.7 | 1.15 | **0.62** | 1.34 | 45.9% | 16.3% |
+| **CHY016** | 苓和國小 (將軍) | 嘉南平原 | FineSand | 1000.0 | 556.0 | 157.8 | 199.5 | 0.78 | **0.67** | 0.92 | 14.2% | 18.4% |
+| **CHY017** | 中營國小 (下營) | 嘉南平原 | FineSand | 1000.0 | 540.0 | 159.3 | 196.0 | 0.76 | **0.67** | 0.91 | 12.0% | 19.4% |
+| **CHY029** | 興昌國小 (古坑) | 嘉南平原 | Gravel | 120.0 | 127.0 | 331.2 | 541.7 | 2.65 | **2.76** | 6.77 | 4.3% | 155.5% |
+| **CHY032** | 北辰國小 (北港) | 嘉南平原 | FineSand | 391.2 | 480.0 | 194.7 | 192.6 | 0.92 | **0.92** | 1.00 | 0.1% | 9.0% |
+| **CHY039** | 月眉國小 (新港) | 嘉南平原 | FineSand | 420.9 | 264.0 | 189.9 | 195.2 | 0.96 | **0.93** | 1.11 | 2.6% | 15.5% |
+| **CHY054** | 新營國小 (新營) | 嘉南平原 | FineSand | 832.6 | 465.5 | 159.3 | 175.1 | 0.72 | **0.67** | 0.78 | 7.1% | 8.6% |
+| **CHY002** | 廉使國小 (虎尾) | 濁水溪扇 | FineSand | 443.2 | 405.7 | 170.7 | 229.6 | 0.98 | **0.83** | 1.20 | 15.8% | 22.0% |
+| **CHY024** | 林中國小 (林內) | 濁水溪扇 | Gravel | 265.4 | 180.0 | 254.0 | 408.5 | 1.95 | **1.78** | 3.65 | 8.8% | 87.0% |
+| **CHY025** | 饒平國小 (莿桐) | 濁水溪扇 | SandMudMixed | 354.3 | 299.8 | 220.5 | 276.5 | 1.18 | **1.39** | 1.65 | 17.6% | 39.5% |
+| **CHY026** | 永定國小 (二崙) | 濁水溪扇 | FineSand | 443.2 | 295.5 | 170.7 | 220.6 | 0.95 | **0.83** | 1.15 | 13.1% | 21.0% |
+| **CHY027** | 麥寮國小 (麥寮) | 濁水溪扇 | FineSand | 595.6 | 673.6 | 168.7 | 209.5 | 0.75 | **0.75** | 0.90 | 0.4% | 20.4% |
+| **TAP001** | 中央氣象署 (中正) | 臺北盆地 | SandMudMixed | 244.6 | 280.0 | 233.2 | 177.4 | 0.88 | **1.54** | 0.85 | 75.5% | 3.1% |
+| **TAP003** | 成功國小 (蘆洲) | 臺北盆地 | SandMudMixed | 249.0 | 290.0 | 227.1 | 209.4 | 0.82 | **1.47** | 0.97 | 78.8% | 18.2% |
+| **TAP005** | 文林國小 (北投) | 臺北盆地 | ClayMud | 137.2 | 202.0 | 259.2 | 177.0 | 0.96 | **1.89** | 0.98 | 96.7% | 2.4% |
+| **TAP010** | 二重國小 (三重) | 臺北盆地 | SandMudMixed | 267.5 | 260.0 | 226.2 | 217.5 | 0.91 | **1.42** | 1.13 | 56.0% | 24.5% |
+| **TAP012** | 日新國小 (大同) | 臺北盆地 | SandMudMixed | 240.0 | 240.0 | 214.1 | 207.4 | 0.95 | **1.47** | 1.13 | 54.3% | 18.6% |
+| **TAP017** | 昌隆國小 (新莊) | 臺北盆地 | SandMudMixed | 285.8 | 258.0 | 221.2 | 221.4 | 1.02 | **1.26** | 1.20 | 23.8% | 18.0% |
+| **TAP020** | 幸安國小 (大安) | 臺北盆地 | ClayMud | 230.8 | 195.0 | 233.1 | 224.2 | 1.15 | **1.37** | 1.40 | 19.3% | 21.8% |
+| **TAP022** | 信義國小 (信義) | 臺北盆地 | ClayMud | 212.5 | 134.7 | 219.2 | 181.0 | 1.45 | **1.33** | 1.29 | 8.6% | 10.8% |
+| **TCU052** | 光正國小 (北屯) | 臺中盆地 | Gravel | 140.0 | 140.0 | 307.8 | 589.2 | 2.35 | **2.31** | 6.70 | 1.7% | 184.9% |
+| **TCU054** | 省三國小 (北區) | 臺中盆地 | SandMudMixed | 287.9 | 186.0 | 228.1 | 437.0 | 1.55 | **1.34** | 3.21 | 13.5% | 107.3% |
+| **TCU063** | 烏日國小 (烏日) | 臺中盆地 | Gravel | 322.8 | 260.0 | 237.7 | 476.1 | 1.42 | **1.54** | 3.31 | 8.8% | 132.9% |
+| **TCU082** | 臺中氣象站 (北區) | 臺中盆地 | SandMudMixed | 287.9 | 220.0 | 240.7 | 469.4 | 1.62 | **1.36** | 3.67 | 16.3% | 126.4% |
+| **KAU023** | 仁愛國小 (屏東市) | 屏東平原 | ClayMud | 469.2 | 420.0 | 167.4 | 229.9 | 1.05 | **0.79** | 1.20 | 24.4% | 14.0% |
+| **KAU029** | 鹽埔國小 (鹽埔) | 屏東平原 | Gravel | 305.4 | 240.0 | 233.6 | 351.9 | 1.48 | **1.59** | 2.59 | 7.5% | 74.8% |
+| **KAU031** | 萬丹國小 (萬丹) | 屏東平原 | ClayMud | 487.4 | 460.0 | 165.3 | 219.6 | 0.96 | **0.78** | 1.06 | 18.9% | 10.0% |
+| **KAU032** | 仙吉國小 (新園) | 屏東平原 | ClayMud | 542.0 | 510.0 | 159.4 | 190.7 | 0.85 | **0.72** | 0.87 | 15.8% | 2.0% |
+| **ILA004** | 壯圍國小 (壯圍) | 蘭陽平原 | SandMudMixed | 384.8 | 420.0 | 199.9 | 121.5 | 0.74 | **1.04** | 0.52 | 41.1% | 29.3% |
+| **ILA013** | 育才國小 (宜蘭市) | 蘭陽平原 | ClayMud | 274.3 | 290.0 | 200.9 | 224.6 | 1.08 | **1.14** | 1.22 | 5.4% | 13.0% |
 
-![圖 3-9 全臺代表性強震站 3D 體素模型驅動 Haskell–Thomson 場址響應理論譜與實測共振對照圖](reports/tsmip_haskell_vs_obs_spectra.png)
+![圖 3-9 全臺代表性強震站 3D 體素模型驅動 Haskell–Thomson 場址響應理論譜與基準共振對照圖](reports/tsmip_haskell_vs_obs_spectra.png)
 
-![圖 3-10 全臺 32 座 TSMIP 強震站 3D 體素閉環推演基頻與傳統四分之一波長粗略公式對比迴歸圖](reports/tsmip_closed_loop_regression.png)
+![圖 3-10 全臺 32 座 NCREE EGDT 強震站 3D 體素閉環推演基頻與傳統四分之一波長公式對比迴歸圖](reports/tsmip_closed_loop_regression.png)
 
-- **全臺 32 座強震測站整體閉環盲測統計成果**：
-  1. **3D 體素聲學基盤深度 $Z_{\text{ac}}$ vs. 權威文獻/EGDT 基盤深度**：Pearson 相關係數達 **$r = 0.9082$**，均方根誤差 **$\text{RMSE} = 109.7\text{ m}$**，證實雙界面基盤演算法在全臺跨盆地（臺北、臺中、濁水溪、嘉南、屏東、蘭陽）均能準確反演深部聲學基底面的構造起伏。
-  2. **3D 體素正演主頻 $f_{0,\text{voxel}}$ vs. 實測主頻 $f_{0,\text{obs}}$**：在完全不依賴測站實測 $V_{s30}$ 的端到端閉環條件下，Pearson 相關係數達 **$r = 0.7981$**，決定係數 **$R^2 = 0.5557$**，均方根誤差 **$\text{RMSE} = 0.286\text{ Hz}$**，全臺平均相對誤差（MAPE）為 **16.2%**。
-  3. **與四分之一波長粗略公式（Quarter-Wavelength Baseline）之定量對比**：
-     傳統無沉積相指引之單層粗略公式（$f_{0,\text{quarter}} = V_{s30} / (4 H_{\text{eng}})$）由於忽略了沉積層隨深度壓實的速度梯度、波阻抗界面反射與薄互層干涉，在山前過渡帶（如觸口 `CHY029` 實測 2.85 Hz vs 粗略 5.91 Hz，誤差 107.3%；大坑 `TCU084` 實測 2.10 Hz vs 粗略 3.94 Hz，誤差 87.7%）嚴重高估基頻，導致整體決定係數惡化為負值（**$R^2 = -2.0394$**），均方根誤差達 **$\text{RMSE} = 0.748\text{ Hz}$**（平均相對誤差 27.9%）。
-     相較之下，本研究結合三維體素沉積相岩石物理與多層 Haskell–Thomson 傳遞矩陣之閉環模型，將**主頻預測均方根誤差由 0.748 Hz 大幅壓降至 0.286 Hz（誤差降低達 61.8%）**，決定係數提升至 **$R^2 = 0.5557$**，具備高度統計顯著性（$p < 10^{-7}$），定量驗證了考慮三維沉積相異質性與多層波阻抗對於精準評估強震場址效應的必要性與優越性。
+- **全臺 32 座強震測站整體閉環統計檢定與多指標誠實對比**：
+  1. **文獻約束之聲學基盤深度結構先驗 $Z_{\text{ac}}$ vs. EGDT/文獻基盤深度一致性檢查**：
+     Pearson 相關係數為 **$r = 0.6872$**，均方根誤差 **$\text{RMSE} = 179.2\text{ m}$**。這顯示結合區域層析速度梯度與盆地邊界先驗之結構模型，能合理反映全臺六大盆地由山前淺基盤（120–140 m）向盆地深槽（500–1,000 m）加深的一階幾何趨勢。
+  2. **3D 體素正演主頻 $f_{0,\text{voxel}}$ vs. 四分之一波長公式 $f_{0,\text{quarter}}$ 之全面指標對照**：
+     為避免單一指標造成偏頗解讀，本研究同時列出線性相關、等級相關與絕對誤差指標：
+     - **本研究 3D 體素多層 Haskell–Thomson 模型（不依賴測站實測 $V_{s30}$）**：
+       Pearson **$r = 0.8224$**，Spearman 等級相關 **$\rho = 0.5982$**，決定係數 **$R^2 = 0.5831$**，均方根誤差 **$\text{RMSE} = 0.316\text{ Hz}$**，平均絕對誤差 **$\text{MAE} = 0.230\text{ Hz}$**，平均絕對百分比誤差 **$\text{MAPE} = 22.68\%$**。
+     - **傳統四分之一波長基準（依賴測站實測 $V_{s30,\text{obs}}$）**：
+       Pearson **$r = 0.9626$**，Spearman **$\rho = 0.9432$**，但決定係數為 **$R^2 = -6.5797$**，均方根誤差達 **$\text{RMSE} = 1.346\text{ Hz}$**，**$\text{MAE} = 0.732\text{ Hz}$**，**$\text{MAPE} = 43.72\%$**。
+     - **物理與統計成因剖析**：四分之一波長公式之所以具有較高的 Pearson $r$ 與 Spearman $\rho$，是因為該公式與場址基準主頻同為實測 $V_{s30,\text{obs}}$ 與基盤深度的單調函數；然而由於單層公式將近地表 30 m 高波速直接外推至整個共振土柱，忽略了山前礫石台地（如古坑興昌國小 `CHY029` 實測 $V_{s30}=541.7\text{ m/s}$、北屯光正國小 `TCU052` 實測 $V_{s30}=589.2\text{ m/s}$）下伏層阻抗漸變與有效共振深度效應，導致預測值高達 6.77 Hz 與 6.70 Hz（誤差達 155.5% 與 184.9%），使絕對誤差 RMSE 惡化至 $1.346\text{ Hz}$ 且 $R^2$ 呈顯著負值（$-6.5797$）。相較之下，本研究 3D 體素模型在不輸入測站實測 $V_{s30}$ 的盲測條件下，將 **RMSE 由 $1.346\text{ Hz}$ 壓降至 $0.316\text{ Hz}$（降低 76.5%），MAE 由 $0.732\text{ Hz}$ 降至 $0.230\text{ Hz}$**。
+  3. **六大盆地逐區殘差統計與構造維度效應（表 3-5b）**：
+
+**表 3-5b 全臺六大沉積盆地 3D 體素一維正演主頻殘差統計表（數據出自 `reports/tsmip_closed_loop_metrics.json`）**
+
+| 沉積盆地 | 測站數 ($N$) | 平均偏差 $\text{Bias} = \overline{f_{0,\text{voxel}} - f_{0,\text{obs}}}$ (Hz) | 均方根誤差 $\text{RMSE}$ (Hz) | 地球物理與構造殘差機制解析 |
+| :--- | :---: | :---: | :---: | :--- |
+| **臺北盆地** | 8 | **+0.451 Hz** | 0.545 Hz | 半地塹盆地受山腳斷層陡坎 2D/3D 盆地邊緣表面波散射與松山層極軟弱湖沼泥影響，全臺通用一維經驗耦合公式呈顯著系統性高估（印證假說 H3） |
+| **蘭陽平原** | 2 | **+0.180 Hz** | 0.216 Hz | 蘭陽三角洲濱海測站（如 `ILA004` 壯圍 $V_{s30}=121.5\text{ m/s}$）表層極軟泥使通用模型略微高估基頻 |
+| **濁水溪扇** | 5 | **-0.046 Hz** | 0.148 Hz | 沖積扇水平成層性良好，扇頂（林內 `CHY024`）至扇尾（麥寮 `CHY027`）主頻梯度吻合 |
+| **嘉南平原** | 9 | **-0.049 Hz** | 0.198 Hz | 前陸平原成層穩定，北港高區（`CHY032`）至新營深槽（`CHY054`）低頻共振趨勢一致 |
+| **臺中盆地** | 4 | **-0.097 Hz** | 0.179 Hz | 盆地礫石層剛度高，一維模型穩定重現 1.3–2.3 Hz 中高頻共振，克服四分之一波長之嚴重高估 |
+| **屏東平原** | 4 | **-0.115 Hz** | 0.180 Hz | 高屏溪沖積平原成層良好，模型於屏東市至新園低頻段表現穩定 |
 
 #### 4.4 沉積相物理特性對場址放大效應之控制機制（波阻抗對比與頻段分異，圖 3-12a, 3-12c）
-強震地表加速度放大程度本質上受沉積沉積相與下伏基盤間的波阻抗對比（Impedance Contrast）所支配。定義地表未固結層相對於下伏工程基盤之波阻抗比為：
+強震地表加速度放大程度受沉積相與下伏基盤間的波阻抗對比（Impedance Contrast）所支配。定義未固結沉積層相對於下伏工程基盤（$V_{sb}=760\text{ m/s}, \rho_b=2.35\text{ g/cm}^3$）之波阻抗比為：
 $$\alpha = \frac{\rho_1 V_{s1}}{\rho_b V_{sb}}$$
-在彈性半空間垂直入射條件下，若無介質內部摩擦耗散，理論地表峰值放大倍率極限為 $A_{\max} = 1 / \alpha$；當納入沉積相固有剪力波黏彈性衰減（品質因子 $Q_s$ 或阻尼比 $\xi = 1/(2Q_s)$）後，共振峰值放大倍率被修正為封閉形式解析解（Kramer, 1996）：
-$$A_{\max} \approx \frac{1}{\alpha + \frac{\pi}{4 Q_s}}$$
-本研究依據 3D 體素預測沉積相剖面與岩石物理基準（黏土 $\rho=1.85\text{ g/cm}^3, V_{s0}=160\text{ m/s}, Q_s=18$；砂層 $\rho=1.90\text{ g/cm}^3, V_{s0}=220\text{ m/s}, Q_s=24$；礫石 $\rho=2.10\text{ g/cm}^3, V_{s0}=360\text{ m/s}, Q_s=32$），透過腳本 `scripts/plot_site_response_facies.py` 產出圖 3-12，系統揭示三類代表性沉積相對強震場址效應的物理控制機制：
+當納入沉積相固有剪力波黏彈性衰減（品質因子 $Q_s$ 或阻尼比 $\xi = 1/(2Q_s)$）後，單層均質黏彈性土柱於基本共振頻率處之解析峰值放大倍率近似為（Kramer, 1996）：
+$$A_{\max,\text{single}} \approx \frac{1}{\alpha + \frac{\pi}{4 Q_s}}$$
+而在具深度壓密梯度（$V_s(z) \propto (1+z/40)^{0.25}$）之多層 Haskell–Thomson 傳遞矩陣中，近地表低波速層與深部壓密層之間的連續阻抗遞變會產生額外的波場聚焦效應（Impedance-Gradient Amplification），使多層傳遞函數峰值 $|H(f_0)|$ 高於單層均質公式。本研究依據三類代表性沉積相參數，透過腳本 `scripts/plot_site_response_facies.py` 動態計算並輸出 `reports/site_response_metrics.json` 與圖 3-12，揭示沉積相對強震場址效應的定量控制機制：
 
-![圖 3-12 沉積相物理特性對強震場址效應控制機制、反應譜分異與歷史地震剖析](reports/site_response_spectra_facies.png)
+![圖 3-12 沉積相物理特性對強震場址效應控制機制、近似反應譜分異與嘉南盆地東西向剖面分析](reports/site_response_spectra_facies.png)
 
-1. **軟弱黏土相（深槽軟泥 / 松山層，圖 3-12a, 3-12c）**：
-   黏土相具備極低剪力波速（$V_{s1} \approx 140 \sim 180\text{ m/s}$）與高孔隙比，導致波阻抗比降至極低水準（$\alpha \approx 0.18 \sim 0.23$）。波阻抗階躍效應強烈反彈並阻滯了基盤傳入的剪力波能量向上逸散，形成強烈的能量陷阱，導致理論放大倍率 $A_{\max}$ 高達 **4.8～5.5 倍**（圖 3-12c）。同時因沉積層厚度較大且波速低，卓越共振基頻顯著向長週期低頻遷移至 **$f_0 < 0.8\text{ Hz}$（共振週期 $T_0 > 1.25\text{ s}$）**，如布袋 `CHY010`（實測 0.72 Hz, 放大 4.8 倍）與麥寮 `CHY004`（實測 0.75 Hz, 放大 5.0 倍）。
+1. **軟弱黏土相（深槽軟泥 / 湖沼泥，圖 3-12a, 3-12c）**：
+   代表性參數為 $H=55\text{ m}, V_{s0}=160\text{ m/s}, \rho=1.85\text{ g/cm}^3, Q_s=18$。其波阻抗比低至 **$\alpha = 0.166$**，多層 Haskell–Thomson 理論共振基頻落於長週期低頻段 **$f_0 = 0.73\text{ Hz}$（共振週期 $T_0 = 1.36\text{ s}$）**，線性黏彈性傳遞函數峰值達 **$A_{\max} = 8.18$ 倍**。在全臺 32 座強震站中，深槽軟泥與濱海細粒測站（如新營 `CHY054` 實測 $V_{s30}=175.1\text{ m/s}$、將軍 `CHY016` 實測 $V_{s30}=199.5\text{ m/s}$）體素正演基頻均為 $0.67\text{ Hz}$（基準為 $0.72\text{ Hz}$ 與 $0.78\text{ Hz}$）。
 2. **沖積砂質中層相（細砂/粗砂/砂泥互層，圖 3-12a）**：
-   波速介於 $190 \sim 250\text{ m/s}$ 之間，波阻抗比上升至 $\alpha \approx 0.28 \sim 0.38$，共振放大倍率適中（$A_{\max} \approx 3.2 \sim 4.2$ 倍），卓越共振基頻落於工程最常見之 **$f_0 \approx 0.95 \sim 1.35\text{ Hz}$（$T_0 \approx 0.75 \sim 1.05\text{ s}$）**，如嘉義市 `CHY015`（實測 0.95 Hz, 放大 4.1 倍）與新港 `CHY080`（實測 1.10 Hz, 放大 3.7 倍）。砂泥互層介面更因多次微阻抗反射激發次級共振諧波，擴大了頻寬放大效應。
+   代表性參數為 $H=45\text{ m}, V_{s0}=220\text{ m/s}, \rho=1.90\text{ g/cm}^3, Q_s=24$。波阻抗比上升至 **$\alpha = 0.234$**，理論共振基頻位於中週期頻段 **$f_0 = 1.23\text{ Hz}$（$T_0 = 0.81\text{ s}$）**，傳遞函數峰值為 **$A_{\max} = 4.97$ 倍**，對應平原中段沖積扇測站（如新港 `CHY039` 體素 $0.93\text{ Hz}$ vs. 基準 $0.96\text{ Hz}$；虎尾 `CHY002` 體素 $0.83\text{ Hz}$ vs. 基準 $0.98\text{ Hz}$）。
 3. **山前沖積扇粗礫石相（礫石/半固結基底，圖 3-12a）**：
-   粗顆粒礫石骨架密度高（$\rho \approx 2.10\text{ g/cm}^3$）且剛度顯著增大（$V_{s1} > 350\text{ m/s}$），波阻抗比高達 $\alpha \approx 0.45 \sim 0.60$。沉積層與基盤波阻抗階躍大幅減緩，能量易於穿透逸散，因而共振放大倍率顯著受限於 **$A_{\max} \approx 2.0 \sim 2.8$ 倍**；且因層厚薄、剛度大，共振基頻偏向高頻 **$f_0 > 2.0\text{ Hz}$（$T_0 < 0.5\text{ s}$）**，如觸口 `CHY029`（實測 2.85 Hz, 放大 2.1 倍）與大坑 `TCU084`（實測 2.10 Hz, 放大 2.5 倍）。
+   代表性參數為 $H=35\text{ m}, V_{s0}=360\text{ m/s}, \rho=2.10\text{ g/cm}^3, Q_s=32$。因骨架密度高且剪力剛度大，波阻抗比達 **$\alpha = 0.423$**，沉積層與基盤阻抗階躍減緩，傳遞函數峰值受限於 **$A_{\max} = 2.51$ 倍**，且共振基頻偏向短週期高頻段 **$f_0 = 2.59\text{ Hz}$（$T_0 = 0.39\text{ s}$）**，如古坑 `CHY029`（體素 $2.76\text{ Hz}$ vs. 基準 $2.65\text{ Hz}$）與北屯 `TCU052`（體素 $2.31\text{ Hz}$ vs. 基準 $2.35\text{ Hz}$）。全臺 32 站之波阻抗比分佈範圍為 $\alpha_{\text{voxel}} \in [0.158, 0.352]$（實測基準 $\alpha_{\text{obs}} \in [0.129, 0.627]$），清楚呈現隨 $\alpha$ 減小而非線性攀升的雙曲線規律（圖 3-12c）。
 
-#### 4.5 加速度反應譜（$S_a(T)/\text{PGA}$）分異與建築結構敏感週期關聯（圖 3-12b）
-為了將地質沉積相直接銜接至土木與結構耐震工程，本研究依據結構動力學單自由度體系（SDOF）運動方程式，計算 5% 臨界阻尼比下地表相對加速度反應譜之譜放大係數 $S_a(T) / \text{PGA}$（圖 3-12b）。計算結果揭示了沉積相如何直接決定建築物破壞頻段的重大規律：
+#### 4.5 近似加速度反應譜放大係數（$S_a(T)/\text{PGA}$）分異與結構敏感週期關聯（圖 3-12b）
+為將地質沉積相之頻域傳遞函數 $|H(f)|$ 轉換為工程結構耐震設計直觀的週期域指標，本研究結合單自由度體系（SDOF，5% 臨界阻尼比）動力放大特性與基頻共振包絡，計算三類代表性沉積相之**近似正規化加速度反應譜放大係數 $S_a(T) / \text{PGA}$**（圖 3-12b，數據記錄於 `reports/site_response_metrics.json`）：
 
-1. **礫石地盤之短週期危害帶（$T = 0.10 \sim 0.40\text{ s}$）**：
-   粗礫石相之譜放大峰值集中於短週期（$T = 0.39\text{ s}$），放大係數 $S_a/\text{PGA} \approx 2.1$。此週期區間完全對應**1 至 3 樓之低矮透天、鋼筋混凝土農舍及剛性結構**。在鄰近山前斷層帶之礫石台地（如臺中大坑、嘉義觸口），低矮民宅在強震高頻加速度衝擊下極易發生剪力脆性破壞，但高樓大廈在此類地盤上反應反而平緩。
-2. **砂質地盤之中週期危害帶（$T = 0.50 \sim 1.00\text{ s}$）**：
-   沖積砂質層之譜放大峰值落於 $T = 0.82\text{ s}$（$S_a/\text{PGA} \approx 2.7$），精準對應**5 至 10 樓之集合式住宅公寓與標準學校校舍**（其自振週期約為 $T \approx 0.1 N \approx 0.5 \sim 1.0\text{ s}$）。這是臺灣平原市鎮最具破壞力之共振頻段。
-3. **軟弱深槽黏土地盤之超長週期危害帶（$T = 1.10 \sim 2.20\text{ s}$）**：
-   厚層軟泥深槽地盤之譜放大高達 **$S_a/\text{PGA} = 3.4$**，且放大平台顯著向長週期展寬至 $1.47\text{ s}$ 以上。此長週期放大帶與**12 至 25 樓高層住宅大樓、大型長跨度橋樑及高架橋結構**的固有自振週期完全重疊！在長週期波傳入深厚軟泥盆地時，高層建築將遭受持續性的「地盤—結構共振鞭笞效應（Resonant Whipping）」，引發致命的層間變形。
+1. **礫石地盤之短週期峰值帶（峰值週期 $T = 0.38\text{ s}$）**：
+   粗礫石相之近似反應譜峰值落於短週期 **$T = 0.38\text{ s}$**（$S_a/\text{PGA} = 1.93$），並在 $T > 0.6\text{ s}$ 後迅速衰減。此短週期區間主要對應 **1 至 4 層樓之低矮剛性結構**。
+2. **砂質地盤之中週期峰值帶（峰值週期 $T = 0.82\text{ s}$）**：
+   沖積砂質層之近似反應譜峰值落於 **$T = 0.82\text{ s}$**（$S_a/\text{PGA} = 3.45$），對應基本自振週期約 $0.5 \sim 1.0\text{ s}$（經驗估算 $T \approx 0.08 N \sim 0.10 N$，約 **5 至 10 層樓**）之中層集合住宅與校舍結構。
+3. **軟弱深槽黏土地盤之長週期峰值帶（峰值週期 $T = 1.36\text{ s}$）**：
+   厚層軟泥地盤之近似反應譜峰值遷移至長週期 **$T = 1.36\text{ s}$**（線性黏彈性近似下 $S_a/\text{PGA} = 5.45$；實務強震下受土壤非線性阻尼調節，放大倍率會適度折減且週期進一步拉長）。此 $1.1 \sim 1.8\text{ s}$ 長週期高放大區間與 **12 至 20 層以上高層建築及長跨度橋梁**的基本自振週期重疊，說明深厚軟泥盆地對中高層建築具有較高的長週期地震動威脅。
 
-#### 4.6 臺灣重大歷史強震場址放大案例剖析（圖 3-12d）
-本研究 3D 體素沉積相模型為臺灣歷次毀滅性地震提供了清晰的地球物理定理解釋：
+#### 4.6 嘉南前陸盆地東西向場址剖面實證與歷史強震長週期放大機制探討（圖 3-12d）
+本研究沿嘉南前陸盆地由東側山前麓山帶向西至濱海深槽提取 6 座 NCREE EGDT 強震站（古坑興昌國小 `CHY029` $\rightarrow$ 梅山國小 `CHY006` $\rightarrow$ 白河國小 `CHY015` $\rightarrow$ 新港月眉國小 `CHY039` $\rightarrow$ 新營國小 `CHY054` $\rightarrow$ 將軍苓和國小 `CHY016`）之 3D 體素剖面進行正演（圖 3-12d，數值見 `reports/site_response_metrics.json`），並探討其對臺灣歷史強震場址效應的啟示：
 
-1. **2016 年美濃地震（$M_w 6.4$）臺南遠距災情成因深度剖析（圖 3-12d）**：
-   2016 年 2 月 6 日美濃地震震央位於高雄美濃（震源深度 14.6 km），但毀滅性的房屋倒塌與罹難人數（永康維冠金龍大樓倒塌，115 人罹難）卻全數集中於距離震央超過 40 公里之外的臺南平原。
-   本研究沿嘉南盆地由東向西剖面（觸口 `CHY029` $\rightarrow$ 新港 `CHY080` $\rightarrow$ 嘉義市 `CHY015` $\rightarrow$ 新營 `CHY041` $\rightarrow$ 麻豆 `CHY035` $\rightarrow$ 布袋 `CHY010`）提取 3D 體素地層柱進行正演（圖 3-12d），實證揭露其震害成因：
-   - **基盤陡降與軟泥厚積**：聲學基盤深度自東側觸口山前（120 m）向西南臺南前陸深槽急劇陡降至 700～1,000 m，覆蓋超過 60 m 之未固結鬆軟黏土（臺南層）；
-   - **共振卓越週期長化與放大倍率倍增**：地表卓越共振週期 $T_0$ 自山前的 $0.35\text{ s}$（觸口）向西大幅延長至 **$1.47\text{ s}$（麻豆、新營）與 $1.52\text{ s}$（布袋）**，場址放大倍率由 2.1 倍激增至 **$4.6 \sim 4.8\text{ 倍}$**；
-   - **長週期共振陷阱**：震源釋放之地震波在穿入臺南深槽後被困於低阻抗軟泥波導中，產生極強之長週期速度脈衝（PGV 放大）；倒塌之維冠金龍大樓樓高 16 層（估算結構自振週期 $T \approx 0.1 \times 16 = 1.6\text{ s}$），恰好與臺南深槽體素正演共振週期（$1.47\text{ s}$）發生精確的「場址—結構雙重共振」，定量揭開了美濃地震遠距災情之科學謎團！
-2. **1999 年集集地震（$M_w 7.6$）臺中盆地車籠埔斷層非均質響應**：
-   集集強震時，車籠埔斷層下盤的臺中盆地表現出強烈空間非均質性。位於盆地邊緣的霧峰（`TCU065`）與大坑（`TCU084`）因緊鄰斷層陡坎且沉積層急速變薄，高頻加速度劇烈激增；而盆地中央的臺中西區（`TCU076`）則因深厚頭嵙山礫石層阻抗較大，主要受中長週期波傳影響，建築破壞模式與山前呈現截然不同的分區特徵。
-3. **2024 年花蓮地震（$M_w 7.4$）遠震長週期波傳入臺北盆地與蘭陽平原之場址放大**：
-   2024 年 4 月 3 日花蓮外海強震規模達 $M_w 7.4$，大量低頻表面波跨越中央山脈傳入蘭陽平原與臺北盆地。松山層超軟弱黏土（TAP001, TAP003）引發長達 2～3 分鐘的低頻長週期滯留晃動，充分印證深厚軟泥沉積對遠震長週期分量的強烈放大作用。
+1. **嘉南前陸盆地由東向西之共振週期長化實證（圖 3-12d）**：
+   - **東側山前麓山帶（古坑 `CHY029`、梅山 `CHY006`）**：實測 $V_{s30}$ 高達 $541.7\text{ m/s}$ 與 $422.7\text{ m/s}$，聲學基盤淺（$Z_{\text{ac}} = 120.0\text{ m}$），3D 體素正演共振週期為短週期 **$T_{0,\text{voxel}} = 0.36\text{ s}$（$2.76\text{ Hz}$）與 $0.41\text{ s}$（$2.42\text{ Hz}$）**，與基準週期（$0.38\text{ s}$ 與 $0.44\text{ s}$）高度吻合。
+   - **平原中段與北港高區翼部（白河 `CHY015`、新港 `CHY039`）**：隨沉積層增厚與細粒相比例增加，新港站（$V_{s30} = 195.2\text{ m/s}, Z_{\text{ac}} = 420.9\text{ m}$）體素正演共振週期延長至 **$T_{0,\text{voxel}} = 1.08\text{ s}$（$0.93\text{ Hz}$）**（基準為 $1.04\text{ s}, 0.96\text{ Hz}$）；白河站（`CHY015`）則因體素模型在斷層前緣預測較厚之泥質層，正演週期為 $1.61\text{ s}$（$0.62\text{ Hz}$，基準為 $0.87\text{ s}, 1.15\text{ Hz}$），反映了前緣構造過渡帶的局部深度敏感性。
+   - **西側與西南深槽沉積中心（新營 `CHY054`、將軍 `CHY016`）**：聲學基盤加深至 $832.6\text{ m}$ 與 $1,000.0\text{ m}$，實測 $V_{s30}$ 降至 $175.1\text{ m/s}$ 與 $199.5\text{ m/s}$，體素正演共振週期顯著拉長至 **$T_{0,\text{voxel}} = 1.49\text{ s}$（$f_{0,\text{voxel}} = 0.67\text{ Hz}$）**，與基準長週期（新營 $1.39\text{ s} / 0.72\text{ Hz}$、將軍 $1.28\text{ s} / 0.78\text{ Hz}$）一致重現了自山前（$0.36\text{ s}$）向西南部深槽（$1.49\text{ s}$）大幅長化的區域物理趨勢。
+2. **歷史強震案例之定性物理機制探討與邊界說明**：
+   - **2016 年美濃地震（$M_w 6.4$）嘉南深槽長週期波導效應**：美濃地震時，距離震央逾 30–40 km 的臺南與嘉南平原西南部出現顯著的長週期速度脈衝與中高層建築受損（如臺南永康維冠金龍 16 層大樓倒塌）。必須嚴謹說明：**永康位於本研究嘉南網格南界（23.15°N）以南約 12 km 處，且單一建築物之倒塌主因包含結構系統不規則、軟弱底層與施工箍筋缺失等工程因素**；然而就區域地震動背景而言，本研究在嘉南深槽南段（新營 `CHY054`、將軍 `CHY016`、下營 `CHY017`）實測驗證的 **$T_0 \approx 1.3 \sim 1.5\text{ s}$（$f_0 \approx 0.67 \sim 0.78\text{ Hz}$）長週期共振特性**，為理解厚層前陸深槽軟泥如何放大 $1 \sim 2\text{ s}$ 長週期地震動、進而加劇中高層結構動力負荷提供了合理的區域地球物理背景說明。
+   - **1999 年集集地震（$M_w 7.6$）與 2024 年花蓮地震（$M_w 7.4$）之盆地響應差異**：臺中盆地測站（如北屯 `TCU052`、北區 `TCU054` 與 `TCU082`、烏日 `TCU063`）因廣佈高波速頭嵙山層與沖積巨礫（實測 $V_{s30} = 437.0 \sim 589.2\text{ m/s}$），卓越頻率集中於 $1.34 \sim 2.35\text{ Hz}$ 之中高頻段；相對地，臺北盆地（如中正 `TAP001`、蘆洲 `TAP003`、大同 `TAP012`，實測 $V_{s30} = 177.4 \sim 209.4\text{ m/s}$）與蘭陽平原（壯圍 `ILA004`，實測 $V_{s30} = 121.5\text{ m/s}$）因覆蓋厚層河湖相或三角洲軟泥，基準主頻落於 $0.74 \sim 0.96\text{ Hz}$，在遠震表面波傳入時易產生顯著的低頻共振搖晃。
 
-#### 4.7 一維垂直波傳理論極限與二維/三維盆地邊緣幾何效應（Basin-Edge Induced Surface Waves）
-雖然本研究一維多層 Haskell–Thomson 傳遞矩陣在全臺 32 座測站取得了 $r = 0.7981, R^2 = 0.5557$ 的優異閉環成果，但在構造極其複雜的臺北半地塹盆地中央（`TAP001` 實測 0.88 Hz vs. 體素一維正演 1.15 Hz，相對誤差 31.1%）與盆地邊緣（`TAP020` 景美，實測 1.65 Hz vs. 體素一維正演 1.42 Hz），一維模型仍存在系統性殘差。深入剖析其地球物理機制，定量印證了假說三（H3）：
+#### 4.7 一維垂直波傳理論極限與二維/三維盆地邊緣幾何效應（驗證假說三 H3）
+在移除所有分盆地專屬調參、改用全臺統一經驗耦合公式後，表 3-5b 的殘差統計為假說三（H3）提供了明確的定量證據：
+- 在水平成層性良好的前陸平原與沖積扇，一維 Haskell–Thomson 模型的平均偏差極小：**濁水溪沖積扇平均偏差僅 $-0.046\text{ Hz}$（$\text{RMSE} = 0.148\text{ Hz}$）、嘉南平原平均偏差僅 $-0.049\text{ Hz}$（$\text{RMSE} = 0.198\text{ Hz}$）、臺中盆地為 $-0.097\text{ Hz}$（$\text{RMSE} = 0.179\text{ Hz}$）、屏東平原為 $-0.115\text{ Hz}$（$\text{RMSE} = 0.180\text{ Hz}$）**。
+- 然而在受山腳正斷層陡坎控制的**臺北半地塹盆地（$N=8$）**，一維體素模型呈現顯著的**系統性高估，平均偏差達 $+0.451\text{ Hz}$（$\text{RMSE} = 0.545\text{ Hz}$）**（例如中正 `TAP001` 基準 $0.88\text{ Hz}$ vs. 一維正演 $1.54\text{ Hz}$；蘆洲 `TAP003` 基準 $0.82\text{ Hz}$ vs. 一維正演 $1.47\text{ Hz}$）。
 
-1. **盆地邊緣體波向表面波轉化（Basin-Edge Induced Surface Waves）**：
-   臺北盆地為西北側受山腳正斷層控制的半地塹構造，盆地邊緣沉積介面傾角達 $30^\circ \sim 50^\circ$。當深部剪力波垂直入射至傾斜邊緣陡坎時，全反射與臨界角散射會激發高能量之二維雷利波（Rayleigh waves）與洛夫波（Love waves）。此類盆地邊緣誘發表面波以低相速度向盆地中央傳播，疊加於垂直入射波之上，顯著延長了地震動振盪延時（Duration Prolongation），並將地表實測卓越頻率下拉至更低之長週期頻段。
-2. **側向波阻抗聚焦與盆地駐波共振（Basin Focusing & Valley Resonance）**：
-   半地塹凹槽結構宛如聲學共振腔，在盆地兩翼形成多次側向折反射，引發二維駐波共振。一維水平層狀假定忽略了側向邊界通量，因而低估了長週期滯留能量，此一理論極限指明了未來將 3D 體素直接耦合三維有限差分（3D FDM / SEM）波動方程數值模擬的關鍵演進方向。
+深入剖析其地球物理成因，包含兩項關鍵機制：
+1. **松山層極軟弱湖沼泥之局部低波速效應**：臺北盆地上部 40–60 m 之全新世松山層軟泥具備極低剪力波速（$V_s \approx 110 \sim 170\text{ m/s}$），而全臺統一經驗公式（受西部沖積平原砂泥層主導）預測之體素 $V_{s30}$（`TAP001` 為 $233.2\text{ m/s}$、`TAP003` 為 $227.1\text{ m/s}$）高於實測值（$177.4\text{ m/s}$ 與 $209.4\text{ m/s}$）。
+2. **盆地邊緣體波向表面波轉化與二維/三維盆地共振（Basin-Edge Induced Surface Waves）**：臺北盆地西北側受山腳正斷層半地塹陡坎限制，當地震波入射至傾斜盆地邊緣時，會激發二維雷利波（Rayleigh waves）與洛夫波（Love waves）向盆地中央傳播並產生側向駐波干涉。一維水平層狀假定忽略了側向邊界散射與三維波場聚焦，因此必然高估卓越共振頻率。這一定量殘差誠實界定了一維傳遞矩陣的適用邊界，並指明未來耦合三維有限差分/譜元素法（3D FDM/SEM）的必要性。
 
 #### 4.8 嘉南前陸盆地強震長週期共振主頻與場址放大空間微區劃（圖 3-11）
-為展示三維體素波傳閉環模型在城市防震減災上的空間實用價值，本研究進一步對嘉南前陸盆地全部 $36 \times 36 = 1,296$ 個 3D 體素柱逐點正演一維 Haskell–Thomson 傳遞函數，產出連續空間解析度之**強震共振基頻（$f_0$）與場址共振峰值放大倍率（$A_{\max}$）空間微區劃地圖（Seismic Microzonation Map）**：
+為展示三維體素波傳閉環模型在區域防震評估上的空間連續推論能力，本研究對嘉南前陸盆地全部 $36 \times 36 = 1,296$ 個 3D 體素柱逐點正演一維 Haskell–Thomson 傳遞函數，產出連續空間解析度之**強震共振基頻（$f_0$）與線性黏彈性傳遞函數峰值（$A_{\max}$）空間微區劃地圖（Seismic Microzonation Map）**：
 
 ![圖 3-11 嘉南前陸盆地強震長週期共振基頻與場址放大倍率三維體素空間微區劃地圖](reports/chianan_microzonation_map.png)
 
 - **空間微區劃地質與地球物理特徵解析**：
   1. **共振基頻空間梯度（圖 3-11a）**：
-     微區劃圖清晰刻劃出嘉南盆地由東側阿里山山前構造帶（觸口附近，$f_0 \sim 2.1 - 2.8\text{ Hz}$，短週期共振）向西北部北港基盤高區（新港、北港，$f_0 \sim 1.0 - 1.3\text{ Hz}$）與西南側臺南前陸深槽（布袋、新營、麻豆，$f_0 < 0.7\text{ Hz}$，長週期共振）發散的連續雙向梯度。特別是在臺南深槽沉積中心，未固結軟泥厚度超過 60 m，其卓越共振頻率顯著落於 $0.6 - 0.75\text{ Hz}$（對應週期 $T \sim 1.3 - 1.7\text{ s}$），與高樓建築及大型基礎設施之固有振動週期高度重疊，揭示了該區在遠震波傳下極易發生長週期共振震害的潛在風險。
-  2. **共振放大倍率空間分布（圖 3-11b）**：
-     場址放大峰值 $A_{\max}$ 自山前過渡區的 $2.5 - 3.5$ 倍向濱海沖積平原大幅躍升至 **$4.5 - 5.5$ 倍**（布袋 `CHY010` 實測放大 4.8 倍，麻豆 `CHY035` 實測放大 4.6 倍，體素理論計算完全相符）。此一放大效應是由深槽厚層高孔隙率軟弱黏土（$V_s < 170\text{ m/s}$）與下伏深部基盤（$V_s > 760\text{ m/s}$）之間高達 4.5 倍的強烈剪力波阻抗對比所致，為嘉南平原的耐震建築規範分區提供了高精度的三維物理依據。
+     微區劃圖刻劃出嘉南盆地由東側阿里山山前構造帶（古坑 `CHY029`、梅山 `CHY006` 附近，$f_0 \sim 2.4 - 2.8\text{ Hz}$，短週期共振）向西北部北港基盤高區（北港 `CHY032`、新港 `CHY039`，$f_0 \sim 0.9 - 1.1\text{ Hz}$）與西南側臺南前陸深槽（新營 `CHY054`、將軍 `CHY016`、下營 `CHY017`，$f_0 \approx 0.62 - 0.70\text{ Hz}$，長週期共振）過渡的空間梯度，對應週期 $T_0 \sim 1.4 - 1.6\text{ s}$。
+  2. **線性黏彈性波阻抗放大趨勢（圖 3-11b）**：
+     理論傳遞函數峰值自山前礫石區的 $2.6 - 3.4$ 倍向西南深槽泥質區遞增（深槽區基準放大約 $4.5 - 4.9$ 倍，多層線性黏彈性理論峰值達 $6.7 - 8.1$ 倍；實務大地震下將受非線性阻尼折減），反映深槽厚層軟弱沉積物與下伏基盤間之顯著波阻抗對比。
 
-#### 4.9 耐震設計規範意涵：由單一 $V_{s30}$ 走向三維體素週期敏感型場址係數（$F_a, F_v$）
-當前臺灣現行《建築物耐震設計規範》主要依據近地表 30 公尺平均剪力波速 $V_{s30}$ 將地盤劃分為第一類（堅硬地盤 $V_{s30} > 270\text{ m/s}$）、第二類（普通地盤 $180 \le V_{s30} \le 270\text{ m/s}$）與第三類（軟弱地盤 $V_{s30} < 180\text{ m/s}$），並據以查表決定短週期場址放大係數 $F_a$ 與 1 秒週期場址係數 $F_v$。
-本研究之三維體素實測統計檢定明確指出了**「單一 $V_{s30}$ 範式」在強震工程上的深層盲點**：
+#### 4.9 耐震設計規範意涵：補強單一 $V_{s30}$ 對深部盆地共振週期之評估盲點
+當前臺灣現行《建築物耐震設計規範》在一般地區主要依據近地表 30 公尺平均剪力波速 $V_{s30}$ 劃分第一類（堅硬地盤 $V_{s30} \ge 270\text{ m/s}$）、第二類（普通地盤 $180 \le V_{s30} < 270\text{ m/s}$）與第三類（軟弱地盤 $V_{s30} < 180\text{ m/s}$）地盤（註：規範針對臺北盆地已另依微分區配置反應譜參數，並對近斷層區域設有近斷層調整因子）。然而在臺北盆地以外之廣大西部前陸平原（如嘉南、濁水溪、屏東），規範仍高度仰賴單一 $V_{s30}$ 查表決定場址放大係數 $F_a, F_v$。
+本研究 32 座 EGDT 強震站之實測與體素對照，具體指出了**「在西部前陸平原僅依賴 $V_{s30}$ 忽略深部沉積厚度」的工程盲點**：
 
-1. **相同 $V_{s30}$ 底下的深部沉積厚度巨大落差**：
-   以嘉南平原新營站（`CHY041`, $V_{s30}=195\text{ m/s}$）與蘭陽平原宜蘭市站（`ILA051`, $V_{s30}=195\text{ m/s}$）為例，兩站之 $V_{s30}$ 完全相同（均歸屬第二類普通地盤，法規規範之 $F_v$ 係數完全一致）。然而本研究 3D 體素揭示：新營站位於臺南前陸深槽，其聲學基盤深達 **831.7 m**，卓越共振基頻低至 **0.67 Hz（$T_0 = 1.49\text{ s}$）**；而宜蘭市基盤深度僅 288 m，共振基頻為 **1.09 Hz（$T_0 = 0.92\text{ s}$）**。若僅以 $V_{s30}$ 評估，現行法規將在臺南深槽嚴重低估超長週期（$T > 1.2\text{ s}$）之加速度放大，埋下高樓結構受損之隱患。
-2. **由經驗查表邁向 3D 體素連續場址頻譜設計**：
-   本研究所建構之 3D 體素模型，能為全臺每一網格點（100m 水平解析度）直接輸出連續的剪力波速剖面 $V_s(z)$、基盤深度（$Z_{\text{eng}}, Z_{\text{ac}}$）及頻率響應函數 $|H(f)|$，使未來耐震設計能夠擺脫粗略的階梯式地盤分類，直接依據特定基地之三維沉積相與共振週期定製精確的場址放大反應譜，實現真正具備物理基礎的韌性城市防震微區劃。
+1. **相近 $V_{s30}$ 與相同地盤分類下的深部基盤與共振週期落差**：
+   以濁水溪沖積扇虎尾站（`CHY002` 廉使國小，實測 $V_{s30} = 229.6\text{ m/s}$）與蘭陽平原宜蘭市站（`ILA013` 育才國小，實測 $V_{s30} = 224.6\text{ m/s}$）或臺北盆地大安站（`TAP020` 幸安國小，實測 $V_{s30} = 224.2\text{ m/s}$）為例，三站之近地表 $V_{s30}$ 幾乎完全相同（皆約 $224 \sim 230\text{ m/s}$，同屬 Class D / 第二類普通地盤）；若再比較嘉南深槽將軍站（`CHY016` 苓和國小，實測 $V_{s30} = 199.5\text{ m/s}$）與北港高區新港站（`CHY039` 月眉國小，實測 $V_{s30} = 195.2\text{ m/s}$），兩站 $V_{s30}$ 亦完全相同（同屬第二類普通地盤）。然而因深部基盤深度截然不同（將軍站文獻基盤深 $556\text{ m}$ / 體素 $Z_{\text{ac}} = 1,000\text{ m}$ vs. 新港站文獻基盤 $264\text{ m}$ / 體素 $Z_{\text{ac}} = 420.9\text{ m}$），將軍站的實測與體素共振週期（$1.28\text{ s} / 1.49\text{ s}$）顯著長於新港站（$1.04\text{ s} / 1.08\text{ s}$）與宜蘭市站（$0.93\text{ s} / 0.88\text{ s}$）。
+2. **結合 3D 體素深部結構輔助區域長週期耐震微區劃**：
+   這證明單憑淺層 30 公尺波速 $V_{s30}$ 無法區分「淺基盤普通地盤」與「深槽厚層沉積地盤」在 $T > 1.0\text{ s}$ 長週期頻段的共振差異。本研究建構之 3D 體素模型可輸出連續的基盤深度先驗（$Z_{\text{eng}}, Z_{\text{ac}}$，$Z_{1.0}$）與頻域傳遞函數 $|H(f)|$，為西部前陸盆地補充深部盆地效應參數提供定量參考。
 
 ---
 
 ### 五、綜合討論：研究限制與方法論反思
 
-本研究針對現階段模型與驗證流程中的四項核心科學限制進行客觀說明：
+本研究針對現階段模型與驗證流程中的五項核心科學限制進行客觀說明：
 
 1. **點分類準確率與垂直相序連續性的權衡（Accuracy vs. Stratigraphic Continuity）**：
-   在 422 口水文深井六類未固結沉積相的盲測中，物理增強隨機森林（35.97%）與 PG-WellboreSeqNet（35.27%）的點對點 Accuracy 均處於 35%–36% 區間。這是因為地調所岩心描述中的「細砂」、「粗砂」與「砂泥互層」在過渡帶本就存在連續粒徑漸變，且公里級地震層析模型缺乏米級高頻阻抗訊號。PG-WellboreSeqNet 的核心貢獻在於將隨機森林產生的 1,012 處垂直孤立椒鹽噪聲降至 0 處，並透過對數先驗補償（Logit Adjustment）將少數類粉土召回率恢復至 5.12%（精確率 20.09%）。
-2. **工區近場內插與跨區遠場外推的尺度分野**：
-   全面融合 6,288 口公開工程地質鑽孔（共 5,541 口有效沉積相井、287,148 筆樣本）並導入固定基準對數深度 $z_{\text{log}}$ 與雙尺度近場先驗後，PG-WellboreSeqNet 在混合資料集 5 折交叉驗證之準確率提升至 48.98%（Macro F1 達 0.3949），在 5,119 口工程鑽孔上的折外盲測（OOF）準確率由 Zero-shot 的 26.52% 大幅提升至 60.31%（隨機森林由 25.41% 提升至 62.64%）。然而當面對 $15\text{ km} \times 15\text{ km}$ 空間區塊盲測時，準確率僅由 36.66% 提升至 37.83%（+1.17%）。這清楚顯示局部密集工程鑽孔的增益主要來自同工區數十至數百公尺內的近場空間錨定，而跨盆地遠場盲區的外推能力仍受制於背景震波層析網格的平滑解析度。
-3. **深部雙界面基盤之半經驗耦合限制**：
-   全臺水文觀測井深度多在 50–300 m，未直接鑽穿至結晶基盤。本研究區分「工程基盤面（$V_s \ge 760\text{ m/s}$，六大盆地平均 70.0–210.1 m）」與「地震聲學基盤面（$V_s \ge 2,000\text{ m/s}$，六大盆地平均 206.1–580.7 m）」，雖在北港高區（404.4 m）、臺南深槽（893.7 m）及 32 座強震站基盤深度比對（$r = 0.9082$）上符合地質文獻，但深部過渡帶仍仰賴區域速度層析與文獻構造先驗之耦合，未來需納入深部反射震測剖面與大地電磁（MT）資料進一步約束。
-4. **一維線性黏彈性波傳對三維盆地效應與強震非線性之簡化**：
-   本研究已完成由 3D 體素模型直接提取測站下方地層柱代入一維 Haskell–Thomson 傳遞矩陣的閉環正演（$r = 0.8285, \text{RMSE} = 0.350\text{ Hz}$），但在臺北半地塹盆地（`TAP001`）因未包含三維盆地邊緣表面波散射而高估主頻，且線性黏彈性假設尚未考慮強震大應變下土壤剪力模數折減（$G/\ G_{\max}$）與阻尼比增加的動態非線性效應。
+   在 422 口水文深井與 5,541 口混合井的盲測中，PG-WellboreSeqNet 的點對點 Accuracy（35.27% 與 48.98%）略低於物理增強隨機森林（35.97% 與 51.97%）。這是因為地調所岩心描述中的「細砂」、「粗砂」與「砂泥互層」在過渡帶本就存在連續粒徑漸變，且樹狀模型擅長對局部座標進行硬切分。PG-WellboreSeqNet 的核心貢獻在於透過瓦爾特相律 CRF 與單點尖峰濾除，將隨機森林產生的 1,012 處（深井）與 2,270 處（混合井）垂直孤立椒鹽噪聲徹底降至 0 處，並透過對數先驗補償將少數類粉土召回率恢復至 5.12%。同時，序列模型換層頻率（1.7–4.0 次/100m）低於真實鑽井記錄（34.0 次/100m），反映模型主要捕捉數十公尺尺度的主導沉積相包裹體，尚無法解析次公尺級極薄互層。
+2. **區域地殼層析波速尺度對物理損失閘門的限制**：
+   經特徵變異數分解（`reports/phys_loss_activation_audit.json`），`LEE2025` 地殼層析模型在 0–300 m 的剪力波速範圍為 1,503.3–2,987.1 m/s（井間變異佔比 $\eta^2 = 0.9999$，井內標準差僅 3.1 m/s），主要扮演跨盆地空間位置代理角色。因此四項物理一致性損失閘門中僅 $V_s > 2,500\text{ m/s}$ 泥質懲罰實質觸發（6.19%），使得有無 $\mathcal{L}_{\text{phy}}$ 的 5 折交叉驗證表現（Macro F1 0.2665 vs. 0.2564）在統計上持平。未來需結合密集微地動陣列（Microtremor Array）或表面波頻散反演之淺層工程波速模型（$V_s < 500\text{ m/s}$），方能完全發揮淺部岩石物理邊界損失的潛力。
+3. **工區近場內插與跨區遠場外推的尺度分野**：
+   全面融合 GSMMA 公開之 6,288 口工程地質鑽孔並導入固定基準對數深度 $z_{\text{log}}$ 與雙尺度近場先驗後，PG-WellboreSeqNet 在 5,119 口工程鑽孔上的折外盲測（OOF）準確率由 Zero-shot 的 26.52% 大幅提升至 60.31%。然而當面對 $15\text{ km} \times 15\text{ km}$ 空間區塊盲測時，準確率僅由 36.66% 提升至 37.83%（+1.17%）。這清楚顯示局部密集工程鑽孔的增益主要來自同工區數十至數百公尺內的近場空間錨定，而跨盆地遠場盲區的外推能力仍受制於背景震波層析網格的平滑解析度。
+4. **深部雙界面基盤之文獻先驗耦合限制**：
+   全臺水文觀測井深度多在 50–300 m，未直接鑽穿至結晶基盤。本研究建立之「工程基盤面（$Z_{\text{eng}}$）」與「地震聲學基盤面（$Z_{\text{ac}}$）」屬於受區域層析波速梯度與地球物理文獻約束之結構先驗模型，雖在北港高區（404.4 m）、臺南深槽（893.7 m）及 32 座強震站基盤深度一致性檢查（$r = 0.6872, \text{RMSE} = 179.2\text{ m}$）上展現合理趨勢，但並非獨立地球物理反演，未來需納入深部反射震測剖面與大地電磁（MT）資料進一步約束。
+5. **一維線性黏彈性波傳對三維盆地效應與強震非線性之簡化**：
+   本研究採用全臺統一經驗耦合參數完成 3D 體素至一維 Haskell–Thomson 傳遞矩陣的閉環正演（$r = 0.8224, R^2 = 0.5831, \text{RMSE} = 0.316\text{ Hz}$），但在臺北半地塹盆地因未包含二維/三維盆地邊緣表面波散射與松山層極軟泥局部效應而系統性高估主頻（平均偏差 $+0.451\text{ Hz}$）；且線性黏彈性假設尚未考慮強震大應變下土壤剪力模數折減（$G/G_{\max}$）與阻尼比增加的動態非線性效應，導致理論傳遞函數峰值（$A_{\max} \approx 2.67 \sim 8.15$）高於強震實測放大倍率。
 
 ---
 
 ## 肆、結論與應用
 
 ### 一、核心結論
-1. **建立跨尺度物理與相律引導之井身序列網路（PG-WellboreSeqNet）與電測蒸餾模型**：透過固定基準對數深度（$z_{\text{norm}}, z_{\text{log}}$）、少數類對數先驗補償與列中心化瓦爾特相律 CRF，在全臺 422 口水文深井 5 折盲測中將垂直孤立單點噪聲由隨機森林的 1,012 處徹底消除至 0 處，並使少數類粉土召回率恢復至 5.12%（15 km 空間盲測準確率達 41.42%）；在原位電測知識蒸餾中，14 維學生網路之 Macro F1 提升至 0.4405（孤立噪聲 0 處），並於物理尺度重建虛擬自然伽瑪（$R^2=0.182, \text{RMSE}=0.258$）與視電阻率（$R^2=0.121, \text{RMSE}=0.435$）。
-2. **定量界定公開工程鑽孔融合之近場錨定與遠場外推邊界**：自原始掃描 31,904 張圖檔中嚴格品管保留 14,280 張有效柱狀圖（6,288 口工程鑽孔，與深井合併為 5,541 口有效沉積相井、287,148 筆樣本），使 PG-WellboreSeqNet 全島 5 折準確率提升至 48.98%（Macro F1 達 0.3949，換層頻率 4.0 次/100m，孤立噪聲 0 處），工程鑽孔折外盲測（OOF）準確率由 Zero-shot 的 26.52% 躍升至 60.31%（+33.79%），而 15 km 空間盲測為 37.83%（+1.17%），明確界定局部工區近場內插與區域層析遠場外推之物理邊界。
+1. **建立跨尺度物理與相律引導之井身序列網路（PG-WellboreSeqNet）與電測蒸餾模型**：透過固定基準對數深度（$z_{\text{norm}}, z_{\text{log}}$）、少數類對數先驗補償、列中心化瓦爾特相律 CRF 與單點尖峰濾除，在全臺 422 口水文深井 5 折盲測中維持 35.27% 準確率（Macro F1 0.2665），將垂直孤立單點噪聲由隨機森林的 1,012 處徹底消除至 0 處，並使少數類粉土召回率由 0.00% 恢復至 5.12%（15 km 空間盲測準確率達 41.42%）；同時透過特徵變異數分解誠實診斷出公里級地殼層析波速對淺部物理損失閘門的尺度限制（僅高波速泥質閘門觸發 6.19%）。在原位電測知識蒸餾中，14 維學生網路之 Macro F1 由 0.4172 提升至 0.4405（孤立噪聲 0 處），並於物理尺度重建虛擬自然伽瑪（$R^2=0.182, \text{RMSE}=0.258$）與視電阻率（$R^2=0.121, \text{RMSE}=0.435$）。
+2. **定量界定 GSMMA 公開工程鑽孔融合之近場錨定與遠場外推邊界**：自經濟部地調中心（GSMMA）地質資料整合查詢系統原始掃描 31,904 張圖檔中嚴格品管保留 14,280 張有效柱狀圖（6,288 口工程鑽孔，與深井合併為 5,541 口有效沉積相井、287,148 筆樣本），使 PG-WellboreSeqNet 全島 5 折準確率提升至 48.98%（Macro F1 達 0.3949，換層頻率 4.0 次/100m，孤立噪聲 0 處；消除隨機森林之 2,270 處噪聲），工程鑽孔折外盲測（OOF）準確率由 Zero-shot 的 26.52% 躍升至 60.31%（+33.79%），而 15 km 空間盲測為 37.83%（+1.17%），明確界定局部工區近場內插與區域層析遠場外推之物理邊界。
 3. **量化臺灣六大盆地瓦爾特相律轉移矩陣與馬可夫熵**：揭示嘉南平原受全新世海侵潟湖泥主導（黏土佔 37.02%、砂泥比 0.68、轉移熵 1.671 Bits），而屏東平原與濁水溪沖積扇則呈現山前高能辮狀河道分選特徵（粗砂礫石佔 57.44% 與 41.13%、轉移熵達 2.012–2.025 Bits）。
-4. **重構全臺六大盆地雙界面基盤並通過構造與水動力文獻檢驗**：完成全臺 297,540 顆體素之工程基盤（$V_s \ge 760\text{ m/s}$）與聲學基盤（$V_s \ge 2,000\text{ m/s}$）反演，重現嘉南盆地北港基盤高區（平均 404.4 m）至臺南深槽（平均 893.7 m，構造傾沒梯度 133.6 m/10 km），並於濁水溪沖積扇 0–300 m 主含水層定量導出粗粒相由扇頂（58.5%）向扇尾（0.0%）之水動力指數衰減規律（$F(x) = 0.671 e^{-x/12.0}$，$R^2 = 0.936$）。
-5. **完成 3D 體素至 1D 波傳閉環驗證並印證盆地維度效應**：直接提取全臺六大盆地 32 座代表性 TSMIP 強震站正下方之 3D 體素岩性柱與基盤深度驅動 Haskell–Thomson 傳遞矩陣，體素聲學基盤與文獻深度高度相關（ = 0.9082, 	ext{RMSE} = 109.7	ext{ m}$），閉環預測主頻 {0,	ext{voxel}}$ 與實測主頻高度吻合（ = 0.7981, R^2 = 0.5557, 	ext{RMSE} = 0.286	ext{ Hz}$），相較傳統四分之一波長粗略公式（$	ext{RMSE} = 0.748	ext{ Hz}$）誤差大幅降低 61.8%，並由臺北半地塹測站之正演殘差印證二維/三維盆地邊緣表面波效應。
+4. **建構全臺六大盆地雙界面基盤結構先驗並通過水動力文獻檢驗**：完成全臺 297,540 顆體素之工程基盤（$V_s \ge 760\text{ m/s}$）與聲學基盤（$V_s \ge 2,000\text{ m/s}$）建模，重現嘉南盆地北港基盤高區（平均 404.4 m）至臺南深槽（平均 893.7 m，構造傾沒梯度 133.6 m/10 km），並於濁水溪沖積扇 0–300 m 主含水層定量導出粗粒相由扇頂（58.5%）向扇尾（0.0%）之水動力指數衰減規律（$F(x) = 0.671 e^{-x/12.0}$，$R^2 = 0.936$）。
+5. **完成 32 座 NCREE EGDT 強震站之全臺統一參數 3D 體素至 1D 波傳閉環驗證並印證盆地維度效應**：直接提取全臺六大盆地 32 座 NCREE EGDT 強震站正下方之 3D 體素岩性柱與基盤深度，在無分盆地人工調參下驅動 Haskell–Thomson 傳遞矩陣，體素聲學基盤結構先驗與文獻深度呈正向一致（$r = 0.6872, \text{RMSE} = 179.2\text{ m}$），閉環預測主頻 $f_{0,\text{voxel}}$ 與基準主頻顯著相關（Pearson $r = 0.8224$, Spearman $\rho = 0.5982$, $R^2 = 0.5831$, $\text{RMSE} = 0.316\text{ Hz}$, $\text{MAE} = 0.230\text{ Hz}$），相較傳統四分之一波長粗略公式（$\text{RMSE} = 1.346\text{ Hz}, R^2 = -6.5797$）將均方根誤差降低 76.5%，並由臺北半地塹測站之正演殘差（平均高估 $+0.451\text{ Hz}$）定量印證二維/三維盆地邊緣表面波與極軟泥層效應。
 
 ### 二、防震減災與地下水資源管理應用價值
-1. **都會防震微區劃（Seismic Microzonation）**：結合三維體素岩性柱與傳遞矩陣閉環正演，可在缺乏深孔波速測井的場址快速評估低頻共振主頻分佈，提供中長週期建築與橋梁耐震設計參考。
+1. **區域防震微區劃（Seismic Microzonation）**：結合三維體素岩性柱與傳遞矩陣閉環正演，可在缺乏深孔波速測井的場址快速評估低頻共振主頻趨勢，輔助識別相近 $V_{s30}$ 下因深部基盤埋深差異造成的長週期共振風險。
 2. **地下水補注與地層下陷防治**：定量繪製高透水粗砂礫石含水層（扇頂補注區）與高壓密敏感黏土層（如嘉南平原與濁水溪扇尾）的三維空間展布，協助抗旱鑿井選址與下陷潛勢評估。
 
 ### 三、未來展望
-1. **結合 TSMIP 實測強震波形與等效線性動態分析**：後續將進一步接入強震測站之實測三軸加速度波形計算地表/井下頻譜比（SSR）與水平/垂直頻譜比（HVSR），並在傳遞矩陣中導入隨剪應變變化之模數折減曲線，以提升強震非線性場址效應與三維盆地邊緣散射效應的模擬精度。
+1. **結合 TSMIP 實測強震波形、淺層工程波速模型與三維波傳模擬**：後續將接入強震測站之實測三軸加速度波形計算地表/井下頻譜比（SSR）與水平/垂直頻譜比（HVSR），整合微地動陣列淺層波速以強化物理損失閘門，並在波傳模擬中導入隨剪應變變化之等效線性模數折減曲線與 2D/3D 盆地邊緣數值模擬。
 
 ---
 
@@ -591,9 +616,11 @@ $$A_{\max} \approx \frac{1}{\alpha + \frac{\pi}{4 Q_s}}$$
 7. Lafferty, J., McCallum, A., & Pereira, F. C. (2001). Conditional random fields: Probabilistic models for segmenting and labeling sequence data. *Proceedings of the 18th International Conference on Machine Learning (ICML)*, 282–289.
 8. Larionov, V. V. (1969). *Borehole Radiometry* (*Radiometriya skvazhin*). Nedra, Moscow, 327 pp.
 9. Lee, E.-J., Liao, W.-Y., Koulakov, I., Chen, P., Chang, S.-P., Chen, D.-Y., Wu, Y.-M., Liang, W.-T., Lo, Y.-T., Yen, H.-Y., & Lee, Y.-H. (2025). Tomographic constraints on a mid-crustal high-velocity body beneath west-central Taiwan: Implications for passive-margin mafic additions. *Journal of Geophysical Research: Solid Earth*, 130(12), e2025JB032225. https://doi.org/10.1029/2025JB032225
-10. Lee, S.-J., Liang, W.-T., Cheng, H.-W., Tu, F.-S., Ma, K.-F., Tsuruoka, H., Kawakatsu, H., Huang, B.-S., & Liu, C.-C. (2014). Towards real-time regional earthquake simulation I: real-time moment tensor monitoring (RMT) for regional events in Taiwan. *Geophysical Journal International*, 196(1), 432–446. https://doi.org/10.1093/gji/ggt371
-11. Middleton, G. V. (1973). Johannes Walther's law of the correlation of facies. *Geological Society of America Bulletin*, 84(3), 979–988. https://doi.org/10.1130/0016-7606(1973)84<979:JWLOTC>2.0.CO;2
-12. Thomson, W. T. (1950). Transmission of elastic waves through a stratified solid medium. *Journal of Applied Physics*, 21(2), 89–93. https://doi.org/10.1063/1.1699629
+10. Middleton, G. V. (1973). Johannes Walther's law of the correlation of facies. *Geological Society of America Bulletin*, 84(3), 979–988. https://doi.org/10.1130/0016-7606(1973)84<979:JWLOTC>2.0.CO;2
+11. Thomson, W. T. (1950). Transmission of elastic waves through a stratified solid medium. *Journal of Applied Physics*, 21(2), 89–93. https://doi.org/10.1063/1.1699629
+12. Wang, C.-Y., Lee, Y.-H., Chang, M.-L., & Hsiao, C.-L. (2004). Investigating subsurface structures and P- and S-wave velocities in the Taipei basin. *Terrestrial, Atmospheric and Oceanic Sciences*, 15(4), 609–627.
 13. 梁文宗（2022）。台灣地震科學資料中心。*台灣地震科學中心簡訊*，36。https://doi.org/10.30067/TECNL.202206_1(1).0002
-14. 經濟部中央地質調查所（2010–2020）。《臺灣地下水觀測網整體水文地質鑽探調查報告（第一期至第四期）》。經濟部中央地質調查所特刊。
-15. 國家地震工程研究中心（2022）。《臺灣工程地盤特性資料庫（EGDT）技術手冊與測站參數彙編》。財團法人國家實驗研究院國家地震工程研究中心。
+14. 郭俊翔、林哲民、張道明、溫國樑（2017）。《強震測站場址工程地質資料庫建置與應用（NCREE-17-004）》。財團法人國家實驗研究院國家地震工程研究中心技術報告。
+15. 經濟部中央地質調查所（2010–2020）。《臺灣地下水觀測網整體水文地質鑽探調查報告（第一期至第四期）》。經濟部中央地質調查所特刊。
+16. 經濟部地質調查及礦業管理中心（2024）。《地質資料整合查詢系統（工程地質探勘資料庫）》。https://twgeoref.gsmma.gov.tw/GipOpenWeb/wSite/mp
+17. 國家地震工程研究中心（2022）。《臺灣工程地盤特性資料庫（EGDT）技術手冊與測站參數彙編》。財團法人國家實驗研究院國家地震工程研究中心。https://egdt.ncree.org.tw/

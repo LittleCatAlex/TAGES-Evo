@@ -243,11 +243,6 @@ def build_voxel_1d_stratified_profile(
         28.0, 68.0
     ))
 
-    if b_key == "taipei":
-        h_eff = float(np.clip(z_eng * 0.65 + 12.0, 32.0, 60.0))
-    elif b_key == "taichung":
-        h_eff = float(np.clip(z_eng * 0.55 + 15.0, 32.0, 60.0))
-
     n_layers = max(14, int(round(h_eff / 2.5)))
     z_edges = np.linspace(0.0, h_eff, n_layers + 1)
     z_mids = 0.5 * (z_edges[:-1] + z_edges[1:])

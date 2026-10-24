@@ -1,0 +1,124 @@
+{
+  "facies_theoretical_models": {
+    "clay_soft": {
+      "h_m": 55.0,
+      "vs_ms": 160.0,
+      "rho_gcc": 1.85,
+      "qs": 18.0,
+      "impedance_ratio_alpha": 0.166,
+      "f0_hz": 0.73,
+      "t0_s": 1.36,
+      "peak_amp_h": 8.18,
+      "rs_peak_period_s": 1.36,
+      "rs_peak_sa_pga": 5.45
+    },
+    "sand_medium": {
+      "h_m": 45.0,
+      "vs_ms": 220.0,
+      "rho_gcc": 1.9,
+      "qs": 24.0,
+      "impedance_ratio_alpha": 0.234,
+      "f0_hz": 1.23,
+      "t0_s": 0.81,
+      "peak_amp_h": 4.97,
+      "rs_peak_period_s": 0.82,
+      "rs_peak_sa_pga": 3.45
+    },
+    "gravel_stiff": {
+      "h_m": 35.0,
+      "vs_ms": 360.0,
+      "rho_gcc": 2.1,
+      "qs": 32.0,
+      "impedance_ratio_alpha": 0.423,
+      "f0_hz": 2.59,
+      "t0_s": 0.39,
+      "peak_amp_h": 2.51,
+      "rs_peak_period_s": 0.38,
+      "rs_peak_sa_pga": 1.93
+    }
+  },
+  "station_impedance_stats": {
+    "alpha_voxel_min": 0.158,
+    "alpha_voxel_max": 0.352,
+    "alpha_obs_min": 0.129,
+    "alpha_obs_max": 0.627,
+    "amp_voxel_min": 2.67,
+    "amp_voxel_max": 8.15,
+    "amp_obs_min": 1.9,
+    "amp_obs_max": 5.4
+  },
+  "chianan_ew_transect": [
+    {
+      "station_code": "CHY029",
+      "station_name": "興昌國小 (古坑)",
+      "vs30_obs_ms": 541.7,
+      "z_bedrock_ac_m": 120.0,
+      "f0_voxel_hz": 2.76,
+      "t0_voxel_s": 0.36,
+      "f0_obs_hz": 2.65,
+      "t0_obs_s": 0.38,
+      "peak_amp_model": 2.67,
+      "peak_amp_obs": 2.0
+    },
+    {
+      "station_code": "CHY006",
+      "station_name": "梅山國小 (梅山)",
+      "vs30_obs_ms": 422.7,
+      "z_bedrock_ac_m": 120.0,
+      "f0_voxel_hz": 2.42,
+      "t0_voxel_s": 0.41,
+      "f0_obs_hz": 2.25,
+      "t0_obs_s": 0.44,
+      "peak_amp_model": 3.33,
+      "peak_amp_obs": 2.3
+    },
+    {
+      "station_code": "CHY015",
+      "station_name": "白河國小 (白河)",
+      "vs30_obs_ms": 224.7,
+      "z_bedrock_ac_m": 758.8,
+      "f0_voxel_hz": 0.62,
+      "t0_voxel_s": 1.61,
+      "f0_obs_hz": 1.15,
+      "t0_obs_s": 0.87,
+      "peak_amp_model": 8.15,
+      "peak_amp_obs": 4.1
+    },
+    {
+      "station_code": "CHY039",
+      "station_name": "月眉國小 (新港)",
+      "vs30_obs_ms": 195.2,
+      "z_bedrock_ac_m": 420.9,
+      "f0_voxel_hz": 0.93,
+      "t0_voxel_s": 1.08,
+      "f0_obs_hz": 0.96,
+      "t0_obs_s": 1.04,
+      "peak_amp_model": 5.39,
+      "peak_amp_obs": 4.3
+    },
+    {
+      "station_code": "CHY054",
+      "station_name": "新營國小 (新營)",
+      "vs30_obs_ms": 175.1,
+      "z_bedrock_ac_m": 832.6,
+      "f0_voxel_hz": 0.67,
+      "t0_voxel_s": 1.49,
+      "f0_obs_hz": 0.72,
+      "t0_obs_s": 1.39,
+      "peak_amp_model": 6.7,
+      "peak_amp_obs": 4.9
+    },
+    {
+      "station_code": "CHY016",
+      "station_name": "苓和國小 (將軍)",
+      "vs30_obs_ms": 199.5,
+      "z_bedrock_ac_m": 1000.0,
+      "f0_voxel_hz": 0.67,
+      "t0_voxel_s": 1.49,
+      "f0_obs_hz": 0.78,
+      "t0_obs_s": 1.28,
+      "peak_amp_model": 6.7,
+      "peak_amp_obs": 4.5
+    }
+  ]
+}
