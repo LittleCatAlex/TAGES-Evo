@@ -1,4 +1,4 @@
-"""Update 國際科展作品說明書_最新進度版_EAEV.md using verified experimental JSON/CSV reports."""
+"""Update 國際科展作品說明書_最新進度版_EAEV.md using verified experimental JSON/CSV reports (Idempotent)."""
 from pathlib import Path
 import json
 import pandas as pd
@@ -69,7 +69,6 @@ text = DOC_PATH.read_text(encoding="utf-8")
 text = text.replace("\r\n", "\n")
 
 # 1. Replace Version Date & Abstracts (Chinese + English)
-old_abstract_block = text[text.index("> **版本日期**"):text.index("## 壹、前言")]
 new_abstract_block = f"""> **版本日期**：2026-10-25  
 
 ---
@@ -107,7 +106,9 @@ new_abstract_block = f"""> **版本日期**：2026-10-25
 ---
 
 """
-text = text.replace(old_abstract_block, new_abstract_block, 1)
+abstract_start = text.index("> **版本日期**")
+abstract_end = text.index("## 壹、前言")
+text = text[:abstract_start] + new_abstract_block + text[abstract_end:]
 
 # 2. Update Table 1-1 Q3 and Table 2-2 rows 3 & 5 (GSMMA & NCREE EGDT sources)
 text = text.replace(
@@ -122,16 +123,15 @@ text = text.replace(
 
 old_row3 = "| **3. 臺灣公開工程地質鑽探柱狀圖資料庫** | 整合自經濟部地調中心地質資料整合查詢系統與國震中心公開工程鑽探報告 | 涵蓋 218 個公開工程專案；自原始掃描之 31,904 張圖檔中，嚴格排除 17,624 張非地層柱狀圖或深度異常紀錄（稽核成因記錄於 `reports/ocr_error_audit.json`），最終保留 14,280 張有效工程地質鑽探柱狀圖（對應 6,288 口有效工程鑽孔、44,080 層原始地層、細分為 220,704 筆 1 m 步長深度點；其中未固結沉積相有效井為 5,119 口、170,188 筆深度點；座標經 TWD67/TWD97 轉換校正，100.00% 落於臺灣陸地邊界內） | `data/borehole_final_results.json`<br/>`data/interim/school_boreholes.csv`<br/>`data/processed/dataset_combined.csv` | [地質資料整合查詢系統](https://twgeoref.gsmma.gov.tw/GipOpenWeb/wSite/mp)<br/>[工程地質探勘資料庫 EGDT](https://egdt.ncree.org.tw/) |"
 new_row3 = "| **3. 臺灣公開工程地質鑽探柱狀圖資料庫** | 經濟部地質調查及礦業管理中心（GSMMA）地質資料整合查詢系統 | 涵蓋 218 個公開工程專案；自原始掃描之 31,904 張圖檔中，嚴格排除 17,624 張非地層柱狀圖或深度異常紀錄（稽核成因記錄於 `reports/ocr_error_audit.json`），最終保留 14,280 張有效工程地質鑽探柱狀圖（對應 6,288 口有效工程鑽孔、44,080 層原始地層、細分為 220,704 筆 1 m 步長深度點；其中未固結沉積相有效井為 5,119 口、170,188 筆深度點；座標經 TWD67/TWD97 轉換校正，100.00% 落於臺灣陸地邊界內） | `data/borehole_final_results.json`<br/>`data/interim/school_boreholes.csv`<br/>`data/processed/dataset_combined.csv` | [GSMMA 地質資料整合查詢系統](https://twgeoref.gsmma.gov.tw/GipOpenWeb/wSite/mp) |"
-assert old_row3 in text, "old_row3 not found"
-text = text.replace(old_row3, new_row3, 1)
+if old_row3 in text:
+    text = text.replace(old_row3, new_row3, 1)
 
 old_row5 = "| **5. 強震測站場址參數與共振主頻基準** | 國家地震工程研究中心（NCREE）EGDT 資料庫 & Kuo et al. (2012, 2016) | 全臺六大代表性盆地 32 座 TSMIP 強震測站之鑽孔實測 $V_{s30}$、地盤分類（Class C/D/E）與文獻實測共振主頻 $f_{0,\\text{obs}}$ | `data/raw/seismic/tsmip_site_truth.csv`<br/>`reports/chianan_ssr_summary.csv` | [工程地質探勘資料庫 EGDT](https://egdt.ncree.org.tw/)<br/>[CWA GDMS 地球物理資料管理系統](https://gdms.cwa.gov.tw/) |"
 new_row5 = "| **5. 強震測站場址參數與共振主頻基準** | 國家地震工程研究中心（NCREE）EGDT 資料庫、Kuo et al. (2012, 2016) & 國震中心報告 NCREE-17-004 | 全臺六大代表性盆地 32 座 NCREE EGDT 公開強震測站之 PS-Logging 鑽孔實測 $V_{s30}$、鑽井深度、$Z_{1.0}$、$\\kappa_0$、地盤分類（Class C/D/E）與基準共振主頻 $f_{0,\\text{obs}}$（逐站來源記錄於 `source_ref` 與 `egdt_station_verification_2026.md`） | `data/raw/seismic/tsmip_egdt_site_truth.csv`<br/>`data/raw/seismic/tsmip_site_truth.csv`<br/>`reports/tsmip_closed_loop_summary.csv` | [工程地質探勘資料庫 EGDT](https://egdt.ncree.org.tw/)<br/>[CWA GDMS 地球物理資料管理系統](https://gdms.cwa.gov.tw/) |"
-assert old_row5 in text, "old_row5 not found"
-text = text.replace(old_row5, new_row5, 1)
+if old_row5 in text:
+    text = text.replace(old_row5, new_row5, 1)
 
 # 3. Update Section 貳、三 (3.1, 3.3) and Section 貳、四 (Method 4)
-old_sec_33_to_24 = text[text.index("#### 3.3 物理引導損失函數"):text.index("## 參、研究結果與討論")]
 new_sec_33_to_24 = f"""#### 3.3 物理引導損失函數（Physics-Guided Loss Function）與地殼層析波速尺度診斷
 總損失函數結合序列負對數似然、類別平衡 Focal Loss 與岩石物理一致性懲罰項（實作於 `src/tages/models/losses.py`）：
 $$\\mathcal{{L}}_{{\\text{{total}}}} = w_{{\\text{{crf}}}} \\mathcal{{L}}_{{\\text{{CRF}}}} + w_{{\\text{{L2}}}} \\mathcal{{L}}_{{\\text{{Focal-L2}}}} + w_{{\\text{{L1}}}} \\mathcal{{L}}_{{\\text{{Focal-L1}}}} + \\lambda_{{\\text{{phy}}}} \\mathcal{{L}}_{{\\text{{phy}}}}$$
@@ -179,11 +179,11 @@ $$\\mathcal{{L}}_{{\\text{{total}}}} = w_{{\\text{{crf}}}} \\mathcal{{L}}_{{\\te
 ---
 
 """
-assert old_sec_33_to_24 in text, "old_sec_33_to_24 not found"
-text = text.replace(old_sec_33_to_24, new_sec_33_to_24, 1)
+sec33_start = text.index("#### 3.3 物理引導損失函數")
+sec33_end = text.index("## 參、研究結果與討論")
+text = text[:sec33_start] + new_sec_33_to_24 + text[sec33_end:]
 
-# 4. Update Section 參、一 (1.2, 1.3, 1.4 honest discussion of RF vs SeqNet, L_phy ablation, GSMMA source)
-old_sec_3_12_to_14 = text[text.index("#### 1.2 空間區塊盲測"):text.index("### 二、臺灣六大盆地瓦爾特相律轉移矩陣")]
+# 4. Update Section 參、一 (1.2, 1.3, 1.4)
 new_sec_3_12_to_14 = """#### 1.2 空間區塊盲測（Spatial Block CV）、物理損失消融與點準確率權衡討論
 為檢驗模型在遠離現有鑽井網時的跨區外推能力，本研究依 $15\\text{ km} \\times 15\\text{ km}$ 地理網格進行空間區塊盲測（位於測試網格內的所有鑽井共 22,676 筆樣本完全不參與訓練）：
 - **隨機分井 GroupKFold（5-Fold）**：Raw RF 為 `36.13% / Macro F1 0.3228`，Physics RF 為 `35.97% / Macro F1 0.3197`，RF+Markov 為 `36.36% / Macro F1 0.3187`，PG-WellboreSeqNet 為 `35.27% / Macro F1 0.2665`。
@@ -247,12 +247,11 @@ new_sec_3_12_to_14 = """#### 1.2 空間區塊盲測（Spatial Block CV）、物�
 ---
 
 """
-assert old_sec_3_12_to_14 in text, "old_sec_3_12_to_14 not found"
-text = text.replace(old_sec_3_12_to_14, new_sec_3_12_to_14, 1)
+sec312_start = text.index("#### 1.2 空間區塊盲測")
+sec312_end = text.index("### 二、臺灣六大盆地瓦爾特相律轉移矩陣")
+text = text[:sec312_start] + new_sec_3_12_to_14 + text[sec312_end:]
 
 # 5. Update Section 參、四 (4.3 to 4.9) & Section 參、五 & Section 肆 & Section 伍
-old_sec_43_to_end = text[text.index("#### 4.3 三維體素模型驅動一維多層"):]
-
 clay_m = sr_metrics["facies_theoretical_models"]["clay_soft"]
 sand_m = sr_metrics["facies_theoretical_models"]["sand_medium"]
 gravel_m = sr_metrics["facies_theoretical_models"]["gravel_stiff"]
@@ -292,7 +291,7 @@ $$\\alpha = \\frac{{\\rho_1 V_{{s1}}}}{{\\rho_b V_{{sb}}}}$$
 $$A_{{\\max,\\text{{single}}}} \\approx \\frac{{1}}{{\\alpha + \\frac{{\\pi}}{{4 Q_s}}}}$$
 而在具深度壓密梯度（$V_s(z) \\propto (1+z/40)^{{0.25}}$）之多層 Haskell–Thomson 傳遞矩陣中，近地表低波速層與深部壓密層之間的連續阻抗遞變會產生額外的波場聚焦效應（Impedance-Gradient Amplification），使多層傳遞函數峰值 $|H(f_0)|$ 高於單層均質公式。本研究依據三類代表性沉積相參數，透過腳本 `scripts/plot_site_response_facies.py` 動態計算並輸出 `reports/site_response_metrics.json` 與圖 3-12，揭示沉積相對強震場址效應的定量控制機制：
 
-![圖 3-12 沉積相物理特性對強震場址效應控制機制、近似反應譜分異與嘉南盆地東西向剖面分析](reports/site_response_spectra_facies.png)
+![圖 3-12 沉積相物理特性對強震場址效應控制機制、近似反應譜分異與嘉南東西向剖面分析](reports/site_response_spectra_facies.png)
 
 1. **軟弱黏土相（深槽軟泥 / 湖沼泥，圖 3-12a, 3-12c）**：
    代表性參數為 $H={clay_m['h_m']:.0f}\\text{{ m}}, V_{{s0}}={clay_m['vs_ms']:.0f}\\text{{ m/s}}, \\rho={clay_m['rho_gcc']:.2f}\\text{{ g/cm}}^3, Q_s={clay_m['qs']:.0f}$。其波阻抗比低至 **$\\alpha = {clay_m['impedance_ratio_alpha']:.3f}$**，多層 Haskell–Thomson 理論共振基頻落於長週期低頻段 **$f_0 = {clay_m['f0_hz']:.2f}\\text{{ Hz}}$（共振週期 $T_0 = {clay_m['t0_s']:.2f}\\text{{ s}}$）**，線性黏彈性傳遞函數峰值達 **$A_{{\\max}} = {clay_m['peak_amp_h']:.2f}$ 倍**。在全臺 32 座強震站中，深槽軟泥與濱海細粒測站（如新營 `CHY054` 實測 $V_{{s30}}=175.1\\text{{ m/s}}$、將軍 `CHY016` 實測 $V_{{s30}}=199.5\\text{{ m/s}}$）體素正演基頻均為 $0.67\\text{{ Hz}}$（基準為 $0.72\\text{{ Hz}}$ 與 $0.78\\text{{ Hz}}$）。
@@ -377,7 +376,7 @@ $$A_{{\\max,\\text{{single}}}} \\approx \\frac{{1}}{{\\alpha + \\frac{{\\pi}}{{4
 2. **定量界定 GSMMA 公開工程鑽孔融合之近場錨定與遠場外推邊界**：自經濟部地調中心（GSMMA）地質資料整合查詢系統原始掃描 31,904 張圖檔中嚴格品管保留 14,280 張有效柱狀圖（6,288 口工程鑽孔，與深井合併為 5,541 口有效沉積相井、287,148 筆樣本），使 PG-WellboreSeqNet 全島 5 折準確率提升至 48.98%（Macro F1 達 0.3949，換層頻率 4.0 次/100m，孤立噪聲 0 處；消除隨機森林之 2,270 處噪聲），工程鑽孔折外盲測（OOF）準確率由 Zero-shot 的 26.52% 躍升至 60.31%（+33.79%），而 15 km 空間盲測為 37.83%（+1.17%），明確界定局部工區近場內插與區域層析遠場外推之物理邊界。
 3. **量化臺灣六大盆地瓦爾特相律轉移矩陣與馬可夫熵**：揭示嘉南平原受全新世海侵潟湖泥主導（黏土佔 37.02%、砂泥比 0.68、轉移熵 1.671 Bits），而屏東平原與濁水溪沖積扇則呈現山前高能辮狀河道分選特徵（粗砂礫石佔 57.44% 與 41.13%、轉移熵達 2.012–2.025 Bits）。
 4. **建構全臺六大盆地雙界面基盤結構先驗並通過水動力文獻檢驗**：完成全臺 297,540 顆體素之工程基盤（$V_s \\ge 760\\text{{ m/s}}$）與聲學基盤（$V_s \\ge 2,000\\text{{ m/s}}$）建模，重現嘉南盆地北港基盤高區（平均 404.4 m）至臺南深槽（平均 893.7 m，構造傾沒梯度 133.6 m/10 km），並於濁水溪沖積扇 0–300 m 主含水層定量導出粗粒相由扇頂（58.5%）向扇尾（0.0%）之水動力指數衰減規律（$F(x) = 0.671 e^{{-x/12.0}}$，$R^2 = 0.936$）。
-5. **完成 32 座 NCREE EGDT 強震站之全臺統一參數 3D 體素至 1D 波傳閉環驗證並印證盆地維度效應**：直接提取全臺六大盆地 32 座 NCREE EGDT 強震站正下方之 3D 體素岩性柱與基盤深度，在無分盆地人工調參下驅動 Haskell–Thomson 傳遞矩陣，體素聲學基盤結構先驗與文獻深度呈正向一致（$r = {tsmip_metrics['acoustic_bedrock_vs_lit_depth']['pearson_r']:.4f}, \\text{{RMSE}} = {tsmip_metrics['acoustic_bedrock_vs_lit_depth']['rmse_m']:.1f}\\text{{ m}}$），閉環預測主頻 $f_{{0,\\text{{voxel}}}}$ 與基準主頻顯著相關（Pearson $r = {tsmip_metrics['f0_voxel_vs_obs']['pearson_r']:.4f}$, Spearman $\\rho = {tsmip_metrics['f0_voxel_vs_obs']['spearman_rho']:.4f}$, $R^2 = {tsmip_metrics['f0_voxel_vs_obs']['r2']:.4f}$, $\\text{{RMSE}} = {tsmip_metrics['f0_voxel_vs_obs']['rmse_hz']:.3f}\\text{{ Hz}}$, $\\text{{MAE}} = {tsmip_metrics['f0_voxel_vs_obs']['mae_hz']:.3f}\\text{{ Hz}}$），相較傳統四分之一波長粗略公式（$\\text{{RMSE}} = {tsmip_metrics['quarter_wavelength_vs_obs']['rmse_hz']:.3f}\\text{{ Hz}}, R^2 = {tsmip_metrics['quarter_wavelength_vs_obs']['r2']:.4f}$）將均方根誤差降低 76.5%，並由臺北半地塹測站之正演殘差（平均高估 $+0.451\\text{{ Hz}}$）定量印證二維/三維盆地邊緣表面波與極軟泥層效應。
+5. **完成 32 座 NCREE EGDT 強震站之全臺統一參數 3D 體素至 1D 波傳閉傳驗證並印證盆地維度效應**：直接提取全臺六大盆地 32 座 NCREE EGDT 強震站正下方之 3D 體素岩性柱與基盤深度，在無分盆地人工調參下驅動 Haskell–Thomson 傳遞矩陣，體素聲學基盤結構先驗與文獻深度呈正向一致（$r = {tsmip_metrics['acoustic_bedrock_vs_lit_depth']['pearson_r']:.4f}, \\text{{RMSE}} = {tsmip_metrics['acoustic_bedrock_vs_lit_depth']['rmse_m']:.1f}\\text{{ m}}$），閉環預測主頻 $f_{{0,\\text{{voxel}}}}$ 與基準主頻顯著相關（Pearson $r = {tsmip_metrics['f0_voxel_vs_obs']['pearson_r']:.4f}$, Spearman $\\rho = {tsmip_metrics['f0_voxel_vs_obs']['spearman_rho']:.4f}$, $R^2 = {tsmip_metrics['f0_voxel_vs_obs']['r2']:.4f}$, $\\text{{RMSE}} = {tsmip_metrics['f0_voxel_vs_obs']['rmse_hz']:.3f}\\text{{ Hz}}$, $\\text{{MAE}} = {tsmip_metrics['f0_voxel_vs_obs']['mae_hz']:.3f}\\text{{ Hz}}$），相較傳統四分之一波長粗略公式（$\\text{{RMSE}} = {tsmip_metrics['quarter_wavelength_vs_obs']['rmse_hz']:.3f}\\text{{ Hz}}, R^2 = {tsmip_metrics['quarter_wavelength_vs_obs']['r2']:.4f}$）將均方根誤差降低 76.5%，並由臺北半地塹測站之正演殘差（平均高估 $+0.451\\text{{ Hz}}$）定量印證二維/三維盆地邊緣表面波與極軟泥層效應。
 
 ### 二、防震減災與地下水資源管理應用價值
 1. **區域防震微區劃（Seismic Microzonation）**：結合三維體素岩性柱與傳遞矩陣閉環正演，可在缺乏深孔波速測井的場址快速評估低頻共振主頻趨勢，輔助識別相近 $V_{{s30}}$ 下因深部基盤埋深差異造成的長週期共振風險。
@@ -408,8 +407,8 @@ $$A_{{\\max,\\text{{single}}}} \\approx \\frac{{1}}{{\\alpha + \\frac{{\\pi}}{{4
 16. 經濟部地質調查及礦業管理中心（2024）。《地質資料整合查詢系統（工程地質探勘資料庫）》。https://twgeoref.gsmma.gov.tw/GipOpenWeb/wSite/mp
 17. 國家地震工程研究中心（2022）。《臺灣工程地盤特性資料庫（EGDT）技術手冊與測站參數彙編》。財團法人國家實驗研究院國家地震工程研究中心。https://egdt.ncree.org.tw/
 """
-assert old_sec_43_to_end in text, "old_sec_43_to_end not found"
-text = text.replace(old_sec_43_to_end, new_sec_43_to_end, 1)
+sec43_start = text.index("#### 4.3 三維體素模型驅動一維多層")
+text = text[:sec43_start] + new_sec_43_to_end
 
 DOC_PATH.write_text(text, encoding="utf-8")
 print("Updated manuscript successfully! Total lines:", len(text.splitlines()))
