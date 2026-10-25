@@ -134,3 +134,23 @@ def test_manuscript_seismic_site_effects_deep_metrics():
     assert "NCREE-17-004" in text
     assert "微區一" in text
 
+    # Deep bedrock Z1.0 physical control metrics
+    z10_m = deep_metrics["z1_0_bedrock_physics_control"]
+    assert f"{z10_m['pearson_r_z1_0_vs_t0']:.4f}" in text  # 0.7478
+    assert f"{z10_m['spearman_rho_z1_0_vs_t0']:.4f}" in text  # 0.7868
+    assert f"{z10_m['pearson_r_hsed_vs_t0']:.4f}" in text  # 0.7090
+
+    # 2011 Seismic Code Underestimation rate metrics
+    code_west = deep_metrics["seismic_code_2011_underestimation"]["western_plain_basins"]
+    code_basin = deep_metrics["seismic_code_2011_underestimation"]["basin_summary"]
+    code_all = deep_metrics["seismic_code_2011_underestimation"]["all_stations_summary"]
+    assert f"{code_west['mean_underestimation_t1_5s_pct']:.1f}%" in text  # 45.2%
+    assert f"{code_basin['Pingtung']['mean_underest_1_5s_pct']:.1f}%" in text  # 53.8%
+    assert f"{code_basin['Zhuoshui']['mean_underest_1_5s_pct']:.1f}%" in text  # 43.4%
+    assert f"{code_basin['Chianan']['mean_underest_1_5s_pct']:.1f}%" in text  # 42.3%
+    assert f"{code_all['max_underestimation_pct']:.1f}%" in text  # 69.5%
+
+    # 3D portal real-time solver
+    assert "全域任意座標點即時強震場址" in text or "即時強震場址效應解算器" in text
+
+

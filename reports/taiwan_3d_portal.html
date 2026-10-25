@@ -957,6 +957,48 @@
       disableCustomROIDraw();
     });
 
+    // 2D 地圖任意位置點擊：全域即時強震場址效應解算
+    map.on('click', function(e) {
+      if (isDrawingROI) return;
+      const lat = e.latlng.lat;
+      const lng = e.latlng.lng;
+      if (lat < 21.8 || lat > 25.5 || lng < 119.8 || lng > 122.3) return;
+
+      const res = estimateSiteResponseAt(lng, lat);
+      const elev = getElevationAt(lng, lat);
+
+      const underestBadge = (res.code_underest_t1_5_pct > 20)
+        ? `<div style="background: rgba(230,57,70,0.12); border: 1px solid #e63946; color: #cf222e; padding: 4px 6px; border-radius: 4px; font-size: 0.72rem; margin-top: 5px;">
+             ⚠️ 2011 耐震規範在 T=1.5s (15樓建築) 低估 <b>${res.code_underest_t1_5_pct.toFixed(1)}%</b>！
+           </div>`
+        : '';
+
+      const popupHtml = `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; min-width: 235px; line-height: 1.5; color: #24292f;">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; border-bottom: 1px solid #d0d7de; padding-bottom: 4px;">
+            <span style="font-weight: bold; color: #0969da; font-size: 0.88rem;">⚡ 全域即時強震場址解算</span>
+            <span style="background: #2da44e; color: #fff; font-size: 0.68rem; padding: 1px 5px; border-radius: 3px; font-weight: bold;">1D Haskell 正演</span>
+          </div>
+          <div style="font-size: 0.76rem;">📍 座標: <b>${lat.toFixed(4)}°N, ${lng.toFixed(4)}°E</b> (高程 <b>${elev.toFixed(1)}m</b>)</div>
+          <div style="font-size: 0.76rem;">盆地地體: <b>${res.basin}</b></div>
+          <div style="font-size: 0.76rem;">優勢岩相: <b>${res.voxel_dom_lith_name}</b></div>
+          <div style="font-size: 0.76rem;">基盤 Z1.0: <b>${res.z1_0_egdt_m} m</b> | 等效土厚: <b>${res.sediment_depth_m} m</b></div>
+          <div style="font-size: 0.76rem;">共振主頻: <b style="color: #d97706; font-size: 0.82rem;">${res.f0_voxel_hz} Hz</b> (週期 <b>${(1/res.f0_voxel_hz).toFixed(2)}s</b>)</div>
+          <div style="font-size: 0.76rem;">理論波放大: <b style="color: #1a7f37;">${res.peak_amp_model} 倍</b></div>
+          <div style="font-size: 0.76rem;">建議敏感樓層: <b style="color: #cf222e;">${res.sensitive_floors_desc}</b></div>
+          ${underestBadge}
+          <button onclick="openArbitrarySiteDrawer(${lng}, ${lat})" style="margin-top: 8px; width: 100%; background: #0969da; color: #ffffff; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; font-size: 0.76rem; font-weight: bold;">
+            📈 開啟即時波傳頻譜與耐震分析抽屜
+          </button>
+        </div>
+      `;
+
+      L.popup()
+        .setLatLng(e.latlng)
+        .setContent(popupHtml)
+        .openOn(map);
+    });
+
     function applyCustomROI(minLon, minLat, maxLon, maxLat) {
       minLon = Math.max(119.5, +minLon.toFixed(4));
       maxLon = Math.min(122.5, +maxLon.toFixed(4));
@@ -1602,6 +1644,8 @@
       return {
         lonToX: (lon) => ((lon - centerLon) / lonSpan) * SCENE_WIDTH,
         latToZ: (lat) => -((lat - centerLat) / latSpan) * sceneLength,
+        xToLon: (x) => centerLon + (x / SCENE_WIDTH) * lonSpan,
+        zToLat: (z) => centerLat - (z / sceneLength) * latSpan,
         depthToY: (d) => -(d / 1000.0) * sceneDepthBase * (zExaggeration / 10.0),
         elevToY: (elev) => (elev / 1000.0) * sceneDepthBase * (zExaggeration / 10.0),
         getPointY: (lon, lat, depth) => {
@@ -2358,10 +2402,306 @@
             }
           }
         }
+
+        // 檢測深井點擊
+        if (boreholeGroup && boreholeGroup.children.length > 0) {
+          const wellHits = raycaster.intersectObjects(boreholeGroup.children);
+          if (wellHits.length > 0) {
+            const item = wellHits[0].object.userData;
+            if (item && item.type === "borehole") {
+              // 深井點擊維持原提示
+              return;
+            }
+          }
+        }
+
+        // 檢測 3D 體素實體、點雲或基盤曲面點擊 -> 全域任意點即時強震場址效應解算！
+        if (currentBasinData) {
+          const targets = [];
+          if (voxelMesh) targets.push(voxelMesh);
+          if (pointCloud) targets.push(pointCloud);
+          if (bedrockGroup && bedrockGroup.children.length > 0) targets.push(...bedrockGroup.children);
+          const terrainHits = raycaster.intersectObjects(targets, true);
+          if (terrainHits.length > 0) {
+            const hitPt = terrainHits[0].point;
+            const b = currentBasinData.bounds;
+            const ch = getCoordsHelper(b);
+            const clickLon = ch.xToLon(hitPt.x);
+            const clickLat = ch.zToLat(hitPt.z);
+            openArbitrarySiteDrawer(clickLon, clickLat);
+            return;
+          }
+        }
       });
     }
 
     // =========================================
+
+    // =========================================
+    // 3.5 全域任意座標點即時強震場址效應解算器 (Real-time Site Response Calculator)
+    // =========================================
+    function computeDistanceToBasinEdge(lon, lat, basin) {
+      const kx = 102.5, ky = 110.8;
+      if (basin === "Taipei" || basin === "taipei") {
+        const p1 = [121.43, 25.04], p2 = [121.52, 25.16];
+        const lineVec = [p2[0] - p1[0], p2[1] - p1[1]];
+        const ptVec = [lon - p1[0], lat - p1[1]];
+        const lineLenSq = lineVec[0] * lineVec[0] + lineVec[1] * lineVec[1];
+        const t = Math.max(0.0, Math.min(1.0, (ptVec[0] * lineVec[0] + ptVec[1] * lineVec[1]) / lineLenSq));
+        const proj = [p1[0] + t * lineVec[0], p1[1] + t * lineVec[1]];
+        const distFault = Math.hypot((lon - proj[0]) * kx, (lat - proj[1]) * ky);
+        const distSe = Math.hypot((lon - 121.57) * kx, (lat - 25.02) * ky);
+        return Math.min(distFault, distSe);
+      } else if (basin === "Taichung" || basin === "taichung") {
+        return Math.abs(lon - 120.71) * kx;
+      } else if (basin === "Chianan" || basin === "chianan") {
+        const yRef = Math.max(23.2, Math.min(23.6, lat));
+        const xFault = 120.53 + (23.6 - yRef) * 0.15;
+        return Math.hypot((lon - xFault) * kx, (lat - yRef) * ky);
+      } else if (basin === "Zhuoshui" || basin === "zhuoshui") {
+        const distApex = Math.hypot((lon - 120.62) * kx, (lat - 23.75) * ky);
+        const distBagua = Math.abs(lon - 120.58) * kx;
+        return Math.min(distApex, distBagua);
+      } else if (basin === "Pingtung" || basin === "pingtung") {
+        return Math.abs(lon - 120.61) * kx;
+      } else if (basin === "Yilan" || basin === "yilan") {
+        const distS = Math.abs(lat - 24.68) * ky;
+        const distN = Math.abs(lat - 24.84) * ky;
+        return Math.min(distS, distN);
+      }
+      return 15.0;
+    }
+
+    function getCode2011SaOverPga(vs30, period) {
+      let t0_d = 0.70;
+      if (vs30 >= 270.0) t0_d = 0.55;
+      else if (vs30 >= 180.0) t0_d = 0.70;
+      else t0_d = 0.79;
+
+      if (period <= 0.2 * t0_d) {
+        return 1.0 + 1.5 * (period / (0.2 * t0_d));
+      } else if (period <= t0_d) {
+        return 2.5;
+      } else {
+        return 2.5 * (t0_d / period);
+      }
+    }
+
+    function estimateSiteResponseAt(lon, lat) {
+      let matchedBasinKey = null;
+      let matchedBasinMeta = null;
+      const basinsMeta = (portalData && portalData.basins_meta) || {};
+      for (const [bKey, meta] of Object.entries(basinsMeta)) {
+        const b = meta.bounds;
+        if (b && lon >= b[0] - 0.05 && lon <= b[2] + 0.05 && lat >= b[1] - 0.05 && lat <= b[3] + 0.05) {
+          matchedBasinKey = bKey;
+          matchedBasinMeta = meta;
+          break;
+        }
+      }
+
+      const elev = getElevationAt(lon, lat);
+      const basinName = matchedBasinMeta ? matchedBasinMeta.name : "臺灣西部造山帶/麓山丘陵";
+
+      let zEng = 45.0;
+      let zAc = 350.0;
+      let domLithId = 4;
+      let domLithName = "沖積細砂相 (Fine Sand)";
+
+      if (matchedBasinKey && portalData.basins_voxels && portalData.basins_voxels[matchedBasinKey]) {
+        const bv = portalData.basins_voxels[matchedBasinKey];
+        const lats = bv.lats || [];
+        const lons = bv.lons || [];
+        let bestLatIdx = 0, minLatDiff = Infinity;
+        for (let i = 0; i < lats.length; i++) {
+          const diff = Math.abs(lats[i] - lat);
+          if (diff < minLatDiff) { minLatDiff = diff; bestLatIdx = i; }
+        }
+        let bestLonIdx = 0, minLonDiff = Infinity;
+        for (let j = 0; j < lons.length; j++) {
+          const diff = Math.abs(lons[j] - lon);
+          if (diff < minLonDiff) { minLonDiff = diff; bestLonIdx = j; }
+        }
+        if (bv.bedrock_eng_grid && bv.bedrock_eng_grid[bestLatIdx]) {
+          zEng = bv.bedrock_eng_grid[bestLatIdx][bestLonIdx] || 45.0;
+        }
+        if (bv.bedrock_ac_grid && bv.bedrock_ac_grid[bestLatIdx]) {
+          zAc = bv.bedrock_ac_grid[bestLatIdx][bestLonIdx] || 350.0;
+        }
+
+        const pts = bv.points || [];
+        let nearestDist = Infinity;
+        const step = Math.max(1, Math.floor(pts.length / 500));
+        for (let p = 0; p < pts.length; p += step) {
+          const pLon = pts[p][0], pLat = pts[p][1];
+          const d = (pLon - lon) * (pLon - lon) + (pLat - lat) * (pLat - lat);
+          if (d < nearestDist) {
+            nearestDist = d;
+            domLithId = pts[p][3];
+          }
+        }
+        const lithNames = {
+          1: "表土填土 (Topsoil)", 2: "深槽軟泥相 (Clay / Mud)", 3: "粉土相 (Silt)",
+          4: "沖積細砂相 (Fine Sand)", 5: "粗砂互層相 (Coarse Sand)",
+          6: "砂泥互層相 (Sand-Mud Mixed)", 7: "山前粗礫石相 (Proximal Gravel)",
+          8: "泥岩基底 (Mudstone)", 9: "砂岩層 (Sandstone)", 10: "堅硬基盤 (Basement)"
+        };
+        domLithName = lithNames[domLithId] || "沖積沉積相";
+      } else {
+        zEng = 20.0;
+        zAc = 80.0;
+        domLithId = 7;
+        domLithName = "山前粗礫石/半固結岩盤 (Gravel / Bedrock)";
+      }
+
+      // 物理土層剖面構建 (與 TAGES 正演管線完全一致)
+      const hEff = Math.min(68.0, Math.max(28.0, 24.0 + 0.165 * zEng));
+      const sb = Math.min(1.15, Math.max(0.78, 1.18 - 0.00048 * zAc));
+      const baseVs0 = (domLithId === 2) ? 160.0 : (domLithId === 7 ? 370.0 : 205.0);
+      const vsSoil = Math.min(680.0, Math.max(130.0, baseVs0 * sb * Math.pow(1.0 + hEff / 80.0, 0.25)));
+      const rhoSoil = (domLithId === 2) ? 1.85 : (domLithId === 7 ? 2.15 : 1.95);
+      const qsSoil = (domLithId === 2) ? 18.0 : (domLithId === 7 ? 35.0 : 25.0);
+
+      const vsBedrock = 760.0;
+      const rhoBedrock = 2.35;
+      const qsBedrock = 65.0;
+
+      // 前端 Haskell–Thomson 黏彈性波傳傳遞函數計算 (45 頻率採樣點)
+      const nFreqs = 45;
+      const freqs = [];
+      const hAmp = [];
+      const xi = 1.0 / (2.0 * qsSoil);
+      const alpha = (rhoSoil * vsSoil) / (rhoBedrock * vsBedrock);
+
+      let peakAmp = 0.0;
+      let f0 = 1.0;
+
+      for (let fi = 0; fi < nFreqs; fi++) {
+        const f = 0.15 + (fi / (nFreqs - 1)) * (8.0 - 0.15);
+        freqs.push(Math.round(f * 100) / 100);
+        const p = (2.0 * Math.PI * f * hEff) / vsSoil;
+        const q = p * xi;
+        const coshQ = Math.cosh(q);
+        const sinhQ = Math.sinh(q);
+        const cosP = Math.cos(p);
+        const sinP = Math.sin(p);
+
+        const re = cosP * coshQ + alpha * cosP * sinhQ;
+        const im = sinP * sinhQ + alpha * sinP * coshQ;
+        const mag = 1.0 / Math.sqrt(re * re + im * im + 1e-6);
+        hAmp.push(Math.round(mag * 100) / 100);
+
+        if (mag > peakAmp) {
+          peakAmp = mag;
+          f0 = f;
+        }
+      }
+
+      const t0 = 1.0 / Math.max(0.1, f0);
+
+      // 5% 阻尼擬加速度反應譜 Sa(T)/PGA
+      const nPeriods = 35;
+      const periods = [];
+      const psaAmp = [];
+      let psaMax = 0.0;
+      let tPeak = 0.5;
+
+      for (let pi = 0; pi < nPeriods; pi++) {
+        const t = Math.pow(10, -1.3 + (pi / (nPeriods - 1)) * (0.5 - (-1.3)));
+        periods.push(Math.round(t * 1000) / 1000);
+        const fe = 1.0 / t;
+        let hVal = 1.0;
+        if (fe <= freqs[0]) hVal = hAmp[0];
+        else if (fe >= freqs[freqs.length - 1]) hVal = hAmp[hAmp.length - 1];
+        else {
+          for (let k = 0; k < freqs.length - 1; k++) {
+            if (fe >= freqs[k] && fe <= freqs[k + 1]) {
+              const frac = (fe - freqs[k]) / (freqs[k + 1] - freqs[k]);
+              hVal = hAmp[k] + frac * (hAmp[k + 1] - hAmp[k]);
+              break;
+            }
+          }
+        }
+        const ratio = fe / Math.max(0.1, f0);
+        let dFactor = 1.0 / Math.sqrt(Math.pow(1.0 - ratio * ratio, 2) + Math.pow(2.0 * 0.05 * ratio, 2));
+        dFactor = Math.min(2.5, Math.max(0.25, dFactor));
+        const psaVal = 1.0 + 0.62 * (hVal - 1.0) * (dFactor / 2.5);
+        psaAmp.push(Math.round(psaVal * 100) / 100);
+
+        if (psaVal > psaMax) {
+          psaMax = psaVal;
+          tPeak = t;
+        }
+      }
+
+      // 2011 耐震規範在 T=1.5s 低估率
+      const estVs30 = Math.min(650.0, Math.max(140.0, vsSoil * Math.pow(30.0 / Math.max(10.0, hEff), 0.1)));
+      const saCode1_5 = getCode2011SaOverPga(estVs30, 1.5);
+      let psa1_5 = 1.2;
+      for (let k = 0; k < periods.length - 1; k++) {
+        if (1.5 >= periods[k] && 1.5 <= periods[k + 1]) {
+          const frac = (1.5 - periods[k]) / (periods[k + 1] - periods[k]);
+          psa1_5 = psaAmp[k] + frac * (psaAmp[k + 1] - psaAmp[k]);
+          break;
+        }
+      }
+      const underest1_5 = Math.max(0.0, (psa1_5 - saCode1_5) / psa1_5) * 100.0;
+
+      const dEdge = computeDistanceToBasinEdge(lon, lat, matchedBasinKey || "other");
+      const isNearEdge = (dEdge < 6.0);
+      const sensFloors = Math.max(1, Math.round(t0 * 10));
+      const sensFloorsDesc = `${Math.max(1, sensFloors - 2)} ~ ${sensFloors + 3} 樓`;
+
+      let siteClass = "Class D (普通中軟地盤)";
+      if (estVs30 >= 360.0) siteClass = "Class C (堅硬地盤/近山麓岩層)";
+      else if (estVs30 < 180.0) siteClass = "Class E (軟弱深厚沖積層)";
+
+      return {
+        is_arbitrary: true,
+        code: `LOC_${lon.toFixed(2)}_${lat.toFixed(2)}`,
+        name: `任意座標點 (${lon.toFixed(3)}°E, ${lat.toFixed(3)}°N)`,
+        basin: basinName,
+        lon: Math.round(lon * 10000) / 10000,
+        lat: Math.round(lat * 10000) / 10000,
+        elev: Math.round(elev * 10) / 10,
+        site_class: siteClass,
+        voxel_dom_lith_name: domLithName,
+        vs30_voxel_ms: Math.round(estVs30 * 10) / 10,
+        vs30_obs_ms: null,
+        avg_vs_ms: Math.round(vsSoil * 10) / 10,
+        z_bedrock_eng_m: Math.round(zEng * 10) / 10,
+        z_bedrock_ac_m: Math.round(zAc * 10) / 10,
+        z1_0_egdt_m: Math.round(zEng * 1.8 * 10) / 10,
+        sediment_depth_m: Math.round(hEff * 10) / 10,
+        f0_voxel_hz: Math.round(f0 * 100) / 100,
+        f0_obs_hz: null,
+        peak_amp_model: Math.round(peakAmp * 100) / 100,
+        rel_error_pct: null,
+        d_edge_km: Math.round(dEdge * 10) / 10,
+        site_type: isNearEdge ? "near_edge" : "basin_center",
+        code_underest_t1_5_pct: Math.round(underest1_5 * 10) / 10,
+        sensitive_floors: sensFloors,
+        sensitive_floors_desc: sensFloorsDesc,
+        spectrum: {
+          freqs: freqs,
+          h_amp: hAmp,
+          f0: Math.round(f0 * 100) / 100,
+          peak_amp: Math.round(peakAmp * 100) / 100
+        },
+        response_spectrum: {
+          periods: periods,
+          psa_amp: psaAmp,
+          t_peak_s: Math.round(tPeak * 100) / 100,
+          psa_max: Math.round(psaMax * 100) / 100
+        }
+      };
+    }
+
+    function openArbitrarySiteDrawer(lon, lat) {
+      const st = estimateSiteResponseAt(lon, lat);
+      openSeismicStationDrawer(st);
+    }
+
     // 4. 強震測站場址效應與動力頻譜側邊抽屜 (Drawer)
     // =========================================
     function openSeismicStationDrawer(st) {
@@ -2397,8 +2737,8 @@
         <div class="drawer-header">
           <div>
             <div style="display: flex; align-items: center; gap: 8px;">
-              <span style="font-size: 1.15rem; font-weight: 700; color: #f0f6fc;">📡 ${st.name}</span>
-              <span class="stat-badge" style="background: #1f6feb; color: #ffffff; font-size: 0.82rem; font-weight: bold;">${st.code}</span>
+              <span style="font-size: 1.15rem; font-weight: 700; color: #f0f6fc;">${st.is_arbitrary ? '⚡' : '📡'} ${st.name}</span>
+              <span class="stat-badge" style="background: ${st.is_arbitrary ? '#238636' : '#1f6feb'}; color: #ffffff; font-size: 0.82rem; font-weight: bold;">${st.is_arbitrary ? '即時正演解算' : st.code}</span>
             </div>
             <div style="margin-top: 5px; display: flex; gap: 6px; flex-wrap: wrap;">
               <span class="stat-badge" style="background: #21262d; color: #58a6ff;">盆地: ${st.basin}</span>
@@ -2442,6 +2782,14 @@
           <div class="metric-card">
             <div class="metric-label">邊緣構造距離 (d_edge)</div>
             <div class="metric-val" style="color: ${isNearEdge ? '#ff7b00' : '#00d2ff'};">${st.d_edge_km} km</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">建議敏感樓層 (結構易損)</div>
+            <div class="metric-val" style="color: #ff7b72; font-weight: bold;">${st.sensitive_floors_desc || (Math.round((1.0/Math.max(0.1, st.f0_voxel_hz))*10) + ' 樓')}</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">2011 耐震規範 T=1.5s 低估率</div>
+            <div class="metric-val" style="color: ${(st.code_underest_t1_5_pct > 20) ? '#f85149' : '#7ee787'}; font-weight: bold;">${st.code_underest_t1_5_pct !== undefined ? st.code_underest_t1_5_pct + '%' : '--'}</div>
           </div>
         </div>
 

@@ -56,6 +56,23 @@ def compute_distance_to_basin_edge(lon: float, lat: float, basin: str) -> float:
         return 15.0
 
 
+def get_code_2011_sa_over_pga(vs30: float, period: float) -> float:
+    """臺灣 2011 建築物耐震設計規範標準化加速度反應譜 Sa(T)/PGA。"""
+    if vs30 >= 270.0:
+        t0_d = 0.55
+    elif vs30 >= 180.0:
+        t0_d = 0.70
+    else:
+        t0_d = 0.79
+
+    if period <= 0.2 * t0_d:
+        return 1.0 + 1.5 * (period / (0.2 * t0_d))
+    elif period <= t0_d:
+        return 2.5
+    else:
+        return 2.5 * (t0_d / period)
+
+
 def main():
     root = Path(__file__).resolve().parents[1]
     bh_csv = root / "data" / "interim" / "taiwan_boreholes.csv"
@@ -371,6 +388,16 @@ def main():
             st_elev = float(estimate_elevation(np.array([lon]), np.array([lat]))[0])
             meinong_info = meinong_cases.get(code, None)
 
+            # 2011 耐震規範長週期 (T=1.5s) 低估率計算
+            vs30_val = float(r["vs30_obs_ms"]) if pd.notnull(r.get("vs30_obs_ms")) else 250.0
+            sa_code_1_5 = get_code_2011_sa_over_pga(vs30_val, 1.5)
+            psa_1_5 = float(np.interp(1.5, periods, psa))
+            code_underest_1_5 = max(0.0, (psa_1_5 - sa_code_1_5) / psa_1_5) * 100.0
+
+            t0_fund_s = 1.0 / max(0.1, f0_fund)
+            sens_floors = max(1, int(round(t0_fund_s * 10)))
+            sens_floors_desc = f"{max(1, sens_floors - 2)} ~ {sens_floors + 3} 樓"
+
             dom_lith_str = str(r.get("voxel_dom_lith", "ClayMud"))
             lith_map = {
                 "Topsoil": 1, "ClayMud": 2, "Silt": 3, "FineSand": 4, "CoarseSand": 5,
@@ -405,6 +432,9 @@ def main():
                 "site_type": "near_edge" if d_edge < 6.0 else "basin_center",
                 "site_type_desc": "近邊緣構造帶 (d < 6km，具邊緣折射面波效應)" if d_edge < 6.0 else "平原盆地中心區 (d ≥ 6km，以一維共振垂直波為主)",
                 "kappa0_s": round(float(r.get("kappa0_s", 0.045)), 4),
+                "code_underest_t1_5_pct": round(code_underest_1_5, 1),
+                "sensitive_floors": sens_floors,
+                "sensitive_floors_desc": sens_floors_desc,
                 "meinong": meinong_info,
                 "spectrum": {
                     "freqs": [round(float(x), 2) for x in f_arr],
@@ -427,7 +457,8 @@ def main():
         "basins_meta": basins_meta,
         "basins_voxels": basins_voxels,
         "taiwan_elev_grid": taiwan_elev_grid,
-        "seismic_stations": seismic_stations
+        "seismic_stations": seismic_stations,
+        "deep_metrics": metrics_data if 'metrics_data' in locals() else {}
     }
 
     print(f"\n輸出數據至 {out_js}...")

@@ -38,7 +38,7 @@
       "count": 17,
       "mean_bias_hz": 0.0023529411764706167,
       "rmse_hz": 0.2740545244161117,
-      "interpretation": "遠離邊緣之平原中心 (>=6km)，1D Haskell 波傳完全符合垂直駐波假設，殘差均值接近 0 (-0.048 Hz)"
+      "interpretation": "遠離邊緣之平原中心 (>=6km)，1D Haskell 波傳完全符合垂直駐波假設，殘差均值接近 0 (+0.002 Hz)"
     }
   },
   "sedimentary_facies_wave_dynamics": {
@@ -107,5 +107,84 @@
       }
     },
     "physical_implications": "厚沉積盆地軟泥相將 1.0~1.5 秒長週期地震動劇烈放大 3~4 倍並延長振動歷時，與體素 1D Haskell 正演高度吻合。"
+  },
+  "z1_0_bedrock_physics_control": {
+    "pearson_r_z1_0_vs_t0": 0.7478339886101494,
+    "p_val_z1_0_vs_t0": 8.681923051785273e-07,
+    "spearman_rho_z1_0_vs_t0": 0.7867952102406207,
+    "pearson_r_hsed_vs_t0": 0.7089611133619655,
+    "p_val_hsed_vs_t0": 5.582284810968187e-06,
+    "spearman_rho_hsed_vs_t0": 0.6024606128920208,
+    "linear_regression_z1_0": {
+      "slope": 0.000814580915778939,
+      "intercept": 0.6588495260135262,
+      "r": 0.7478339886101495,
+      "p_value": 8.681923051785178e-07
+    },
+    "physical_interpretation": "證實長週期共振週期 T0 受深部基盤深度 Z1.0 與沉積層厚度強烈控制 (r=0.7478, p<1e-6)，打破僅依賴地表 30m Vs30 評估長週期震害之侷限。"
+  },
+  "seismic_code_2011_underestimation": {
+    "all_stations_summary": {
+      "n_stations": 32,
+      "mean_underestimation_t1_0s_pct": 9.4,
+      "mean_underestimation_t1_5s_pct": 27.8,
+      "mean_underestimation_t2_0s_pct": 31.5,
+      "max_underestimation_pct": 69.5
+    },
+    "western_plain_basins": {
+      "n_stations": 18,
+      "basins": [
+        "Chianan",
+        "Pingtung",
+        "Zhuoshui"
+      ],
+      "mean_underestimation_t1_5s_pct": 45.2,
+      "max_underestimation_t1_5s_pct": 69.5
+    },
+    "basin_summary": {
+      "Chianan": {
+        "n_stations": 9,
+        "mean_underest_1_0s_pct": 13.9,
+        "mean_underest_1_5s_pct": 42.3,
+        "mean_underest_2_0s_pct": 43.4,
+        "max_underest_1_5s_pct": 65.5
+      },
+      "Pingtung": {
+        "n_stations": 4,
+        "mean_underest_1_0s_pct": 0.2,
+        "mean_underest_1_5s_pct": 53.8,
+        "mean_underest_2_0s_pct": 39.1,
+        "max_underest_1_5s_pct": 69.5
+      },
+      "Taichung": {
+        "n_stations": 4,
+        "mean_underest_1_0s_pct": 9.1,
+        "mean_underest_1_5s_pct": 15.8,
+        "mean_underest_2_0s_pct": 33.9,
+        "max_underest_1_5s_pct": 19.3
+      },
+      "Taipei": {
+        "n_stations": 8,
+        "mean_underest_1_0s_pct": 3.1,
+        "mean_underest_1_5s_pct": 0.0,
+        "mean_underest_2_0s_pct": 14.0,
+        "max_underest_1_5s_pct": 0.0
+      },
+      "Yilan": {
+        "n_stations": 2,
+        "mean_underest_1_0s_pct": 44.6,
+        "mean_underest_1_5s_pct": 6.6,
+        "mean_underest_2_0s_pct": 16.3,
+        "max_underest_1_5s_pct": 8.4
+      },
+      "Zhuoshui": {
+        "n_stations": 5,
+        "mean_underest_1_0s_pct": 5.0,
+        "mean_underest_1_5s_pct": 43.4,
+        "mean_underest_2_0s_pct": 35.8,
+        "max_underest_1_5s_pct": 68.0
+      }
+    },
+    "policy_implications": "臺灣現行耐震規範僅依 Vs30 分類，西部前陸深盆地 (嘉南、屏東、濁水溪) 在 15 樓中高層建築敏感週期 (T=1.5s) 被系統性低估 42.3% ~ 53.8% (最大低估 69.5%)，強烈支持接軌 NCREE-17-004 將 Z1.0 與深盆地微區劃納入法定設計規範。"
   }
 }

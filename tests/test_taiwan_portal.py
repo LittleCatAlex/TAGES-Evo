@@ -282,8 +282,10 @@ def test_seismic_stations_portal_integration():
         assert len(rsp["periods"]) >= 30 and len(rsp["psa_amp"]) >= 30
         assert len(rsp["periods"]) == len(rsp["psa_amp"])
         assert rsp["t_peak_s"] > 0 and rsp["psa_max"] >= 1.0
+        assert "code_underest_t1_5_pct" in st, f"測站 {st['code']} 需包含耐震規範低估率欄位"
+        assert "sensitive_floors_desc" in st, f"測站 {st['code']} 需包含敏感樓層描述欄位"
 
-    # 3. 驗證 3D Web 門戶 HTML 中的強震測站與頻譜抽屜元件
+    # 3. 驗證 3D Web 門戶 HTML 中的強震測站、全域即時解算器與頻譜抽屜元件
     html_content = html_path.read_text(encoding="utf-8")
     assert "seismicStationGroup" in html_content, "需具備 3D 強震測站群組 seismicStationGroup"
     assert "function build3DSeismicStations" in html_content, "需具備 3D 強震測站構建函數 build3DSeismicStations"
@@ -292,5 +294,9 @@ def test_seismic_stations_portal_integration():
     assert "drawResponseSpectrumChart" in html_content, "需具備 Canvas 繪製反應譜圖表函數 drawResponseSpectrumChart"
     assert "seismic-spectrum-drawer" in html_content, "需具備抽屜容器元素 seismic-spectrum-drawer"
     assert "toggle-seismic-stations" in html_content, "需具備 3D 側邊欄強震測站切換開關"
+    assert "estimateSiteResponseAt" in html_content, "需具備全域任意座標點即時強震場址效應解算函數 estimateSiteResponseAt"
+    assert "openArbitrarySiteDrawer" in html_content, "需具備任意點場址效應抽屜開啟函數 openArbitrarySiteDrawer"
+    assert "建議敏感樓層" in html_content, "抽屜需顯示結構易損敏感樓層警訊"
+    assert "2011 耐震規範 T=1.5s 低估率" in html_content, "抽屜需量化顯示現行耐震規範長週期低估率"
 
 

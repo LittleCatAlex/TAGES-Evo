@@ -22,11 +22,12 @@
    * 整合全臺平滑連續地表高程模型網格（臺灣高程網格 `taiwan_elev_grid`）與 6,711 口深井實測口高。
    * 支援**地表相對深度基準 ($Z \le 0$)** 與**真實大地水準面絕對海拔基準 ($Z_\text{msl} = \text{Elev} - \text{Depth}$)** 之即時無縫切換，精確再現山麓帶高程抬升、沖積平原微地形起伏與深部構造之真實三維幾何拓撲關係。
 
-3. **32 座 TSMIP / NCREE EGDT 強震觀測測站與動力頻譜探針**：
+3. **32 座 TSMIP / NCREE EGDT 強震測站、全域即時場址解算器與耐震規範低估率分析**：
    * 於 3D 空間中立體錨定全臺 32 座核心強震觀測站（包含嘉南、濁水溪、臺北、臺中、屏東、宜蘭），依據幾何構造位置標註**近邊緣構造帶 ($d_\text{edge} < 6\text{ km}$, 橙色)** 與**盆地平原中心區 ($d_\text{edge} \ge 6\text{ km}$, 青色)**。
-   * **一維 Haskell–Thomson 剪力波理論傳遞函數頻譜 $|H(f)|$ 即時計算**：純前端根據 3D 體素垂直波速柱（$V_s$ 與密度 $\rho$）求解波動方程，即時比對實測基盤共振主頻 $f_0$。
-   * **5% 阻尼擬加速度反應譜 $S_a(T)/\text{PGA}$ 動力放大曲線**：標定長週期峰值週期 $T_\text{peak}$，揭示中高樓層建築之共振破壞風險。
-   * **2016 美濃地震實測觀測驗證**：對比極端長歷時與長週期加速度放大效應（如白河 CHY015 歷時 46.2s、新營 CHY054 歷時 43.1s，長週期加速度譜放大倍率達 4.1 倍）。
+   * **全域任意座標點即時強震場址效應解算器 (Real-time Site Response Calculator)**：於 2D 地圖或 3D 體素/基盤空間任意點選無測站位置，前端即時調用 3D 地質柱與基盤深度先驗，純 JavaScript 數值求解 1D 黏彈性 Haskell 波傳方程，即時輸出 $|H(f)|$、正規化反應譜 $S_a(T)/\text{PGA}$、敏感建築樓層警示（$N \approx 10 T_0$）與耐震規範低估率！
+   * **深部基盤深度 $Z_{1.0}$ 物理控制律檢驗**：32 測站實測共振週期 $T_0$ 與深部基盤深度 $Z_{1.0}$ 呈高度線性與等級正相關（$r = 0.7478, p = 8.68 \times 10^{-7}$；$\rho = 0.7868$），線性式 $T_0 = 0.00081 Z_{1.0} + 0.659$，證實長週期震害受深層盆地構造幾何所控制，突破單一地表 $V_{s30}$ 侷限。
+   * **2011 建築物耐震設計規範長週期低估率量化**：量化對比現行法規設計譜，全臺 32 站於 $T=1.5\text{s}$ 平均低估 27.8%，西部三大沉積盆地（嘉南、屏東、濁水溪，N=18）平均低估高達 **45.2%**（屏東 53.8%、濁水溪 43.4%、嘉南 42.3%，個別測站最大低估達 **69.5%**！），提供接軌 NCREE-17-004 規範改革之關鍵量化依據。
+   * **2016 美濃地震真實波形觀測驗證**：對比極端長歷時與長週期加速度放大效應（如白河 CHY015 歷時 52.0s、新營 CHY054 歷時 64.0s，長週期加速度譜放大倍率逾 4.1 倍）。
 
 4. **盆地幾何邊緣效應量化回歸 (Quantitative Basin-Edge Regression)**：
    * 建立測站共振主頻殘差對邊緣距離之線性回歸模型：
@@ -162,8 +163,8 @@ reports/taiwan_3d_portal.html
 
 | 圖件名稱 | 檔案路徑 | 說明 |
 | :--- | :--- | :--- |
-| **全臺 3D 地質與強震分身門戶** | [`reports/taiwan_3d_portal.html`](reports/taiwan_3d_portal.html) | 整合 2D Leaflet 地圖、3D WebGL 體素、32 測站動力頻譜抽屜與連續地形切換 |
-| **強震場址效應深度分析圖** | [`reports/seismic_site_effects_deep_analysis.png`](reports/seismic_site_effects_deep_analysis.png) | 4 聯版深度圖件：邊緣距離迴歸、白河/新營美濃地震歷時、四分位加速度反應譜、構造對比 |
+| **全臺 3D 地質與強震分身門戶** | [`reports/taiwan_3d_portal.html`](reports/taiwan_3d_portal.html) | 整合 2D Leaflet 地圖、3D WebGL 體素、32 測站動力頻譜抽屜、全域任意點即時場址解算器與連續地形切換 |
+| **強震場址效應深度分析圖** | [`reports/seismic_site_effects_deep_analysis.png`](reports/seismic_site_effects_deep_analysis.png) | 6 聯出版級圖件：邊緣距離迴歸、平原中心零偏差對比、美濃地震實測波形與反應譜、深部基盤 $Z_{1.0}$ 物理控制、耐震規範長週期低估率 |
 | **聲學與工程基盤等深線圖** | [`reports/chiayi_bedrock_depth_map.png`](reports/chiayi_bedrock_depth_map.png) | 揭示沉積盆地基盤傾角向海加深之 3D 形貌與地震波阻抗躍界面 |
 | **正交立體柵欄剖面圖** | [`reports/chiayi_ortho_fence_diagram.png`](reports/chiayi_ortho_fence_diagram.png) | 東西向橫越平原與南北向貫穿盆地軸之正交地質層序對比 |
 | **水平多深度岩性切片圖** | [`reports/chiayi_depth_slices_1km.png`](reports/chiayi_depth_slices_1km.png) | 展現 20m、100m、250m、500m、750m、1,000m 之沉積相垂直空間演化 |
