@@ -13,6 +13,7 @@ TSMIP_SUMMARY_PATH = ROOT / "reports" / "tsmip_closed_loop_summary.csv"
 TSMIP_METRICS_PATH = ROOT / "reports" / "tsmip_closed_loop_metrics.json"
 SR_METRICS_PATH = ROOT / "reports" / "site_response_metrics.json"
 PHYS_AUDIT_PATH = ROOT / "reports" / "phys_loss_activation_audit.json"
+DEEP_METRICS_PATH = ROOT / "reports" / "seismic_site_effects_deep_metrics.json"
 
 
 def test_egdt_site_truth_provenance():
@@ -95,3 +96,41 @@ def test_english_abstract_word_count():
     eng_text = " ".join(line.strip() for line in eng_block if line.strip())
     words = re.findall(r"\b\w+(?:[-']\w+)*\b", eng_text)
     assert len(words) <= 250, f"English abstract word count {len(words)} exceeds 250 words limit"
+
+
+def test_manuscript_seismic_site_effects_deep_metrics():
+    """Verify deepened strong-motion site effects, basin-edge regression, and Meinong observations."""
+    text = DOC_PATH.read_text(encoding="utf-8")
+    assert DEEP_METRICS_PATH.exists(), f"Missing {DEEP_METRICS_PATH}"
+    deep_metrics = json.loads(DEEP_METRICS_PATH.read_text(encoding="utf-8"))
+
+    edge_reg = deep_metrics["basin_edge_effect"]["linear_regression"]
+    near_edge = deep_metrics["basin_edge_effect"]["near_edge_stations_d_lt_6km"]
+    basin_center = deep_metrics["basin_edge_effect"]["basin_center_stations_d_ge_6km"]
+
+    # Regression metrics
+    assert f"{edge_reg['slope']:.5f}" in text
+    assert f"{near_edge['mean_bias_hz']:.3f}" in text
+    assert f"{basin_center['mean_bias_hz']:.3f}" in text
+
+    # Figure 3-13 reference
+    assert "reports/seismic_site_effects_deep_analysis.png" in text
+    assert "圖 3-13" in text
+
+    # 2016 Meinong earthquake real stations and observations
+    assert "ALS" in text
+    assert "CHY015" in text
+    assert "CHY054" in text
+    assert "81.3" in text or "81.34" in text
+    assert "262.4" in text or "262.36" in text
+    assert "152.4" in text
+
+    # Objective Weiguan collapse factors
+    assert "軟弱底層" in text
+    assert "135" in text
+    assert "90" in text
+
+    # Building code and NCREE-17-004 discussion
+    assert "NCREE-17-004" in text
+    assert "微區一" in text
+

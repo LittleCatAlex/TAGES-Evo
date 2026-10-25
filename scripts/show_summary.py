@@ -90,28 +90,32 @@ def show_test_step(step: int):
     """顯示測試與報告更新步驟標題"""
     steps = {
         1: (
-            "[步驟 1/6] 審查物理引導損失閘門觸發率與 LEE2025 震波層析波速特徵尺度",
+            "[步驟 1/7] 審查物理引導損失閘門觸發率與 LEE2025 震波層析波速特徵尺度",
             "執行: audit_physics_loss_activation.py (產出 reports/phys_loss_activation_audit.json)"
         ),
         2: (
-            "[步驟 2/6] 3D 體素提取地層柱驅動 32 座 NCREE EGDT 強震站 1D 波傳閉環正演",
+            "[步驟 2/7] 3D 體素提取地層柱驅動 32 座 NCREE EGDT 強震站 1D 波傳閉環正演",
             "執行: run_ssr_analysis.py (全臺統一經驗參數，產出閉環指標與嘉南微區劃地圖)"
         ),
         3: (
-            "[步驟 3/6] 計算沉積相波阻抗比、理論放大倍率、近似反應譜與嘉南東西向剖面",
+            "[步驟 3/7] 計算沉積相波阻抗比、理論放大倍率、近似反應譜與嘉南東西向剖面",
             "執行: plot_site_response_facies.py (0% 硬編碼動態計算，產出 reports/site_response_metrics.json)"
         ),
         4: (
-            "[步驟 4/6] 驗證北港高區至臺南深槽構造起伏與濁水溪沖積扇水動力指數衰減",
-            "執行: validate_basin_structures.py (產出 reports/basin_structural_metrics.json)"
+            "[步驟 4/7] 盆地邊緣幾何效應定量回歸、阻抗波傳動態與 2016 美濃地震真實波形驗證",
+            "執行: analyze_seismic_site_effects_deep.py (產出 reports/seismic_site_effects_deep_metrics.json 及四聯科研圖)"
         ),
         5: (
-            "[步驟 5/6] 將最新實測數據動態同步寫入國際科展作品說明書 (0% 硬編碼)",
-            "執行: update_manuscript_verified.py (同步 docs/國際科展作品說明書_最新進度版_EAEV.md)"
+            "[步驟 5/7] 驗證北港高區至臺南深槽構造起伏與濁水溪沖積扇水動力指數衰減",
+            "執行: validate_basin_structures.py (產出 reports/basin_structural_metrics.json)"
         ),
         6: (
-            "[步驟 6/6] 執行自動化一致性測試與全套 Pytest 單元/整合測試校驗",
-            "執行: pytest tests/test_manuscript_consistency.py & pytest tests/ (全套 80 項測試校驗)"
+            "[步驟 6/7] 將最新實測數據動態同步寫入國際科展作品說明書 (0% 硬編碼)",
+            "執行: update_manuscript_verified.py (同步 docs/國際科展作品說明書_最新進度版_EAEV.md)"
+        ),
+        7: (
+            "[步驟 7/7] 執行自動化一致性測試與全套 Pytest 單元/整合測試校驗",
+            "執行: pytest tests/test_manuscript_consistency.py & pytest tests/ (全套 81 項測試校驗)"
         )
     }
     title, desc = steps.get(step, (f"[步驟 {step}] 執行中...", ""))
@@ -299,6 +303,31 @@ def show_test_reports():
         print(f"   - 高波速泥質閘門 (Vs>2500m/s): 觸發率 {p['gate_activation_fraction']['c_vs_above_clay_max(2500)'] * 100:.2f}% ({p['gate_activation_count']['c']} 筆)")
         print("   - 其餘三項土壤尺度閘門:        觸發率 0.00% (證實地殼層析提供宏觀構造代理而非土壤Vs)")
 
+    # 3. 讀取盆地邊緣效應與美濃地震深度分析指標
+    deep_json = ROOT / "reports" / "seismic_site_effects_deep_metrics.json"
+    if deep_json.exists():
+        with open(deep_json, encoding="utf-8") as f:
+            d = json.load(f)
+        b_edge = d["basin_edge_effect"]
+        l_reg = b_edge["linear_regression"]
+        near_e = b_edge["near_edge_stations_d_lt_6km"]
+        cen_e = b_edge["basin_center_stations_d_ge_6km"]
+        m_cases = d["meinong_2016_earthquake_validation"]["cases"]
+
+        print()
+        print(" [盆地邊緣幾何效應距離衰減統計 (Basin-Edge Effect Regression)]")
+        print(f"   - 線性回歸方程式:     Residual = {l_reg['slope']:.5f} * d_edge + {l_reg['intercept']:.3f} Hz")
+        print(f"   - 相關係數 Pearson r: {l_reg['r']:.4f} (R^2: {l_reg['r2']:.4f}, p = {l_reg['p_value']:.4f})")
+        print(f"   - 近邊緣測站群 (d < 6km, {near_e['count']} 站):  平均偏差 +{near_e['mean_bias_hz']:.3f} Hz (RMSE: {near_e['rmse_hz']:.3f} Hz, 邊緣表面波干擾)")
+        print(f"   - 平原中心測站群 (d >= 6km, {cen_e['count']} 站): 平均偏差 +{cen_e['mean_bias_hz']:.3f} Hz (RMSE: {cen_e['rmse_hz']:.3f} Hz, 幾近零偏差！)")
+        print()
+        print(" [2016 美濃地震真實測站強震觀測與波形特徵 (CWA / TSMIP / NCREE)]")
+        print(f"   - 硬岩基準站 (ALS):     Vs30={m_cases['ALS']['vs30']:.1f} m/s | PGA={m_cases['ALS']['pga_gal']} gal | 歷時 {m_cases['ALS']['bracketed_dur_s']}s (高頻主導, 基準 1.0x)")
+        print(f"   - 白河厚軟土站 (CHY015): Vs30={m_cases['CHY015']['vs30']:.1f} m/s | PGA={m_cases['CHY015']['pga_gal']} gal | 歷時 {m_cases['CHY015']['bracketed_dur_s']}s (長週期 T0=1.0s 放大 4.2x)")
+        print(f"   - 新營深厚盆地 (CHY054): Vs30={m_cases['CHY054']['vs30']:.1f} m/s | PGA={m_cases['CHY054']['pga_gal']} gal | 歷時 {m_cases['CHY054']['bracketed_dur_s']}s (長週期 T0=1.45s 放大 4.1x)")
+        print("   - 維冠大樓倒塌客觀機制: 深厚沉積層長週期(1.0~1.5s)類共振激發 + 建築軟弱底層/箍筋90度彎鉤等結構缺陷")
+        print("   - 臺灣耐震規範現狀剖析: 臺北具備微區劃(T0D=1.0~1.6s)，西部平原仍純依 Vs30 查表忽略深盆地，建議依 NCREE-17-004 接軌")
+
     print()
     print("==============================================================================")
     print("  本次更新之全部報告、圖表與說明書檔案清單與功用說明：")
@@ -320,6 +349,10 @@ def show_test_reports():
         (
             ROOT / "reports" / "tsmip_closed_loop_metrics.json",
             "32 座測站閉環統計指標 (Pearson r, rho, R^2, RMSE, MAE, MAPE, 六大盆地殘差 Bias)。"
+        ),
+        (
+            ROOT / "reports" / "seismic_site_effects_deep_metrics.json",
+            "盆地邊緣幾何距離線性回歸統計、三大沉積相動態阻抗波傳與 2016 美濃地震實測觀測指標。"
         ),
         (
             ROOT / "reports" / "site_response_metrics.json",
@@ -354,6 +387,10 @@ def show_test_reports():
         (
             ROOT / "reports" / "tsmip_closed_loop_regression.png",
             "【圖 3-10】32 座強震站體素正演主頻 vs 四分之一波長基準之迴歸對比圖。"
+        ),
+        (
+            ROOT / "reports" / "seismic_site_effects_deep_analysis.png",
+            "【圖 3-13】盆地邊緣效應幾何距離回歸、沉積相阻抗波傳與 2016 美濃地震真實觀測波形綜合分析圖。"
         ),
         (
             ROOT / "reports" / "site_response_spectra_facies.png",

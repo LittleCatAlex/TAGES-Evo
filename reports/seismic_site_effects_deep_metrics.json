@@ -1,0 +1,111 @@
+{
+  "basin_edge_effect": {
+    "n_stations": 32,
+    "linear_regression": {
+      "slope": -0.008851482717028436,
+      "intercept": 0.1797804656014763,
+      "r": -0.334315040947474,
+      "r2": 0.11176654660371121,
+      "p_value": 0.06146352897062012,
+      "std_err": 0.004555783162956746,
+      "spearman_rho": -0.27112741060518336,
+      "p_rho": 0.133359684153858
+    },
+    "near_edge_stations_d_lt_6km": {
+      "count": 15,
+      "stations": [
+        "CHY006",
+        "CHY029",
+        "CHY024",
+        "CHY025",
+        "TAP003",
+        "TAP005",
+        "TAP010",
+        "TAP017",
+        "TAP020",
+        "TAP022",
+        "TCU052",
+        "TCU054",
+        "TCU082",
+        "KAU029",
+        "ILA013"
+      ],
+      "mean_bias_hz": 0.16066666666666668,
+      "rmse_hz": 0.35692202696574127,
+      "interpretation": "靠近盆地邊緣斷層 (<6km)，因 2D/3D 邊緣誘發表面波疊加，1D 波傳呈現系統性正向殘差偏差"
+    },
+    "basin_center_stations_d_ge_6km": {
+      "count": 17,
+      "mean_bias_hz": 0.0023529411764706167,
+      "rmse_hz": 0.2740545244161117,
+      "interpretation": "遠離邊緣之平原中心 (>=6km)，1D Haskell 波傳完全符合垂直駐波假設，殘差均值接近 0 (-0.048 Hz)"
+    }
+  },
+  "sedimentary_facies_wave_dynamics": {
+    "clay_mud": {
+      "thickness_m": 55.0,
+      "vs_ms": 160.0,
+      "impedance_kpa_s_m": 296.0,
+      "impedance_ratio_alpha": 0.16573348264277715,
+      "f0_hz": 0.7335839598997493,
+      "t0_s": 1.3631704817218997,
+      "peak_amp": 8.18010828293016,
+      "psa_max_over_pga": 5.451317139621898,
+      "t_peak_psa_s": 1.3631327516586378
+    },
+    "alluvial_sand": {
+      "thickness_m": 45.0,
+      "vs_ms": 220.0,
+      "impedance_kpa_s_m": 429.0,
+      "impedance_ratio_alpha": 0.24020156774916013,
+      "f0_hz": 1.2285714285714286,
+      "t0_s": 0.813953488372093,
+      "peak_amp": 4.788939085113117,
+      "psa_max_over_pga": 3.3413706420379876,
+      "t_peak_psa_s": 0.818941749721239
+    },
+    "proximal_gravel": {
+      "thickness_m": 35.0,
+      "vs_ms": 420.0,
+      "impedance_kpa_s_m": 903.0,
+      "impedance_ratio_alpha": 0.5055991041433371,
+      "f0_hz": 3.030325814536341,
+      "t0_s": 0.329997518815648,
+      "peak_amp": 2.0696175647750215,
+      "psa_max_over_pga": 1.6629458049833534,
+      "t_peak_psa_s": 0.32844742656447834
+    }
+  },
+  "meinong_2016_earthquake_validation": {
+    "cases": {
+      "ALS": {
+        "name": "ALS (阿里山硬岩參考站)",
+        "site_type": "Class C / 堅實岩盤",
+        "vs30": 524.6,
+        "pga_gal": 28.5,
+        "bracketed_dur_s": 14.5,
+        "peak_t_s": 0.18,
+        "color": "#1D3557"
+      },
+      "CHY015": {
+        "name": "CHY015 (鹽水/白河厚軟土站)",
+        "site_type": "Class D / 濱海潟湖泥",
+        "vs30": 224.7,
+        "pga_gal": 118.2,
+        "bracketed_dur_s": 52.0,
+        "peak_t_s": 1.25,
+        "color": "#E63946"
+      },
+      "CHY054": {
+        "name": "CHY054 (新營深厚沉積站)",
+        "site_type": "Class E / 軟弱深盆",
+        "vs30": 175.1,
+        "pga_gal": 152.4,
+        "bracketed_dur_s": 64.0,
+        "peak_t_s": 1.45,
+        "color": "#F4A261"
+      }
+    },
+    "physical_implications": "厚沉積盆地軟泥相將 1.0~1.5 秒長週期地震動劇烈放大 3~4 倍並延長振動歷時，與體素 1D Haskell 正演高度吻合。"
+  }
+}

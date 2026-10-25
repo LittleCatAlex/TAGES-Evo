@@ -23,14 +23,18 @@ if %errorlevel% neq 0 goto :error_exit
 if %errorlevel% neq 0 goto :error_exit
 
 %PY_EXE% scripts\show_summary.py --test-step 4
-%PY_EXE% scripts\validate_basin_structures.py
+%PY_EXE% scripts\analyze_seismic_site_effects_deep.py
 if %errorlevel% neq 0 goto :error_exit
 
 %PY_EXE% scripts\show_summary.py --test-step 5
-%PY_EXE% scripts\update_manuscript_verified.py
+%PY_EXE% scripts\validate_basin_structures.py
 if %errorlevel% neq 0 goto :error_exit
 
 %PY_EXE% scripts\show_summary.py --test-step 6
+%PY_EXE% scripts\update_manuscript_verified.py
+if %errorlevel% neq 0 goto :error_exit
+
+%PY_EXE% scripts\show_summary.py --test-step 7
 %PY_EXE% -m pytest tests\test_manuscript_consistency.py -v
 if %errorlevel% neq 0 goto :error_exit
 
