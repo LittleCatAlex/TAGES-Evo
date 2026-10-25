@@ -611,6 +611,10 @@
             <input type="checkbox" id="toggle-bbox" checked onchange="toggleBoundingBox(this.checked)">
             <span>空間座標邊界外框 (Bounding Box)</span>
           </label>
+          <label class="layer-item">
+            <input type="checkbox" id="toggle-seismic-stations" checked onchange="toggleSeismicStations(this.checked)">
+            <span>📡 TSMIP 強震觀測測站與動力頻譜探針 (32 站)</span>
+          </label>
         </div>
 
         <!-- 10 類岩性圖層過濾 -->
@@ -803,9 +807,70 @@
     });
 
     // 加入右上角圖層控制器 (底圖與套疊圖層開關)
+    // 繪製全台 32 座 TSMIP / EGDT 強震觀測測站
+    const seismicStationLayerGroup = L.layerGroup().addTo(map);
+
+    (portalData.seismic_stations || []).forEach(st => {
+      const isNearEdge = (st.site_type === "near_edge");
+      const markerColor = isNearEdge ? '#ff7b00' : '#00d2ff';
+      const markerIcon = L.divIcon({
+        className: 'seismic-station-icon',
+        html: `
+          <div style="position: relative; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center;">
+            <div style="position: absolute; width: 17px; height: 17px; background: ${markerColor}; transform: rotate(45deg); border: 2px solid #ffffff; box-shadow: 0 0 10px ${markerColor}; border-radius: 3px;"></div>
+            <div style="position: relative; z-index: 2; width: 5px; height: 5px; background: #ffffff; border-radius: 50%;"></div>
+          </div>
+        `,
+        iconSize: [22, 22],
+        iconAnchor: [11, 11]
+      });
+
+      const marker = L.marker([st.lat, st.lon], { icon: markerIcon }).addTo(seismicStationLayerGroup);
+
+      const edgeTag = isNearEdge
+        ? `<span style="background: rgba(255,123,0,0.25); color: #ff7b00; padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 0.72rem; border: 1px solid rgba(255,123,0,0.4);">近邊緣構造帶 (${st.d_edge_km} km)</span>`
+        : `<span style="background: rgba(0,210,255,0.2); color: #00d2ff; padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 0.72rem; border: 1px solid rgba(0,210,255,0.4);">平原中心區 (${st.d_edge_km} km)</span>`;
+
+      const meinongSection = st.meinong ? `
+        <div style="background: rgba(255,123,0,0.12); border-left: 3px solid #ff7b00; padding: 4px 8px; margin-top: 6px; border-radius: 3px;">
+          <span style="color: #ff9900; font-weight: bold;">2016 美濃地震實測：</span><br>
+          PGA: <b>${st.meinong.pga_gal} gal</b> | 歷時: <b>${st.meinong.bracketed_dur_s} s</b> | 譜週期: <b>${st.meinong.peak_t_s} s</b>
+        </div>
+      ` : '';
+
+      const errStr = st.rel_error_pct !== null ? `${st.rel_error_pct}%` : '--';
+
+      marker.bindPopup(`
+        <div style="font-family: sans-serif; font-size: 0.8rem; line-height: 1.5; min-width: 240px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+            <b style="color: #f0f6fc; font-size: 0.92rem;">📡 ${st.name}</b>
+            <span class="stat-badge" style="background: #1f6feb; color: #ffffff; font-weight: bold;">${st.code}</span>
+          </div>
+          <div>盆地分區: <b>${st.basin}</b> | 場址分類: <b style="color: #7ee787;">${st.site_class}</b></div>
+          <div style="margin: 4px 0;">${edgeTag}</div>
+          <div style="margin-top: 5px; padding-top: 5px; border-top: 1px solid #30363d; font-size: 0.76rem;">
+            實測 $V_{s30}$: <b style="color: #79c0ff;">${st.vs30_obs_ms || '--'} m/s</b> | 3D 體素: <b>${st.vs30_voxel_ms || '--'} m/s</b><br>
+            共振主頻: 實測 <b style="color: #58a6ff;">${st.f0_obs_hz || '--'} Hz</b> | 體素 <b style="color: #ffaa00;">${st.f0_voxel_hz} Hz</b> (誤差 ${errStr})<br>
+            基盤深度: $Z_{1.0} = $ <b>${st.z1_0_egdt_m || '--'} m</b> | $Z_{2.8} = $ <b>${st.z_bedrock_ac_m || '--'} m</b><br>
+            地表高程: <b>+${st.elev} m (MSL)</b>
+          </div>
+          ${meinongSection}
+          <div style="display: flex; gap: 6px; margin-top: 8px;">
+            <button onclick="openSeismicStationDrawerByCode('${st.code}')" style="flex: 1; background: #1f6feb; color: #fff; border: 1px solid rgba(255,255,255,0.2); border-radius: 4px; padding: 5px 6px; cursor: pointer; font-size: 0.74rem; font-weight: 600;">
+              📈 展開頻譜圖表
+            </button>
+            <button onclick="focusStationAndLaunch3D('${st.code}')" style="flex: 1; background: #238636; color: #fff; border: 1px solid rgba(255,255,255,0.2); border-radius: 4px; padding: 5px 6px; cursor: pointer; font-size: 0.74rem; font-weight: 600;">
+              🚀 進入 3D 地體
+            </button>
+          </div>
+        </div>
+      `);
+    });
+
     const overlayMaps = {
       "⚡ 活動斷層帶": faultLayer,
       "🟢 深層觀測井": wellLayer,
+      "📡 TSMIP 強震測站 (32 站)": seismicStationLayerGroup,
       "🔲 平原盆地查詢框": basinLayer
     };
     L.control.layers(baseMaps, overlayMaps, { position: 'topright', collapsed: false }).addTo(map);
@@ -1056,7 +1121,7 @@
     // 3. Three.js 3D 立體地體渲染核心 (超高密度)
     // =========================================
     let scene3d, camera3d, renderer3d, controls3d;
-    let pointCloudGroup, boreholeGroup, bedrockGroup, faultGroup, bboxGroup;
+    let pointCloudGroup, boreholeGroup, bedrockGroup, faultGroup, bboxGroup, seismicStationGroup;
     let voxelMesh = null;
     let pointCloud = null;
     let currentBasinData = null;
@@ -1106,8 +1171,10 @@
       bedrockGroup = new THREE.Group();
       faultGroup = new THREE.Group();
       bboxGroup = new THREE.Group();
+      seismicStationGroup = new THREE.Group();
       scene3d.add(pointCloudGroup);
       scene3d.add(boreholeGroup);
+      scene3d.add(seismicStationGroup);
       scene3d.add(bedrockGroup);
       scene3d.add(faultGroup);
       scene3d.add(bboxGroup);
@@ -1179,31 +1246,10 @@
     }
 
     // =========================================
-    // 全臺地表高程估算 (IDW 空間反距離加權與雙線性內插)
+    // 全臺地表高程估算 (連續平滑雙線性內插，杜絕 IDW 針狀畸變)
     // =========================================
-    function estimateElevationIDW(lon, lat) {
-      if (!portalData.boreholes || portalData.boreholes.length === 0) return 0.0;
-      let num = 0.0, den = 0.0;
-      let nearestDist = 9999.0;
-      let nearestElev = 0.0;
-      for (let i = 0; i < portalData.boreholes.length; i++) {
-        const w = portalData.boreholes[i];
-        const dx = (lon - w.lon) * 102.0;
-        const dy = (lat - w.lat) * 111.0;
-        const dist2 = dx * dx + dy * dy;
-        if (dist2 < nearestDist) {
-          nearestDist = dist2;
-          nearestElev = (w.elev !== undefined && w.elev !== null) ? w.elev : 0.0;
-        }
-        if (dist2 < 1e-4) return (w.elev !== undefined && w.elev !== null) ? w.elev : 0.0;
-        const weight = 1.0 / (dist2 + 1e-3);
-        num += ((w.elev !== undefined && w.elev !== null) ? w.elev : 0.0) * weight;
-        den += weight;
-      }
-      return den > 0 ? (num / den) : nearestElev;
-    }
-
     function getElevationAt(lon, lat) {
+      // 1. 若當前盆地具備預算高解析度 elev_grid，優先內插
       if (currentBasinData && currentBasinData.elev_grid && currentBasinData.lats && currentBasinData.lons) {
         const lats = currentBasinData.lats;
         const lons = currentBasinData.lons;
@@ -1212,9 +1258,10 @@
         if (nLat >= 2 && nLon >= 2) {
           const latMin = lats[0], latMax = lats[nLat - 1];
           const lonMin = lons[0], lonMax = lons[nLon - 1];
-          if (lon >= lonMin && lon <= lonMax && lat >= latMin && lat <= latMax) {
-            const u = (lon - lonMin) / (lonMax - lonMin);
-            const v = (lat - latMin) / (latMax - latMin);
+          // 容許 0.02 度微幅邊界容錯，確保邊界體素不落空
+          if (lon >= lonMin - 0.02 && lon <= lonMax + 0.02 && lat >= latMin - 0.02 && lat <= latMax + 0.02) {
+            const u = Math.max(0.0, Math.min(1.0, (lon - lonMin) / Math.max(1e-5, lonMax - lonMin)));
+            const v = Math.max(0.0, Math.min(1.0, (lat - latMin) / Math.max(1e-5, latMax - latMin)));
             const jFloat = u * (nLon - 1);
             const iFloat = v * (nLat - 1);
             const j0 = Math.floor(jFloat);
@@ -1233,7 +1280,50 @@
           }
         }
       }
+
+      // 2. 查全島連續平滑高程網格 (Taiwan Topography Grid)，零延遲、零針狀畸變
+      if (portalData && portalData.taiwan_elev_grid) {
+        const tg = portalData.taiwan_elev_grid;
+        if (lon >= tg.lon_min - 0.05 && lon <= tg.lon_max + 0.05 && lat >= tg.lat_min - 0.05 && lat <= tg.lat_max + 0.05) {
+          const u = Math.max(0.0, Math.min(1.0, (lon - tg.lon_min) / Math.max(1e-5, tg.lon_max - tg.lon_min)));
+          const v = Math.max(0.0, Math.min(1.0, (lat - tg.lat_min) / Math.max(1e-5, tg.lat_max - tg.lat_min)));
+          const jFloat = u * (tg.n_lon - 1);
+          const iFloat = v * (tg.n_lat - 1);
+          const j0 = Math.floor(jFloat);
+          const j1 = Math.min(tg.n_lon - 1, j0 + 1);
+          const i0 = Math.floor(iFloat);
+          const i1 = Math.min(tg.n_lat - 1, i0 + 1);
+          const dj = jFloat - j0;
+          const di = iFloat - i0;
+
+          const e00 = tg.grid[i0][j0];
+          const e01 = tg.grid[i0][j1];
+          const e10 = tg.grid[i1][j0];
+          const e11 = tg.grid[i1][j1];
+
+          return (1 - di) * ((1 - dj) * e00 + dj * e01) + di * ((1 - dj) * e10 + dj * e11);
+        }
+      }
+
       return estimateElevationIDW(lon, lat);
+    }
+
+    function estimateElevationIDW(lon, lat) {
+      if (portalData && portalData.taiwan_elev_grid) {
+        const tg = portalData.taiwan_elev_grid;
+        const u = Math.max(0.0, Math.min(1.0, (lon - tg.lon_min) / Math.max(1e-5, tg.lon_max - tg.lon_min)));
+        const v = Math.max(0.0, Math.min(1.0, (lat - tg.lat_min) / Math.max(1e-5, tg.lat_max - tg.lat_min)));
+        const jFloat = u * (tg.n_lon - 1);
+        const iFloat = v * (tg.n_lat - 1);
+        const j0 = Math.floor(jFloat);
+        const j1 = Math.min(tg.n_lon - 1, j0 + 1);
+        const i0 = Math.floor(iFloat);
+        const i1 = Math.min(tg.n_lat - 1, i0 + 1);
+        const dj = jFloat - j0;
+        const di = iFloat - i0;
+        return (1 - di) * ((1 - dj) * tg.grid[i0][j0] + dj * tg.grid[i0][j1]) + di * ((1 - dj) * tg.grid[i1][j0] + dj * tg.grid[i1][j1]);
+      }
+      return 15.0;
     }
 
     // =========================================
@@ -1435,12 +1525,12 @@
         ? collectedPoints.concat(synthPoints)
         : (collectedPoints.length > 0 ? collectedPoints : synthPoints);
 
-      // 5. 生成 Custom ROI 之海拔高程網格 (Elevation Grid)
+      // 5. 生成 Custom ROI 之海拔高程網格 (Elevation Grid) - 平滑地勢
       const elevGrid = [];
       for (let j = 0; j < nY; j++) {
         const row = [];
         for (let i = 0; i < nX; i++) {
-          row.push(+estimateElevationIDW(lons[i], lats[j]).toFixed(1));
+          row.push(+getElevationAt(lons[i], lats[j]).toFixed(1));
         }
         elevGrid.push(row);
       }
@@ -1487,6 +1577,7 @@
       // 構建物件
       build3DPointCloud();
       build3DBoreholes(currentBasinData.bounds);
+      build3DSeismicStations(currentBasinData.bounds);
       build3DBedrock();
       build3DFaults(currentBasinData.bounds);
       build3DBoundingBox(currentBasinData.bounds);
@@ -1789,7 +1880,7 @@
       let yTop, yBot;
       if (zDatumMode === "elevation") {
         let maxElev = 0;
-        let minElev = 0;
+        let minElev = 9999;
         if (currentBasinData && currentBasinData.elev_grid) {
           const eg = currentBasinData.elev_grid;
           for (let r = 0; r < eg.length; r++) {
@@ -1800,7 +1891,9 @@
           }
         } else {
           maxElev = 200;
+          minElev = 0;
         }
+        if (minElev === 9999) minElev = 0;
         yTop = ch.elevToY(maxElev + 10);
         yBot = ch.elevToY(minElev - maxDisplayDepth);
       } else {
@@ -1924,10 +2017,13 @@
       zExaggeration = parseFloat(val);
       document.getElementById("z-scale-val").innerText = val + "x";
       build3DPointCloud();
-      build3DBoreholes(currentBasinData.bounds);
-      build3DBedrock();
-      build3DFaults(currentBasinData.bounds);
-      build3DBoundingBox(currentBasinData.bounds);
+      if (currentBasinData) {
+        build3DBoreholes(currentBasinData.bounds);
+        build3DSeismicStations(currentBasinData.bounds);
+        build3DBedrock();
+        build3DFaults(currentBasinData.bounds);
+        build3DBoundingBox(currentBasinData.bounds);
+      }
     }
 
     function toggleZDatum(isChecked) {
@@ -1942,6 +2038,7 @@
       build3DPointCloud();
       if (currentBasinData) {
         build3DBoreholes(currentBasinData.bounds);
+        build3DSeismicStations(currentBasinData.bounds);
         build3DBedrock();
         build3DFaults(currentBasinData.bounds);
         build3DBoundingBox(currentBasinData.bounds);
@@ -1949,6 +2046,7 @@
     }
 
     function toggleBoreholes(chk) { boreholeGroup.visible = chk; }
+    function toggleSeismicStations(chk) { if (seismicStationGroup) seismicStationGroup.visible = chk; }
     function toggleBedrock(chk) { bedrockGroup.visible = chk; }
     function toggleFaults(chk) { faultGroup.visible = chk; }
     function toggleBoundingBox(chk) { bboxGroup.visible = chk; }
@@ -1995,6 +2093,33 @@
         mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
 
         raycaster.setFromCamera(mouse, camera3d);
+
+        // 0. 優先檢測強震測站 (Seismic Stations)
+        if (seismicStationGroup && seismicStationGroup.children.length > 0) {
+          const stHits = raycaster.intersectObjects(seismicStationGroup.children);
+          if (stHits.length > 0) {
+            const item = stHits[0].object.userData;
+            if (item && item.type === "seismic_station") {
+              const st = item.data;
+              const isNearEdge = (st.site_type === "near_edge");
+              const edgeBadge = isNearEdge ? '近邊緣構造帶' : '盆地中心平原區';
+              tooltip.style.display = "block";
+              tooltip.style.left = (e.clientX + 14) + "px";
+              tooltip.style.top = (e.clientY + 14) + "px";
+              tooltip.innerHTML = `
+                <div style="font-family: sans-serif; font-size: 0.8rem; line-height: 1.5;">
+                  <b style="color: #ff9900; font-size: 0.92rem;">📡 TSMIP 強震測站: ${st.name} (${st.code})</b><br>
+                  分區: <b>${st.basin}</b> | 場址分類: <b style="color: #7ee787;">${st.site_class}</b><br>
+                  實測 $V_{s30}$: <b style="color: #79c0ff;">${st.vs30_obs_ms || '--'} m/s</b> | 3D 體素: <b>${st.vs30_voxel_ms || '--'} m/s</b><br>
+                  共振頻率: 實測 <b>${st.f0_obs_hz || '--'} Hz</b> | 體素正演 <b style="color: #ffaa00;">${st.f0_voxel_hz} Hz</b><br>
+                  邊緣距離: <b>${st.d_edge_km} km</b> (${edgeBadge})<br>
+                  <span style="color: #58a6ff; font-weight: bold; font-size: 0.74rem;">👉 點擊開啟一維傳遞函數 |H(f)| 與反應譜曲線抽屜</span>
+                </div>
+              `;
+              return;
+            }
+          }
+        }
 
         // 1. 優先檢測深井
         const wellHits = raycaster.intersectObjects(boreholeGroup.children);
@@ -2118,7 +2243,467 @@
 
         tooltip.style.display = "none";
       });
+
+      // 點擊 3D 物件開啟詳情
+      window.addEventListener("click", (e) => {
+        if (!renderer3d || !camera3d) return;
+        const rect = renderer3d.domElement.getBoundingClientRect();
+        if (e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom) return;
+
+        mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+        mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+        raycaster.setFromCamera(mouse, camera3d);
+
+        // 檢測強震測站點擊
+        if (seismicStationGroup && seismicStationGroup.children.length > 0) {
+          const stHits = raycaster.intersectObjects(seismicStationGroup.children);
+          if (stHits.length > 0) {
+            const item = stHits[0].object.userData;
+            if (item && item.type === "seismic_station") {
+              openSeismicStationDrawer(item.data);
+              return;
+            }
+          }
+        }
+      });
     }
+
+    // =========================================
+    // 4. 強震測站場址效應與動力頻譜側邊抽屜 (Drawer)
+    // =========================================
+    function openSeismicStationDrawer(st) {
+      const drawer = document.getElementById("seismic-spectrum-drawer");
+      if (!drawer) return;
+
+      const isNearEdge = (st.site_type === "near_edge");
+      const edgeBadgeHtml = isNearEdge
+        ? `<span class="stat-badge" style="background: rgba(255,123,0,0.25); color: #ff7b00; border: 1px solid #ff7b00;">近邊緣構造帶 (d_edge = ${st.d_edge_km} km)</span>`
+        : `<span class="stat-badge" style="background: rgba(0,210,255,0.2); color: #00d2ff; border: 1px solid #00d2ff;">平原中心區 (d_edge = ${st.d_edge_km} km)</span>`;
+
+      const meinongHtml = st.meinong ? `
+        <div style="background: rgba(255, 123, 0, 0.12); border: 1px solid #ff7b00; border-radius: 6px; padding: 10px; margin-bottom: 14px;">
+          <div style="color: #ff9900; font-weight: bold; font-size: 0.8rem; margin-bottom: 4px;">
+            ⚡ 2016 美濃地震 (ML 6.6) 實測震動歷時與動力特徵
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; font-size: 0.76rem;">
+            <div>實測 PGA: <b style="color: #f0f6fc;">${st.meinong.pga_gal} gal</b></div>
+            <div>強震歷時: <b style="color: #f0f6fc;">${st.meinong.bracketed_dur_s} s</b></div>
+            <div>反應譜峰值: <b style="color: #f0f6fc;">${st.meinong.peak_t_s} s</b></div>
+          </div>
+          <div style="font-size: 0.72rem; color: #8b949e; margin-top: 4px;">
+            場址分類: ${st.meinong.site_type} | 實測長歷時與長週期放大印證盆地軟土捕捉效應
+          </div>
+        </div>
+      ` : '';
+
+      const errText = st.rel_error_pct !== null ? `${st.rel_error_pct}%` : '--';
+      const f0ObsText = st.f0_obs_hz !== null ? `${st.f0_obs_hz} Hz` : '未提供';
+      const vs30ObsText = st.vs30_obs_ms !== null ? `${st.vs30_obs_ms} m/s` : '--';
+
+      drawer.innerHTML = `
+        <div class="drawer-header">
+          <div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 1.15rem; font-weight: 700; color: #f0f6fc;">📡 ${st.name}</span>
+              <span class="stat-badge" style="background: #1f6feb; color: #ffffff; font-size: 0.82rem; font-weight: bold;">${st.code}</span>
+            </div>
+            <div style="margin-top: 5px; display: flex; gap: 6px; flex-wrap: wrap;">
+              <span class="stat-badge" style="background: #21262d; color: #58a6ff;">盆地: ${st.basin}</span>
+              <span class="stat-badge" style="background: #21262d; color: #7ee787;">${st.site_class}</span>
+              <span class="stat-badge" style="background: #21262d; color: #c9d1d9;">優勢岩性: ${st.voxel_dom_lith_name || '沉積層'}</span>
+              ${edgeBadgeHtml}
+            </div>
+          </div>
+          <button class="drawer-close-btn" onclick="closeSeismicStationDrawer()">✕</button>
+        </div>
+
+        <div class="metric-grid">
+          <div class="metric-card">
+            <div class="metric-label">實測 Vs30 (EGDT 測井)</div>
+            <div class="metric-val" style="color: #79c0ff;">${vs30ObsText}</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">3D 體素正演 Vs30</div>
+            <div class="metric-val" style="color: #a5d6ff;">${st.vs30_voxel_ms || '--'} m/s</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">實測基準主頻 (f0,obs)</div>
+            <div class="metric-val" style="color: #58a6ff;">${f0ObsText}</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">3D 體素正演主頻 (f0,voxel)</div>
+            <div class="metric-val" style="color: #ff9900;">${st.f0_voxel_hz} Hz <span style="font-size: 0.7rem; color: #7ee787;">(誤差 ${errText})</span></div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">工程基盤深度 (Z1.0)</div>
+            <div class="metric-val">${st.z1_0_egdt_m || '--'} m</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">聲學基盤深度 (Z2.8)</div>
+            <div class="metric-val">${st.z_bedrock_ac_m || '--'} m</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">沉積層等效厚度 (H)</div>
+            <div class="metric-val">${st.sediment_depth_m || '--'} m</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">邊緣構造距離 (d_edge)</div>
+            <div class="metric-val" style="color: ${isNearEdge ? '#ff7b00' : '#00d2ff'};">${st.d_edge_km} km</div>
+          </div>
+        </div>
+
+        ${meinongHtml}
+
+        <div class="chart-container">
+          <div class="chart-title">
+            <span>📈 一維 Haskell–Thomson 傳遞函數頻譜 |H(f)|</span>
+            <span style="font-size: 0.72rem; color: #ff9900;">f0,voxel = ${st.f0_voxel_hz} Hz</span>
+          </div>
+          <div style="position: relative; width: 100%; height: 210px;">
+            <canvas id="canvas-transfer-function" width="460" height="210" style="width: 100%; height: 100%; display: block;"></canvas>
+          </div>
+          <div style="font-size: 0.68rem; color: #8b949e; margin-top: 6px; display: flex; justify-content: space-between;">
+            <span><span style="color: #ff7b00; font-weight: bold;">―</span> 3D 體素理論傳遞函數 |H(f)|</span>
+            <span><span style="color: #ffaa00;">┆</span> 正演主頻 (${st.f0_voxel_hz} Hz)</span>
+            <span><span style="color: #00d2ff;">┆</span> 實測主頻 (${f0ObsText})</span>
+          </div>
+        </div>
+
+        <div class="chart-container">
+          <div class="chart-title">
+            <span>⚡ 5% 阻尼擬加速度反應譜放大 Sa(T) / PGA</span>
+            <span style="font-size: 0.72rem; color: #7ee787;">T_peak = ${st.response_spectrum ? st.response_spectrum.t_peak_s : '--'} s</span>
+          </div>
+          <div style="position: relative; width: 100%; height: 180px;">
+            <canvas id="canvas-response-spectrum" width="460" height="180" style="width: 100%; height: 100%; display: block;"></canvas>
+          </div>
+          <div style="font-size: 0.68rem; color: #8b949e; margin-top: 6px;">
+            橫軸為結構自振週期 T (0.05s ~ 3.0s)，縱軸為擬加速度動態放大倍率 Sa / PGA。
+          </div>
+        </div>
+
+        <div class="panel-section" style="background: #161b22; border: 1px solid #30363d; border-radius: 6px; padding: 12px; margin-top: 10px;">
+          <div class="section-title" style="color: #58a6ff; margin-bottom: 6px;">🔬 場址動力效應地質詮釋</div>
+          <div style="font-size: 0.75rem; line-height: 1.6; color: #c9d1d9;">
+            ${generateSiteInterpretation(st)}
+          </div>
+        </div>
+      `;
+
+      drawer.classList.add("open");
+
+      setTimeout(() => {
+        drawTransferFunctionChart("canvas-transfer-function", st);
+        drawResponseSpectrumChart("canvas-response-spectrum", st);
+      }, 50);
+    }
+
+    function closeSeismicStationDrawer() {
+      const drawer = document.getElementById("seismic-spectrum-drawer");
+      if (drawer) drawer.classList.remove("open");
+    }
+
+    function openSeismicStationDrawerByCode(code) {
+      if (!portalData.seismic_stations) return;
+      const st = portalData.seismic_stations.find(s => s.code === code);
+      if (st) openSeismicStationDrawer(st);
+    }
+
+    function focusStationAndLaunch3D(code) {
+      if (!portalData.seismic_stations) return;
+      const st = portalData.seismic_stations.find(s => s.code === code);
+      if (!st) return;
+
+      let bestKey = "chianan";
+      let minDis = 999999;
+      Object.keys(portalData.basins_meta || {}).forEach(k => {
+        const b = portalData.basins_meta[k];
+        if (st.lon >= b.bounds[0] && st.lon <= b.bounds[2] && st.lat >= b.bounds[1] && st.lat <= b.bounds[3]) {
+          bestKey = k;
+          minDis = 0;
+        } else {
+          const midX = (b.bounds[0] + b.bounds[2]) / 2;
+          const midY = (b.bounds[1] + b.bounds[3]) / 2;
+          const d = Math.hypot(st.lon - midX, st.lat - midY);
+          if (d < minDis) {
+            minDis = d;
+            bestKey = k;
+          }
+        }
+      });
+      selectBasin(bestKey);
+      launch3DViewer();
+      setTimeout(() => {
+        openSeismicStationDrawer(st);
+      }, 350);
+    }
+
+    function drawTransferFunctionChart(canvasId, st) {
+      const canvas = document.getElementById(canvasId);
+      if (!canvas) return;
+      const ctx = canvas.getContext("2d");
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      ctx.scale(dpr, dpr);
+
+      const w = rect.width;
+      const h = rect.height;
+      const padLeft = 45, padRight = 20, padTop = 25, padBottom = 30;
+      const plotW = w - padLeft - padRight;
+      const plotH = h - padTop - padBottom;
+
+      ctx.clearRect(0, 0, w, h);
+
+      const spec = st.spectrum || { freqs: [0.1, 1, 10], h_amp: [1, 2, 1], f0: 1.0, peak_amp: 2.0 };
+      const freqs = spec.freqs;
+      const amps = spec.h_amp;
+
+      const fMin = 0.1, fMax = 10.0;
+      const maxAmp = Math.max(4.0, Math.ceil(Math.max(...amps) * 1.25));
+
+      const xMap = (f) => padLeft + ((f - fMin) / (fMax - fMin)) * plotW;
+      const yMap = (a) => padTop + plotH - (a / maxAmp) * plotH;
+
+      // 網格與軸線
+      ctx.strokeStyle = "#21262d";
+      ctx.lineWidth = 1;
+      ctx.fillStyle = "#8b949e";
+      ctx.font = "10px sans-serif";
+      ctx.textAlign = "center";
+
+      const fTicks = [0.5, 1.0, 2.0, 4.0, 6.0, 8.0, 10.0];
+      fTicks.forEach(ft => {
+        const x = xMap(ft);
+        ctx.beginPath();
+        ctx.moveTo(x, padTop);
+        ctx.lineTo(x, padTop + plotH);
+        ctx.stroke();
+        ctx.fillText(ft + "Hz", x, padTop + plotH + 16);
+      });
+
+      ctx.textAlign = "right";
+      const aStep = maxAmp > 10 ? 4 : 2;
+      for (let a = 0; a <= maxAmp; a += aStep) {
+        const y = yMap(a);
+        ctx.beginPath();
+        ctx.moveTo(padLeft, y);
+        ctx.lineTo(padLeft + plotW, y);
+        ctx.stroke();
+        ctx.fillText(a + "x", padLeft - 6, y + 3);
+      }
+
+      ctx.strokeStyle = "#30363d";
+      ctx.strokeRect(padLeft, padTop, plotW, plotH);
+
+      // 實測主頻 f0,obs 虛線 (青色)
+      if (st.f0_obs_hz && st.f0_obs_hz >= fMin && st.f0_obs_hz <= fMax) {
+        const xObs = xMap(st.f0_obs_hz);
+        ctx.save();
+        ctx.strokeStyle = "#00d2ff";
+        ctx.lineWidth = 1.8;
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.moveTo(xObs, padTop);
+        ctx.lineTo(xObs, padTop + plotH);
+        ctx.stroke();
+        ctx.fillStyle = "#00d2ff";
+        ctx.textAlign = "center";
+        ctx.fillText(`f0,obs=${st.f0_obs_hz}Hz`, xObs, padTop - 8);
+        ctx.restore();
+      }
+
+      // 傳遞函數曲線 |H(f)|
+      ctx.save();
+      ctx.beginPath();
+      for (let i = 0; i < freqs.length; i++) {
+        const x = xMap(freqs[i]);
+        const y = yMap(amps[i]);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.strokeStyle = "#ff7b00";
+      ctx.lineWidth = 2.4;
+      ctx.stroke();
+
+      const grad = ctx.createLinearGradient(0, padTop, 0, padTop + plotH);
+      grad.addColorStop(0, "rgba(255, 123, 0, 0.35)");
+      grad.addColorStop(1, "rgba(255, 123, 0, 0.0)");
+      ctx.lineTo(xMap(freqs[freqs.length - 1]), padTop + plotH);
+      ctx.lineTo(xMap(freqs[0]), padTop + plotH);
+      ctx.closePath();
+      ctx.fillStyle = grad;
+      ctx.fill();
+      ctx.restore();
+
+      // 體素正演主頻峰值 f0,voxel (橘金虛線與高亮點)
+      if (st.f0_voxel_hz && st.f0_voxel_hz >= fMin && st.f0_voxel_hz <= fMax) {
+        const xVoxel = xMap(st.f0_voxel_hz);
+        const yPeak = yMap(spec.peak_amp);
+        ctx.save();
+        ctx.strokeStyle = "#ffaa00";
+        ctx.lineWidth = 1.8;
+        ctx.setLineDash([3, 3]);
+        ctx.beginPath();
+        ctx.moveTo(xVoxel, padTop);
+        ctx.lineTo(xVoxel, padTop + plotH);
+        ctx.stroke();
+
+        ctx.fillStyle = "#ffaa00";
+        ctx.beginPath();
+        ctx.arc(xVoxel, yPeak, 4.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = "#ffffff";
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        ctx.fillStyle = "#ffaa00";
+        ctx.textAlign = "center";
+        ctx.font = "bold 10px sans-serif";
+        ctx.fillText(`f0,voxel=${st.f0_voxel_hz}Hz (${spec.peak_amp.toFixed(1)}x)`, xVoxel, yPeak - 9);
+        ctx.restore();
+      }
+    }
+
+    function drawResponseSpectrumChart(canvasId, st) {
+      const canvas = document.getElementById(canvasId);
+      if (!canvas) return;
+      const ctx = canvas.getContext("2d");
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      ctx.scale(dpr, dpr);
+
+      const w = rect.width;
+      const h = rect.height;
+      const padLeft = 45, padRight = 20, padTop = 20, padBottom = 30;
+      const plotW = w - padLeft - padRight;
+      const plotH = h - padTop - padBottom;
+
+      ctx.clearRect(0, 0, w, h);
+
+      const rsp = st.response_spectrum || { periods: [0.05, 0.5, 3.0], psa_amp: [1, 2.5, 1], t_peak_s: 0.5, psa_max: 2.5 };
+      const periods = rsp.periods;
+      const amps = rsp.psa_amp;
+
+      const tMin = 0.05, tMax = 3.0;
+      const maxAmp = Math.max(3.0, Math.ceil(Math.max(...amps) * 1.25));
+
+      const logMin = Math.log10(tMin);
+      const logMax = Math.log10(tMax);
+      const xMap = (t) => padLeft + ((Math.log10(t) - logMin) / (logMax - logMin)) * plotW;
+      const yMap = (a) => padTop + plotH - (a / maxAmp) * plotH;
+
+      ctx.strokeStyle = "#21262d";
+      ctx.lineWidth = 1;
+      ctx.fillStyle = "#8b949e";
+      ctx.font = "10px sans-serif";
+      ctx.textAlign = "center";
+
+      const tTicks = [0.05, 0.1, 0.2, 0.5, 1.0, 2.0, 3.0];
+      tTicks.forEach(tt => {
+        const x = xMap(tt);
+        ctx.beginPath();
+        ctx.moveTo(x, padTop);
+        ctx.lineTo(x, padTop + plotH);
+        ctx.stroke();
+        ctx.fillText(tt + "s", x, padTop + plotH + 16);
+      });
+
+      ctx.textAlign = "right";
+      const aStep = maxAmp > 6 ? 2 : 1;
+      for (let a = 0; a <= maxAmp; a += aStep) {
+        const y = yMap(a);
+        ctx.beginPath();
+        ctx.moveTo(padLeft, y);
+        ctx.lineTo(padLeft + plotW, y);
+        ctx.stroke();
+        ctx.fillText(a + "x", padLeft - 6, y + 3);
+      }
+
+      ctx.strokeStyle = "#30363d";
+      ctx.strokeRect(padLeft, padTop, plotW, plotH);
+
+      // 基準線 1.0x (剛性岩盤)
+      const y1 = yMap(1.0);
+      ctx.save();
+      ctx.strokeStyle = "#484f58";
+      ctx.lineWidth = 1.2;
+      ctx.setLineDash([3, 3]);
+      ctx.beginPath();
+      ctx.moveTo(padLeft, y1);
+      ctx.lineTo(padLeft + plotW, y1);
+      ctx.stroke();
+      ctx.restore();
+
+      // 反應譜曲線
+      ctx.save();
+      ctx.beginPath();
+      for (let i = 0; i < periods.length; i++) {
+        const x = xMap(periods[i]);
+        const y = yMap(amps[i]);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.strokeStyle = "#00d2ff";
+      ctx.lineWidth = 2.4;
+      ctx.stroke();
+
+      const grad = ctx.createLinearGradient(0, padTop, 0, padTop + plotH);
+      grad.addColorStop(0, "rgba(0, 210, 255, 0.3)");
+      grad.addColorStop(1, "rgba(0, 210, 255, 0.0)");
+      ctx.lineTo(xMap(periods[periods.length - 1]), padTop + plotH);
+      ctx.lineTo(xMap(periods[0]), padTop + plotH);
+      ctx.closePath();
+      ctx.fillStyle = grad;
+      ctx.fill();
+      ctx.restore();
+
+      // 峰值週期點
+      if (rsp.t_peak_s) {
+        const xPk = xMap(rsp.t_peak_s);
+        const yPk = yMap(rsp.psa_max);
+        ctx.save();
+        ctx.fillStyle = "#7ee787";
+        ctx.beginPath();
+        ctx.arc(xPk, yPk, 4.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = "#ffffff";
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        ctx.fillStyle = "#7ee787";
+        ctx.textAlign = "center";
+        ctx.font = "bold 10px sans-serif";
+        ctx.fillText(`T_peak=${rsp.t_peak_s}s (${rsp.psa_max.toFixed(1)}x)`, xPk, yPk - 8);
+        ctx.restore();
+      }
+    }
+
+    function generateSiteInterpretation(st) {
+      const isNearEdge = (st.site_type === "near_edge");
+      const vs30 = st.vs30_voxel_ms || 250;
+      let text = "";
+
+      if (isNearEdge) {
+        text += `<b>⚡ 盆地邊緣幾何效應顯著 (d_edge = ${st.d_edge_km} km &lt; 6.0 km)</b>：本測站緊鄰盆地主控邊界構造（斷層/麓山帶逆衝前緣）。震波自深部堅硬基盤射入盆地邊緣時產生強烈折射轉換，激發高振幅<b>盆地誘發表面波 (Basin-Induced Surface Waves)</b>，在一維垂直共振之外引發額外波干涉疊加，顯著延長強震動歷時。<br><br>`;
+      } else {
+        text += `<b>🌊 盆地平原中心一維共振主導 (d_edge = ${st.d_edge_km} km ≥ 6.0 km)</b>：本測站處於沉積盆地平原核心區，地層近水平展布。震波主要受深厚沉積層與深部基盤（$Z_{1.0} = ${st.z1_0_egdt_m || 50}m$, $Z_{2.8} = ${st.z_bedrock_ac_m || 400}m$）強大波阻抗比控制，呈現典型 1D SH 垂直共振特性，理論傳遞函數可高度精準重現基底共振主頻。<br><br>`;
+      }
+
+      if (vs30 < 200) {
+        text += `<b>⚠️ 軟弱深厚沉積層 (Vs30 = ${vs30} m/s, Class E)</b>：表層泥質黏土層厚，基盤共振基頻低於 1.0 Hz (約 ${st.f0_voxel_hz} Hz)。對自振週期介於 1.0 ~ 2.0 秒之中高樓層建築與長跨度橋梁具強烈加速度動力放大效應。`;
+      } else if (vs30 < 300) {
+        text += `<b>🏢 典型沖積中軟土壤 (Vs30 = ${vs30} m/s, Class D)</b>：以砂泥互層為主，動力反應譜在 0.5 ~ 1.5 秒具有顯著峰值，反映都會區典型建築場址動力放大頻率區間。`;
+      } else {
+        text += `<b>⛰️ 堅硬粗礫石或近山麓岩層 (Vs30 = ${vs30} m/s, Class C)</b>：高波速低阻抗比，主頻偏高 (${st.f0_voxel_hz} Hz)，長週期地震動放大較小，短週期高頻波能量集中。`;
+      }
+
+      return text;
+    }
+
   </script>
 </body>
 </html>

@@ -238,3 +238,59 @@ def test_coastline_mask_and_ocean_filtering():
     in_land_wells = [is_point_in_land(r["lon"], r["lat"]) for _, r in bh_df.iterrows()]
     assert all(in_land_wells), f"所有觀測井均應座落於陸地遮罩內，不合格井數: {len(in_land_wells) - sum(in_land_wells)}"
 
+
+def test_seismic_stations_portal_integration():
+    """驗證 32 座 TSMIP/EGDT 強震測站與傳遞函數頻譜曲線封裝及 3D 門戶整合完整性。"""
+    import json
+    js_path = Path("reports/taiwan_portal_data.js")
+    html_path = Path("reports/taiwan_3d_portal.html")
+    assert js_path.exists() and html_path.exists()
+
+    text = js_path.read_text(encoding="utf-8")
+    json_str = text.replace("window.TAIWAN_PORTAL_DATA = ", "").rstrip(";\n ")
+    portal_data = json.loads(json_str)
+
+    # 1. 驗證全島連續高程網格 (Taiwan Topography Grid)
+    assert "taiwan_elev_grid" in portal_data, "需具備全島高程網格 taiwan_elev_grid"
+    tg = portal_data["taiwan_elev_grid"]
+    assert tg["lon_min"] <= 120.0 and tg["lon_max"] >= 122.0
+    assert tg["lat_min"] <= 22.0 and tg["lat_max"] >= 25.3
+    assert len(tg["grid"]) == tg["n_lat"]
+    assert len(tg["grid"][0]) == tg["n_lon"]
+    grid_arr = np.array(tg["grid"])
+    assert grid_arr.min() >= 0.0 and grid_arr.max() >= 1500.0, "全島高程網格需涵蓋平原至高山"
+
+    # 2. 驗證 32 座強震測站數據包
+    assert "seismic_stations" in portal_data, "需具備強震測站數據包 seismic_stations"
+    stations = portal_data["seismic_stations"]
+    assert len(stations) == 32, f"強震測站數量應為 32 座，目前為 {len(stations)}"
+
+    for st in stations:
+        for field in ["code", "name", "basin", "lon", "lat", "elev", "site_class", "f0_voxel_hz", "d_edge_km", "spectrum", "response_spectrum"]:
+            assert field in st, f"測站 {st.get('code')} 缺少必要欄位: {field}"
+        assert st["d_edge_km"] >= 0.0, f"測站 {st['code']} 邊緣距離需大於等於 0"
+        assert st["site_type"] in ["near_edge", "basin_center"]
+        
+        # 傳遞函數曲線驗證
+        spec = st["spectrum"]
+        assert len(spec["freqs"]) >= 40 and len(spec["h_amp"]) >= 40
+        assert len(spec["freqs"]) == len(spec["h_amp"])
+        assert spec["f0"] > 0 and spec["peak_amp"] >= 1.0
+
+        # 反應譜曲線驗證
+        rsp = st["response_spectrum"]
+        assert len(rsp["periods"]) >= 30 and len(rsp["psa_amp"]) >= 30
+        assert len(rsp["periods"]) == len(rsp["psa_amp"])
+        assert rsp["t_peak_s"] > 0 and rsp["psa_max"] >= 1.0
+
+    # 3. 驗證 3D Web 門戶 HTML 中的強震測站與頻譜抽屜元件
+    html_content = html_path.read_text(encoding="utf-8")
+    assert "seismicStationGroup" in html_content, "需具備 3D 強震測站群組 seismicStationGroup"
+    assert "build3DSeismicStations" in html_content, "需具備 3D 強震測站構建函數 build3DSeismicStations"
+    assert "openSeismicStationDrawer" in html_content, "需具備打開頻譜抽屜函數 openSeismicStationDrawer"
+    assert "drawTransferFunctionChart" in html_content, "需具備 Canvas 繪製傳遞函數圖表函數 drawTransferFunctionChart"
+    assert "drawResponseSpectrumChart" in html_content, "需具備 Canvas 繪製反應譜圖表函數 drawResponseSpectrumChart"
+    assert "seismic-spectrum-drawer" in html_content, "需具備抽屜容器元素 seismic-spectrum-drawer"
+    assert "toggle-seismic-stations" in html_content, "需具備 3D 側邊欄強震測站切換開關"
+
+

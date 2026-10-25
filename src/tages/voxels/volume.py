@@ -122,9 +122,20 @@ def _get_elev_tree():
     global _ELEV_TREE, _ELEV_VALUES
     if _ELEV_TREE is None:
         from scipy.spatial import cKDTree
-        bh_csv = Path(__file__).resolve().parents[3] / "data" / "interim" / "taiwan_boreholes.csv"
+        root_data = Path(__file__).resolve().parents[3] / "data" / "interim"
+        bh_csv = root_data / "taiwan_boreholes.csv"
+        sch_csv = root_data / "school_boreholes.csv"
+        df = None
         if bh_csv.exists():
             df = pd.read_csv(bh_csv)
+        if sch_csv.exists():
+            df_sch = pd.read_csv(sch_csv)
+            if df is not None:
+                df = pd.concat([df, df_sch], ignore_index=True).drop_duplicates(subset=["station"])
+            else:
+                df = df_sch
+        if df is not None and not df.empty:
+            df = df.dropna(subset=["lon", "lat", "elev_m"])
             coords = df[["lon", "lat"]].values
             _ELEV_VALUES = df["elev_m"].values
             _ELEV_TREE = cKDTree(coords)
