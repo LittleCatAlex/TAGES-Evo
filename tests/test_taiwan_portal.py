@@ -286,7 +286,7 @@ def test_seismic_stations_portal_integration():
     # 3. 驗證 3D Web 門戶 HTML 中的強震測站與頻譜抽屜元件
     html_content = html_path.read_text(encoding="utf-8")
     assert "seismicStationGroup" in html_content, "需具備 3D 強震測站群組 seismicStationGroup"
-    assert "build3DSeismicStations" in html_content, "需具備 3D 強震測站構建函數 build3DSeismicStations"
+    assert "function build3DSeismicStations" in html_content, "需具備 3D 強震測站構建函數 build3DSeismicStations"
     assert "openSeismicStationDrawer" in html_content, "需具備打開頻譜抽屜函數 openSeismicStationDrawer"
     assert "drawTransferFunctionChart" in html_content, "需具備 Canvas 繪製傳遞函數圖表函數 drawTransferFunctionChart"
     assert "drawResponseSpectrumChart" in html_content, "需具備 Canvas 繪製反應譜圖表函數 drawResponseSpectrumChart"
