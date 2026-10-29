@@ -16,6 +16,20 @@ with open(ROOT / "reports" / "phys_loss_activation_audit.json", encoding="utf-8"
     phys_audit = json.load(f)
 with open(ROOT / "reports" / "seismic_site_effects_deep_metrics.json", encoding="utf-8") as f:
     deep_metrics = json.load(f)
+with open(ROOT / "reports" / "ocr_error_audit.json", encoding="utf-8") as f:
+    ocr_m = json.load(f)
+with open(ROOT / "reports" / "school_borehole_integration_metrics.json", encoding="utf-8") as f:
+    sch_m = json.load(f)
+
+sizes = sch_m["dataset_sizes"]
+b_raw = sch_m["5fold_groupkfold_baseline"]["rf_raw"]
+c_raw = sch_m["5fold_groupkfold_combined"]["rf_raw"]
+b_phys = sch_m["5fold_groupkfold_baseline"]["rf_phys"]
+c_phys = sch_m["5fold_groupkfold_combined"]["rf_phys"]
+b_seq = sch_m["5fold_groupkfold_baseline"]["seqnet"]
+c_seq = sch_m["5fold_groupkfold_combined"]["seqnet"]
+sch_eval = sch_m["school_boreholes_evaluation"]
+sp_cv = sch_m["spatial_block_cv"]
 
 BASIN_ZH = {
     "Chianan": "嘉南平原",
@@ -84,7 +98,7 @@ facies_deep = deep_metrics["sedimentary_facies_wave_dynamics"]
 meinong_cases = deep_metrics["meinong_2016_earthquake_validation"]["cases"]
 
 # 1. Replace Version Date & Abstracts (Chinese + English)
-new_abstract_block = f"""> **版本日期**：2026-10-26  
+new_abstract_block = f"""> **版本日期**：2026-10-29  
 
 ---
 
@@ -95,10 +109,10 @@ new_abstract_block = f"""> **版本日期**：2026-10-26
 臺灣主要平原與都會盆地人口密集，其淺部（0–1 km）沉積層的三維非均質岩性分佈直接控制含水層儲集架構與強震場址共振效應。傳統地球物理研究面臨「全島震波層析網格過粗、無法解析米級砂泥層，而水文鑽井在水平空間上高度稀疏」的跨尺度矛盾；純數據驅動的機器學習模型則經常在垂直剖面上產生違反沉積常理的孤立跳變噪聲。本研究旨在建立結合沉積相律、近場空間錨定與岩石物理先驗的序列神經網路，重建具備地質連續性的盆地三維結構，並進行三維體素驅動之一維強震場址效應閉環正演、深部基盤物理控制規律驗證與耐震法規盲點量化。
 
 【研究過程與方法】
-本研究整合全臺 422 口深層水文觀測井（116,960 筆深度採樣）、經濟部地質調查及礦業管理中心（GSMMA）地質資料整合查詢系統公開之 6,288 口工程地質鑽孔（220,704 筆深度採樣）、384 口井原位地球物理電測（1,314,619 筆深度對齊紀錄）與中研院 TEC LEE2025 全島 3D 震波速度場，建構固定物理基準深度歸一化（$z_{{\\text{{norm}}}}$、$z_{{\\text{{log}}}}$）、多尺度空間傅立葉位置編碼與零洩漏雙尺度 K-NN 近場岩相先驗。提出 PG-WellboreSeqNet 模型，結合多尺度 1D-ResNet、雙向長短期記憶網路（BiLSTM）、少數類對數先驗補償（Logit Adjustment）與以瓦爾特相律經驗轉移矩陣初始化之線性鏈條件隨機場（CRF）及單點尖峰濾除，並量化診斷區域層析波速尺度下之岩石物理一致性損失（$\\mathcal{{L}}_{{\\text{{phy}}}}$）；進一步建立原位電測知識蒸餾管線，將 17 維教師網路之實測電測表徵蒸餾至 14 維學生網路；在 3D 體素重構中建立文獻約束之雙界面基盤結構先驗（工程基盤 $V_s \\ge 760\\text{{ m/s}}$ 與地殼聲學基盤 $V_s \\ge 2,000\\text{{ m/s}}$），提取全臺六大盆地 32 座國震中心（NCREE）EGDT 強震測站正下方之 3D 體素岩性柱，在全臺統一經驗耦合參數下代入一維 Haskell–Thomson 多層黏彈性傳遞矩陣計算理論共振主頻 $f_{{0,\\text{{voxel}}}}$，並於前端開發全域任意座標點即時強震場址響應解算器。
+本研究整合全臺 422 口深層水文觀測井（116,960 筆深度採樣）、經濟部地質調查及礦業管理中心（GSMMA）地質資料整合查詢系統公開之 34,853 口工程地質鑽孔（1,056,137 筆深度採樣）、384 口井原位地球物理電測（1,314,619 筆深度對齊紀錄）與中研院 TEC LEE2025 全島 3D 震波速度場，建構固定物理基準深度歸一化（$z_{{\\text{{norm}}}}$、$z_{{\\text{{log}}}}$）、多尺度空間傅立葉位置編碼與零洩漏雙尺度 K-NN 近場岩相先驗。提出 PG-WellboreSeqNet 模型，結合多尺度 1D-ResNet、雙向長短期記憶網路（BiLSTM）、少數類對數先驗補償（Logit Adjustment）與以瓦爾特相律經驗轉移矩陣初始化之線性鏈條件隨機場（CRF）及單點尖峰濾除，並量化診斷區域層析波速尺度下之岩石物理一致性損失（$\\mathcal{{L}}_{{\\text{{phy}}}}$）；進一步建立原位電測知識蒸餾管線，將 17 維教師網路之實測電測表徵蒸餾至 14 維學生網路；在 3D 體素重構中建立文獻約束之雙界面基盤結構先驗（工程基盤 $V_s \\ge 760\\text{{ m/s}}$ 與地殼聲學基盤 $V_s \\ge 2,000\\text{{ m/s}}$），提取全臺六大盆地 32 座國震中心（NCREE）EGDT 強震測站正下方之 3D 體素岩性柱，在全臺統一經驗耦合參數下代入一維 Haskell–Thomson 多層黏彈性傳遞矩陣計算理論共振主頻 $f_{{0,\\text{{voxel}}}}$，並於前端開發全域任意座標點即時強震場址響應解算器。
 
 【研究結果】
-在 422 口水文深井的完整 5 折盲測中，PG-WellboreSeqNet 的六類沉積相平均準確率為 35.27%（Macro F1 為 0.2665），透過 CRF 結合單點尖峰濾除將垂直孤立跳變噪聲由隨機森林的 1,012 處降至 0 處，且使粉土召回率提升至 5.12%（精確率 20.09%）。整編 GSMMA 公開之 6,288 口工程鑽孔後，混合 5,541 口井之 5 折交叉驗證準確率提升至 48.98%（Macro F1 達 0.3949，孤立噪聲 0 處；隨機森林噪聲達 2,270 處），工程淺孔折外盲測（OOF）準確率由零樣本外推之 26.52% 躍升至 60.31%（Macro F1 達 0.5073）；在 15 km 空間盲測中由 36.66% 提升至 37.83%（+1.17%），定量界定出近場錨定與遠場外推之物理邊界。原位電測知識蒸餾使學生網路之 Macro F1 提升至 0.4405（噪聲 0 處），並於物理尺度重建虛擬電測曲線。全臺六大盆地 3D 體素模型重現嘉南盆地北港基盤高區（平均 404.4 m）向臺南前陸深槽（平均 893.7 m）傾沒，並於濁水溪沖積扇重現粗粒相向扇尾之水動力指數衰減規律（$R^2 = 0.936$）。直接由 3D 體素驅動 32 座 NCREE EGDT 強震站正演，正演主頻與基準主頻顯著正相關（Pearson $r = {tsmip_metrics['f0_voxel_vs_obs']['pearson_r']:.4f}$, Spearman $\\rho = {tsmip_metrics['f0_voxel_vs_obs']['spearman_rho']:.4f}$, $R^2 = {tsmip_metrics['f0_voxel_vs_obs']['r2']:.4f}$, $\\text{{RMSE}} = {tsmip_metrics['f0_voxel_vs_obs']['rmse_hz']:.3f}\\text{{ Hz}}$，較傳統四分之一波長之 1.346 Hz 誤差降低 76.5%）。深入驗證發現深部基盤深度 $Z_{{1.0}}$ 與共振週期 $T_0$ 呈強烈正相關（$r = {z10_m['pearson_r_z1_0_vs_t0']:.4f}$，$p = {z10_m['p_val_z1_0_vs_t0']:.2e}$），證實長週期震害受深部基盤物理控制；對照 2011 耐震規範，揭示西部前陸三大深盆地於 15 樓建築敏感週期（$T=1.5\\text{{s}}$）平均被低估達 **{code_west['mean_underestimation_t1_5s_pct']:.1f}%**（最大低估 **{code_west['max_underestimation_t1_5s_pct']:.1f}%**）。
+在 422 口水文深井的完整 5 折盲測中，PG-WellboreSeqNet 的六類沉積相平均準確率為 35.27%（Macro F1 為 0.2665），透過 CRF 結合單點尖峰濾除將垂直孤立跳變噪聲由隨機森林的 1,012 處降至 0 處，且使粉土召回率提升至 5.12%（精確率 20.09%）。整編 GSMMA 公開之 34,853 口工程鑽孔後，混合 {sizes['combined_wells']:,} 口井之 5 折交叉驗證準確率提升至 {c_seq['acc_l2_mean']:.2f}%（Macro F1 達 {c_seq['macro_f1_mean']:.4f}，孤立噪聲 0 處；隨機森林噪聲達 {c_phys['isolated_noise_total']:,} 處），工程淺孔折外盲測（OOF）準確率由零樣本外推之 {sch_eval['zeroshot_seqnet_acc']:.2f}% 躍升至 {sch_eval['combined_oof_seqnet_acc']:.2f}%（Macro F1 達 {sch_eval['combined_oof_seqnet_f1']:.4f}）；在 15 km 空間盲測中達 {sp_cv['combined_15km_acc']:.2f}%（{sp_cv['spatial_gain']:+.2f}%），定量界定出近場錨定與遠場外推之物理邊界。原位電測知識蒸餾使學生網路之 Macro F1 提升至 0.4405（噪聲 0 處），並於物理尺度重建虛擬電測曲線。全臺六大盆地 3D 體素模型重現嘉南盆地北港基盤高區（平均 404.4 m）向臺南前陸深槽（平均 893.7 m）傾沒，並於濁水溪沖積扇重現粗粒相向扇尾之水動力指數衰減規律（$R^2 = 0.936$）。直接由 3D 體素驅動 32 座 NCREE EGDT 強震站正演，正演主頻與基準主頻顯著正相關（Pearson $r = {tsmip_metrics['f0_voxel_vs_obs']['pearson_r']:.4f}$, Spearman $\\rho = {tsmip_metrics['f0_voxel_vs_obs']['spearman_rho']:.4f}$, $R^2 = {tsmip_metrics['f0_voxel_vs_obs']['r2']:.4f}$, $\\text{{RMSE}} = {tsmip_metrics['f0_voxel_vs_obs']['rmse_hz']:.3f}\\text{{ Hz}}$，較傳統四分之一波長之 1.346 Hz 誤差降低 76.5%）。深入驗證發現深部基盤深度 $Z_{{1.0}}$ 與共振週期 $T_0$ 呈強烈正相關（$r = {z10_m['pearson_r_z1_0_vs_t0']:.4f}$，$p = {z10_m['p_val_z1_0_vs_t0']:.2e}$），證實長週期震害受深部基盤物理控制；對照 2011 耐震規範，揭示西部前陸三大深盆地於 15 樓建築敏感週期（$T=1.5\\text{{s}}$）平均被低估達 **{code_west['mean_underestimation_t1_5s_pct']:.1f}%**（最大低估 **{code_west['max_underestimation_t1_5s_pct']:.1f}%**）。
 
 【結論與應用】
 本研究證實沉積相律、固定基準對數深度與原位電測蒸餾能有效抑制地下地質建模之椒鹽噪聲，完成由三維體素直接驅動強震場址共振主頻預測之閉環驗證，量化深部基盤物理控制與現行耐震規範之長週期低估率，並於 3D 數位分身門戶實裝全域即時場址效應解算器，為都會耐震微區劃改革與地下水治理提供兼具科學深度與實用價值的數位工具。
@@ -110,9 +124,9 @@ new_abstract_block = f"""> **版本日期**：2026-10-26
 ### 英文摘要（Abstract in English, ≤250 words）
 [Objective] Subsurface 3D lithofacies in Taiwan's basins govern aquifer architecture and seismic site amplification. Regional tomography lacks metre-scale resolution, while sparse boreholes cause data-driven models to produce vertical noise. We develop PG-WellboreSeqNet to reconstruct basin lithofacies by coupling seismic priors, spatial anchoring, and Walther's Law.
 
-[Methods] We integrated 422 deep wells, 6,288 GSMMA boreholes, 384 wireline-logged wells, and the LEE2025 velocity model. Features combine logarithmic depth, sinusoidal encoding, and dual-scale K-NN priors. The network couples 1D-ResNet, BiLSTM, logit adjustment, and a Linear-Chain CRF with spike filtering and physics loss. Knowledge distillation transfers wireline representations from a 17D teacher to a 14D student network. Across six basins, we extract 3D columns beneath 32 NCREE EGDT stations to drive unified 1D Haskell–Thomson wave propagation.
+[Methods] We integrated 422 deep wells, 34,853 GSMMA boreholes, 384 wireline-logged wells, and the LEE2025 velocity model. Features combine logarithmic depth, sinusoidal encoding, and dual-scale K-NN priors. The network couples 1D-ResNet, BiLSTM, logit adjustment, and a Linear-Chain CRF with spike filtering and physics loss. Knowledge distillation transfers wireline representations from a 17D teacher to a 14D student network. Across six basins, we extract 3D columns beneath 32 NCREE EGDT stations to drive unified 1D Haskell–Thomson wave propagation.
 
-[Results] On 422 deep wells, PG-WellboreSeqNet achieved 35.27% accuracy (F1: 0.2665), eliminating 1,012 noise spots to 0. Integrating 6,288 boreholes raised 5-fold accuracy to 48.98% (F1: 0.3949; 0 noise) and borehole OOF accuracy to 60.31%. Wireline distillation raised student F1 to 0.4405. 3D voxels matched 32 EGDT site frequencies (r = 0.8224, RMSE = 0.316 Hz). Deep bedrock Z1.0 strongly controlled resonance period (r = 0.7478, p < 1e-6), revealing the 2011 building code underestimates long-period spectral demand by 45.2% in western deep basins.
+[Results] On 422 deep wells, PG-WellboreSeqNet achieved 35.27% accuracy (F1: 0.2665), eliminating 1,012 noise spots to 0. Integrating 34,853 boreholes raised 5-fold accuracy to {c_seq['acc_l2_mean']:.2f}% (F1: {c_seq['macro_f1_mean']:.4f}; 0 noise) and borehole OOF accuracy to {sch_eval['combined_oof_seqnet_acc']:.2f}%. Wireline distillation raised student F1 to 0.4405. 3D voxels matched 32 EGDT site frequencies (r = {tsmip_metrics['f0_voxel_vs_obs']['pearson_r']:.4f}, RMSE = {tsmip_metrics['f0_voxel_vs_obs']['rmse_hz']:.3f} Hz). Deep bedrock Z1.0 strongly controlled resonance period (r = {z10_m['pearson_r_z1_0_vs_t0']:.4f}, p < 1e-6), revealing the 2011 building code underestimates long-period spectral demand by {code_west['mean_underestimation_t1_5s_pct']:.1f}% in western deep basins.
 
 [Conclusions] Stratigraphic priors and wireline distillation enable robust 3D facies reconstruction and closed-loop seismic hazard prediction.
 
@@ -138,18 +152,23 @@ text = text.replace(
 
 text = text.replace(
     'A2["臺灣公開工程地質鑽探柱狀圖資料庫<br/>(6,288 口工程鑽孔, 44,080 層分層)"]',
+    'A2["經濟部地調中心 (GSMMA) 地質資料整合查詢系統<br/>(34,853 口公開工程鑽孔, 198,725 層分層)"]',
+)
+text = text.replace(
     'A2["經濟部地調中心 (GSMMA) 地質資料整合查詢系統<br/>(6,288 口公開工程鑽孔, 44,080 層分層)"]',
+    'A2["經濟部地調中心 (GSMMA) 地質資料整合查詢系統<br/>(34,853 口公開工程鑽孔, 198,725 層分層)"]',
 )
 
-old_row3 = "| **3. 臺灣公開工程地質鑽探柱狀圖資料庫** | 整合自經濟部地調中心地質資料整合查詢系統與國震中心公開工程鑽探報告 | 涵蓋 218 個公開工程專案；自原始掃描之 31,904 張圖檔中，嚴格排除 17,624 張非地層柱狀圖或深度異常紀錄（稽核成因記錄於 `reports/ocr_error_audit.json`），最終保留 14,280 張有效工程地質鑽探柱狀圖（對應 6,288 口有效工程鑽孔、44,080 層原始地層、細分為 220,704 筆 1 m 步長深度點；其中未固結沉積相有效井為 5,119 口、170,188 筆深度點；座標經 TWD67/TWD97 轉換校正，100.00% 落於臺灣陸地邊界內） | `data/borehole_final_results.json`<br/>`data/interim/school_boreholes.csv`<br/>`data/processed/dataset_combined.csv` | [地質資料整合查詢系統](https://twgeoref.gsmma.gov.tw/GipOpenWeb/wSite/mp)<br/>[工程地質探勘資料庫 EGDT](https://egdt.ncree.org.tw/) |"
-new_row3 = "| **3. 臺灣公開工程地質鑽探柱狀圖資料庫** | 經濟部地質調查及礦業管理中心（GSMMA）地質資料整合查詢系統 | 涵蓋 218 個公開工程專案；自原始掃描之 31,904 張圖檔中，嚴格排除 17,624 張非地層柱狀圖或深度異常紀錄（稽核成因記錄於 `reports/ocr_error_audit.json`），最終保留 14,280 張有效工程地質鑽探柱狀圖（對應 6,288 口有效工程鑽孔、44,080 層原始地層、細分為 220,704 筆 1 m 步長深度點；其中未固結沉積相有效井為 5,119 口、170,188 筆深度點；座標經 TWD67/TWD97 轉換校正，100.00% 落於臺灣陸地邊界內） | `data/borehole_final_results.json`<br/>`data/interim/school_boreholes.csv`<br/>`data/processed/dataset_combined.csv` | [GSMMA 地質資料整合查詢系統](https://twgeoref.gsmma.gov.tw/GipOpenWeb/wSite/mp) |"
-if old_row3 in text:
-    text = text.replace(old_row3, new_row3, 1)
+old_row3_pattern = "| **3. 臺灣公開工程地質鑽探柱狀圖資料庫** |"
+new_row3 = f"| **3. 臺灣公開工程地質鑽探柱狀圖資料庫** | 經濟部地質調查及礦業管理中心（GSMMA）地質資料整合查詢系統 | 涵蓋公開工程專案；自原始掃描之 {ocr_m['total_scanned_charts']:,} 張圖檔中，嚴格排除 {ocr_m['total_rejected_charts']:,} 張非地層柱狀圖或深度異常紀錄（稽核成因記錄於 `reports/ocr_error_audit.json`），最終保留 {ocr_m['valid_retained_charts']:,} 張有效工程地質鑽探柱狀圖（對應 34,853 口有效工程地質鑽孔、198,725 層原始地層、細分為 1,056,137 筆 1 m 步長深度點；其中未固結沉積相有效井為 {sizes['school_wells']:,} 口、{sizes['school_samples']:,} 筆深度點；座標經 TWD67/TWD97 轉換校正，100.00% 落於臺灣陸地邊界內） | `data/borehole_final_results.json`<br/>`data/interim/school_boreholes.csv`<br/>`data/processed/dataset_combined.csv` | [GSMMA 地質資料整合查詢系統](https://twgeoref.gsmma.gov.tw/GipOpenWeb/wSite/mp) |"
 
-old_row5 = "| **5. 強震測站場址參數與共振主頻基準** | 國家地震工程研究中心（NCREE）EGDT 資料庫 & Kuo et al. (2012, 2016) | 全臺六大代表性盆地 32 座 TSMIP 強震測站之鑽孔實測 $V_{s30}$、地盤分類（Class C/D/E）與文獻實測共振主頻 $f_{0,\\text{obs}}$ | `data/raw/seismic/tsmip_site_truth.csv`<br/>`reports/chianan_ssr_summary.csv` | [工程地質探勘資料庫 EGDT](https://egdt.ncree.org.tw/)<br/>[CWA GDMS 地球物理資料管理系統](https://gdms.cwa.gov.tw/) |"
-new_row5 = "| **5. 強震測站場址參數與共振主頻基準** | 國家地震工程研究中心（NCREE）EGDT 資料庫、Kuo et al. (2012, 2016) & 國震中心報告 NCREE-17-004 | 全臺六大代表性盆地 32 座 NCREE EGDT 公開強震測站之 PS-Logging 鑽孔實測 $V_{s30}$、鑽井深度、$Z_{1.0}$、$\\kappa_0$、地盤分類（Class C/D/E）與基準共振主頻 $f_{0,\\text{obs}}$（逐站來源記錄於 `source_ref` 與 `egdt_station_verification_2026.md`） | `data/raw/seismic/tsmip_egdt_site_truth.csv`<br/>`data/raw/seismic/tsmip_site_truth.csv`<br/>`reports/tsmip_closed_loop_summary.csv` | [工程地質探勘資料庫 EGDT](https://egdt.ncree.org.tw/)<br/>[CWA GDMS 地球物理資料管理系統](https://gdms.cwa.gov.tw/) |"
-if old_row5 in text:
-    text = text.replace(old_row5, new_row5, 1)
+# Replace row 3 in Table 2-2
+lines = text.split("\n")
+for i, line in enumerate(lines):
+    if line.startswith(old_row3_pattern):
+        lines[i] = new_row3
+        break
+text = "\n".join(lines)
 
 # 3. Update Section 貳、三 (3.1, 3.3) and Section 貳、四 (Method 4)
 new_sec_33_to_24 = f"""#### 3.3 物理引導損失函數（Physics-Guided Loss Function）與地殼層析波速尺度診斷
@@ -198,23 +217,22 @@ $$\\mathcal{{L}}_{{\\text{{total}}}} = w_{{\\text{{crf}}}} \\mathcal{{L}}_{{\\te
    - **全域即時強震場址響應解算器（3D Web 數位分身門戶）**：在前端 3D 門戶（`reports/taiwan_3d_portal.html`）中實裝純 JavaScript 之 1D 黏彈性 Haskell 波傳方程即時解算核心。使用者點選 2D 地圖或 3D 體素空間任意未設測站位置，瀏覽器無延遲即時擷取該坐標之三維地質地層柱，動態輸出 $|H(f)|$ 頻譜、正規化加速度反應譜 $S_a(T)/\\text{{PGA}}$、敏感建築樓層及相較於 2011 耐震規範之長週期低估率預警。
 
 ---
-
 """
 sec33_start = text.index("#### 3.3 物理引導損失函數")
 sec33_end = text.index("## 參、研究結果與討論")
 text = text[:sec33_start] + new_sec_33_to_24 + text[sec33_end:]
 
 # 4. Update Section 參、一 (1.2, 1.3, 1.4)
-new_sec_3_12_to_14 = """#### 1.2 空間區塊盲測（Spatial Block CV）、物理損失消融與點準確率權衡討論
-為檢驗模型在遠離現有鑽井網時的跨區外推能力，本研究依 $15\\text{ km} \\times 15\\text{ km}$ 地理網格進行空間區塊盲測（位於測試網格內的所有鑽井共 22,676 筆樣本完全不參與訓練）：
-- **隨機分井 GroupKFold（5-Fold）**：Raw RF 為 `36.13% / Macro F1 0.3228`，Physics RF 為 `35.97% / Macro F1 0.3197`，RF+Markov 為 `36.36% / Macro F1 0.3187`，PG-WellboreSeqNet 為 `35.27% / Macro F1 0.2665`。
+new_sec_3_12_to_14 = f"""#### 1.2 空間區塊盲測（Spatial Block CV）、物理損失消融與點準確率權衡討論
+為檢驗模型在遠離現有鑽井網時的跨區外推能力，本研究依 $15\\text{{ km}} \\times 15\\text{{ km}}$ 地理網格進行空間區塊盲測（位於測試網格內的所有鑽井共 22,676 筆樣本完全不參與訓練）：
+- **隨機分井 GroupKFold（5-Fold）**：Raw RF 為 `{b_raw['acc_l2_mean']:.2f}% / Macro F1 {b_raw['macro_f1_mean']:.4f}`，Physics RF 為 `{b_phys['acc_l2_mean']:.2f}% / Macro F1 {b_phys['macro_f1_mean']:.4f}`，RF+Markov 為 `36.36% / Macro F1 0.3187`，PG-WellboreSeqNet 為 `{b_seq['acc_l2_mean']:.2f}% / Macro F1 {b_seq['macro_f1_mean']:.4f}`。
 - **15 km 空間區塊盲測（Spatial Block CV）**：Physics RF 為 `42.51% / Macro F1 0.3444`，PG-WellboreSeqNet 為 `41.42% / Macro F1 0.2896`（較導入對數深度與遠場門控前之 35.30% / 0.2166 提升 +6.12% Accuracy 與 +0.0730 Macro F1）。
 
 **科學討論與誠實消融分析**：
 1. **點分類準確率（Point Accuracy）與地層序列結構之權衡**：
-   必須客觀指出，在 422 口水文深井的點對點分類準確率與 Macro F1 上，樹狀模型（Raw RF `36.13%`、RF+Markov `36.36%`）仍略高於深度序列模型 PG-WellboreSeqNet（`35.27%`）。這是因為在數百口井的表格型座標與平滑層析特徵上，隨機森林能透過軸平行切分快速記憶局部深度區間眾數；然而純隨機森林（Physics RF）付出了產生 **1,012 處垂直單點跳變噪聲**的代價，而直接外掛強馬可夫平滑（RF+Markov）則導致換層頻率暴跌至僅 `0.2 次/100m`（將整口井過度平滑為單一厚層）。PG-WellboreSeqNet 的價值在於維持與隨機森林相近的點準確率（差距 $< 0.9\\%$）與適度換層能力（`1.7 次/100m`）的同時，透過 CRF 解碼結合單點尖峰濾除將孤立椒鹽噪聲徹底壓制為 0 處。
-2. **物理損失項（$\\mathcal{L}_{\\text{phy}}$）的完整 5 折消融對比與尺度成因**：
-   在完全相同的 5 折基準下，完整模型組（第 8 組，$\\lambda_{\\text{phy}}=0.08$）相較於無物理損失消融組（第 7 組，$\\lambda_{\\text{phy}}=0.0$），L2 Macro F1 由 `0.2564 ± 0.0354` 微幅變化至 `0.2665 ± 0.0278`（+0.0101），L2 Accuracy 為 `35.27%` vs. `35.37%`（-0.10%）。兩組差異遠小於 5 折交叉驗證之折間標準差（$\\sim 3.1\\% - 3.3\\%$），在統計上屬於**持平（Statistically Indistinguishable）**。結合貳、3.3 節之特徵診斷（`reports/phys_loss_activation_audit.json`），這是因為輸入之 `LEE2025` 地殼層析波速在 0–300 m 介於 1,503–2,987 m/s（井間變異佔比 $\\eta^2 = 0.9999$），四項物理懲罰閘門中僅 $V_s > 2,500\\text{ m/s}$ 之高波速泥質懲罰有 6.19% 觸發率，其餘三項針對工程土壤波速設計之閘門觸發率為 0%。這項誠實的消融結果證明：單靠公里級地殼層析波速不足以在米級深度上提供強力的岩石物理邊界約束，必須進一步透過**井下原位電測知識蒸餾（參、三）**方能注入真實的米級岩石物理訊號。
+   必須客觀指出，在 422 口水文深井的點對點分類準確率與 Macro F1 上，樹狀模型（Raw RF `{b_raw['acc_l2_mean']:.2f}%`、RF+Markov `36.36%`）仍略高於深度序列模型 PG-WellboreSeqNet（`{b_seq['acc_l2_mean']:.2f}%`）。這是因為在數百口井的表格型座標與平滑層析特徵上，隨機森林能透過軸平行切分快速記憶局部深度區間眾數；然而純隨機森林（Physics RF）付出了產生 **1,012 處垂直單點跳變噪聲**的代價，而直接外掛強馬可夫平滑（RF+Markov）則導致換層頻率暴跌至僅 `0.2 次/100m`（將整口井過度平滑為單一厚層）。PG-WellboreSeqNet 的價值在於維持與隨機森林相近的點準確率（差距 $< 0.9\\%$）與適度換層能力（`1.7 次/100m`）的同時，透過 CRF 解碼結合單點尖峰濾除將孤立椒鹽噪聲徹底壓制為 0 處。
+2. **物理損失項（$\\mathcal{{L}}_{{\\text{{phy}}}}$）的完整 5 折消融對比與尺度成因**：
+   在完全相同的 5 折基準下，完整模型組（第 8 組，$\\lambda_{{\\text{{phy}}}}=0.08$）相較於無物理損失消融組（第 7 組，$\\lambda_{{\\text{{phy}}}}=0.0$），L2 Macro F1 由 `0.2564 ± 0.0354` 微幅變化至 `0.2665 ± 0.0278`（+0.0101），L2 Accuracy 為 `35.27%` vs. `35.37%`（-0.10%）。兩組差異遠小於 5 折交叉驗證之折間標準差（$\\sim 3.1\\% - 3.3\\%$），在統計上屬於**持平（Statistically Indistinguishable）**。結合貳、3.3 節之特徵診斷（`reports/phys_loss_activation_audit.json`），這是因為輸入之 `LEE2025` 地殼層析波速在 0–300 m 介於 {phys_audit['vs_ms_describe']['min']:.0f}–{phys_audit['vs_ms_describe']['max']:.0f} m/s（井間變異佔比 $\\eta^2 = {phys_audit['vs_eta_squared_vs_well']:.4f}$），四項物理懲罰閘門中僅 $V_s > 2,500\\text{{ m/s}}$ 之高波速泥質懲罰有 {phys_audit['gate_activation_fraction']['c_vs_above_clay_max(2500)']*100:.2f}% 觸發率（{phys_audit['gate_activation_count']['c']:,} 筆樣本），其餘三項針對工程土壤波速設計之閘門觸發率為 0%。這項誠實的消融結果證明：單靠公里級地殼層析波速不足以在米級深度上提供強力的岩石物理邊界約束，必須進一步透過**井下原位電測知識蒸餾（參、三）**方能注入真實的米級岩石物理訊號。
 
 ---
 
@@ -239,31 +257,31 @@ new_sec_3_12_to_14 = """#### 1.2 空間區塊盲測（Spatial Block CV）、物�
 1. **少數類粉土（Class 3, Silt）召回率歸零問題之修復**：
    在未加對數先驗補償前，因粉土樣本僅佔 6.1%（3,555 / 58,075 點）且缺乏 CRF 類別權重，序列模型對粉土之召回率為 `0.00%`。引入 Logit Adjustment（$\\tau=0.22$）與列中心化轉移矩陣後，PG-WellboreSeqNet 對粉土之召回率提升至 **5.12%**（精確率達 **20.09%**，F1 為 **0.0816**），同時黏土/泥召回率達 **43.52%**（F1 為 **0.3787**，高於隨機森林之 0.3512）、細砂召回率達 **24.84%**（F1 為 **0.2728**，高於隨機森林之 0.2364）、礫石召回率達 **70.32%**。
 2. **垂直孤立椒鹽噪聲歸零與換層頻率之平滑限制**：
-   物理增強隨機森林在 5 折盲測中累計產生 **1,012 處**「A–B–A」單點跳變噪聲（如圖 3-2 所示，厚層地層中頻繁出現孤立單點異質跳變），而 PG-WellboreSeqNet 經由 CRF 序列解碼結合後處理單點尖峰濾除（Spike Filter）將孤立單點噪聲降至 **0 處**。然而亦需指出，真實地層之換層頻率達 `34.0 次/100m`（含薄互層真實交替），而序列模型在水文深井與混合井的換層頻率分別為 `1.7 次/100m` 與 `4.0 次/100m`，顯示模型主要重建 **20–50 m 尺度的主導沉積相包裹體（Dominant Facies Envelopes）**，對次公尺至公尺級微薄層仍存在平滑化效應。
+   物理增強隨機森林在 5 折盲測中累計產生 **1,012 處**「A–B–A」單點跳變噪聲（如圖 3-2 所示，厚層地層中頻繁出現孤立單點異質跳變），而 PG-WellboreSeqNet 經由 CRF 序列解碼結合後處理單點尖峰濾除（Spike Filter）將孤立單點噪聲降至 **0 處**。然而亦需指出，真實地層之換層頻率達 `34.0 次/100m`（含薄互層真實交替），而序列模型在水文深井與混合井的換層頻率分別為 `{b_seq['trans_per_100m_mean']:.1f} 次/100m` 與 `{c_seq['trans_per_100m_mean']:.1f} 次/100m`，顯示模型主要重建 **20–50 m 尺度的主導沉積相包裹體（Dominant Facies Envelopes）**，對次公尺至公尺級微薄層仍存在平滑化效應。
 
 ---
 
-#### 1.4 經濟部地調中心（GSMMA）公開工程地質鑽孔（6,288 口工程鑽井）跨尺度融合與近場空間錨定分析
-為探討大規模加入淺層工程地質鑽孔能否提升三維地質預測表現，本研究於 `scripts/integrate_school_boreholes.py` 整編了經濟部地質調查及礦業管理中心（GSMMA）「地質資料整合查詢系統」公開之 218 個工程專案鑽探資料。自原始掃描之 **31,904 張**圖檔中，嚴格排除 **17,624 張**非地層柱狀圖或深度異常紀錄（品質控制統計記錄於 `reports/ocr_error_audit.json`），最終保留 **14,280 張**有效工程地質鑽探柱狀圖，對應 **6,288 口獨立工程地質鑽孔**（共 44,080 層原始地層、細分為 220,704 筆 1 m 步長深度點）。其中 **5,119 口**具未固結沉積相紀錄（共 170,188 筆有效沉積相樣本，包含 13,164 層粉土相），與原 422 口水文深井合併為 **5,541 口有效沉積相鑽井（共 287,148 筆沉積相樣本）**。實測數據整理如表 3-2 與圖 3-3 所示：
+#### 1.4 經濟部地調中心（GSMMA）公開工程地質鑽孔（34,853 口工程鑽井）跨尺度融合與近場空間錨定分析
+為探討大規模加入淺層工程地質鑽孔能否提升三維地質預測表現，本研究於 `scripts/integrate_school_boreholes.py` 整編了經濟部地質調查及礦業管理中心（GSMMA）「地質資料整合查詢系統」公開之工程專案鑽探資料。自原始掃描之 **{ocr_m['total_scanned_charts']:,} 張**圖檔中，嚴格排除 **{ocr_m['total_rejected_charts']:,} 張**非地層柱狀圖或深度異常紀錄（品質控制統計記錄於 `reports/ocr_error_audit.json`），最終保留 **{ocr_m['valid_retained_charts']:,} 張**有效工程地質鑽探柱狀圖，對應 **34,853 口獨立工程地質鑽孔**（共 198,725 層原始地層、細分為 1,056,137 筆 1 m 步長深度點）。其中 **{sizes['school_wells']:,} 口**具未固結沉積相紀錄（共 {sizes['school_samples']:,} 筆有效沉積相樣本），與原 {sizes['baseline_wells']} 口水文深井合併為 **{sizes['combined_wells']:,} 口有效沉積相鑽井（共 {sizes['combined_samples']:,} 筆沉積相樣本）**。實測數據整理如表 3-2 與圖 3-3 所示：
 
-**表 3-2 臺灣公開工程鑽孔跨尺度融合前後之全島盲測、空間區塊盲測與工區本地評估對照表（本表為作者自製）**
+**表 3-2 臺灣公開工程鑽孔跨尺度融合前後之全島盲測、空間區塊盲測與工區本地評估對照表（本表為作者自製，數據由腳本實測產出）**
 
-| 實驗設計與評估指標 | 原水文深井基準集 (Baseline, 422 井) | 融合公開工程鑽孔集 (Combined, 5,541 井) | 絕對變化量 ($\\Delta$) | 統計與地球科學成因解析 |
+| 實驗設計與評估指標 | 原水文深井基準集 (Baseline, {sizes['baseline_wells']} 井) | 融合公開工程鑽孔集 (Combined, {sizes['combined_wells']:,} 井) | 絕對變化量 ($\\Delta$) | 統計與地球科學成因解析 |
 | :--- | :---: | :---: | :---: | :--- |
-| **1. 全島 5-Fold GroupKFold — Raw RF** (L2 Acc / F1) | 36.13% / 0.3228 | **52.02%** / **0.4348** | **+15.88%** / **+0.1120** | 大規模工程鑽孔加密了平原與都會工區的空間採樣，坐標高程特徵在鄰井支撐下內插精度顯著躍升 |
-| **2. 全島 5-Fold GroupKFold — Physics RF** (L2 Acc / F1) | 35.97% / 0.3197 | **51.97%** / **0.4294** | **+16.00%** / **+0.1097** | 結合 14 維物理特徵準確率達 51.97%，但垂直孤立椒鹽噪聲高達 **2,270 處**，反映點分類模型在淺部互層的劇烈震盪 |
-| **3. 全島 5-Fold GroupKFold — PG-WellboreSeqNet** | 35.27% / 0.2665 (噪聲 0) | **48.98%** / **0.3949** (噪聲 0) | **+13.71%** / **+0.1284** | 導入固定對數深度 $z_{\\text{log}}$、雙尺度近場先驗與同質分桶後，準確率由舊版 35.02% 大幅躍升至 **48.98%**（第 3 折達 51.30%），換層頻率達 **4.0 次/100m**，且維持 **0 處孤立噪聲**（點準確率較 RF 低約 3.0%） |
-| **4. 工程鑽孔本地評估 (Zero-shot $\\to$ OOF — Physics RF)** | 25.41% (Zero-shot) | **62.64%** (GroupKFold OOF) | **+37.22%** | 同工區相鄰鑽孔進入訓練後，工程淺孔折外盲測精度提升 +37.22% |
-| **5. 工程鑽孔本地評估 (Zero-shot $\\to$ OOF — PG-WellboreSeqNet)** | **26.52%** (Zero-shot) | **60.31%** (GroupKFold OOF) | **+33.79%** | 移除 $z/z_{\\text{max}}$ 改用固定基準深度後，Zero-shot 準確率（26.52%）超越隨機森林（25.41%）；融合訓練後 OOF 準確率達 **60.31%**（Macro F1 達 **0.5073**） |
-| **6. 15 km 空間區塊盲測 (Spatial Block CV)** | 36.66% | **37.83%** | **+1.17%** | 抽離 15 km 地理區塊之跨區遠場外推準確率提升 +1.17%，增幅遠低於工區近場內插（+33.79% ~ +37.22%） |
+| **1. 全島 5-Fold GroupKFold — Raw RF** (L2 Acc / F1) | {b_raw['acc_l2_mean']:.2f}% / {b_raw['macro_f1_mean']:.4f} | **{c_raw['acc_l2_mean']:.2f}%** / **{c_raw['macro_f1_mean']:.4f}** | **{c_raw['acc_l2_mean'] - b_raw['acc_l2_mean']:+.2f}%** / **{c_raw['macro_f1_mean'] - b_raw['macro_f1_mean']:+.4f}** | 大規模工程鑽孔加密了平原與都會工區的空間採樣，坐標高程特徵在鄰井支撐下內插精度顯著躍升 |
+| **2. 全島 5-Fold GroupKFold — Physics RF** (L2 Acc / F1) | {b_phys['acc_l2_mean']:.2f}% / {b_phys['macro_f1_mean']:.4f} | **{c_phys['acc_l2_mean']:.2f}%** / **{c_phys['macro_f1_mean']:.4f}** | **{c_phys['acc_l2_mean'] - b_phys['acc_l2_mean']:+.2f}%** / **{c_phys['macro_f1_mean'] - b_phys['macro_f1_mean']:+.4f}** | 結合 14 維物理特徵準確率達 {c_phys['acc_l2_mean']:.2f}%，但垂直孤立椒鹽噪聲高達 **{c_phys['isolated_noise_total']:,} 處**，反映點分類模型在淺部互層的劇烈震盪 |
+| **3. 全島 5-Fold GroupKFold — PG-WellboreSeqNet** | {b_seq['acc_l2_mean']:.2f}% / {b_seq['macro_f1_mean']:.4f} (噪聲 0) | **{c_seq['acc_l2_mean']:.2f}%** / **{c_seq['macro_f1_mean']:.4f}** (噪聲 0) | **{c_seq['acc_l2_mean'] - b_seq['acc_l2_mean']:+.2f}%** / **{c_seq['macro_f1_mean'] - b_seq['macro_f1_mean']:+.4f}** | 導入固定對數深度 $z_{{\\text{{log}}}}$、雙尺度近場先驗與同質分桶後，準確率由基準之 {b_seq['acc_l2_mean']:.2f}% 大幅躍升至 **{c_seq['acc_l2_mean']:.2f}%**（Macro F1 達 **{c_seq['macro_f1_mean']:.4f}**），換層頻率達 **{c_seq['trans_per_100m_mean']:.1f} 次/100m**，且維持 **0 處孤立噪聲** |
+| **4. 工程鑽孔本地評估 (Zero-shot $\\to$ OOF — Physics RF)** | {sch_eval['zeroshot_rf_acc']:.2f}% (Zero-shot) | **{sch_eval['combined_oof_rf_acc']:.2f}%** (GroupKFold OOF) | **{sch_eval['local_accuracy_gain']:+.2f}%** | 同工區相鄰鑽孔進入訓練後，工程淺孔折外盲測精度提升 {sch_eval['local_accuracy_gain']:+.2f}% |
+| **5. 工程鑽孔本地評估 (Zero-shot $\\to$ OOF — PG-WellboreSeqNet)** | **{sch_eval['zeroshot_seqnet_acc']:.2f}%** (Zero-shot) | **{sch_eval['combined_oof_seqnet_acc']:.2f}%** (GroupKFold OOF) | **{sch_eval['seqnet_accuracy_gain']:+.2f}%** | 融合訓練後 OOF 準確率達 **{sch_eval['combined_oof_seqnet_acc']:.2f}%**（Macro F1 達 **{sch_eval['combined_oof_seqnet_f1']:.4f}**，增益達 **{sch_eval['seqnet_accuracy_gain']:+.2f}%**） |
+| **6. 15 km 空間區塊盲測 (Spatial Block CV)** | {sp_cv['baseline_15km_acc']:.2f}% | **{sp_cv['combined_15km_acc']:.2f}%** | **{sp_cv['spatial_gain']:+.2f}%** | 抽離 15 km 地理區塊之跨區遠場外推準確率提升 {sp_cv['spatial_gain']:+.2f}%，增幅遠低於工區近場內插（+{sch_eval['seqnet_accuracy_gain']:.2f}%） |
 
 ![圖 3-3 臺灣公開工程地質鑽孔跨尺度融合前後之準確率與空間泛化對照圖](reports/school_data_accuracy_comparison.png)
 
 **關鍵科學發現與跨尺度機制解析**：
 1. **固定物理基準深度與雙尺度近鄰檢索解決了跨尺度融合退化問題**：
-   在早期實驗中，由於採用單井相對深度 $z/z_{\\text{max}}$ 且淺層工程孔與深井混批產生大量 Padding 偏置，PG-WellboreSeqNet 在 5,541 口混合井的準確率曾跌至 35.02%（Zero-shot 僅 23.55%）。改用固定基準深度（$z_{\\text{norm}} = \\min(z/350, 1)$、$z_{\\text{log}} = \\ln(1+z)/\\ln(351)$）、雙尺度近鄰檢索（同時檢索最近淺孔與深井）及同質長度分桶後，Zero-shot 準確率提升至 **26.52%**（超越隨機森林之 25.41%），混合 5 折準確率提升至 **48.98%**（工程鑽孔 OOF 達 **60.31%**、Macro F1 達 **0.5073**），雖然在混合資料集之點準確率仍略低於隨機森林（`48.98%` vs. `51.97%`），但成功將隨機森林產生的 **2,270 處**垂直孤立噪聲完全消除為 **0 處**。
+   在 {sizes['combined_wells']:,} 口混合井（{sizes['combined_samples']:,} 筆樣本）的大規模融合下，改用固定基準深度（$z_{{\\text{{norm}}}} = \\min(z/350, 1)$、$z_{{\\text{{log}}}} = \\ln(1+z)/\\ln(351)$）、雙尺度近鄰檢索（同時檢索最近淺孔與深井）及同質長度分桶後，Zero-shot 準確率達 **{sch_eval['zeroshot_seqnet_acc']:.2f}%**，混合 5 折準確率躍升至 **{c_seq['acc_l2_mean']:.2f}%**（Macro F1 達 **{c_seq['macro_f1_mean']:.4f}**，工程鑽孔 OOF 達 **{sch_eval['combined_oof_seqnet_acc']:.2f}%**、Macro F1 達 **{sch_eval['combined_oof_seqnet_f1']:.4f}**），更成功將隨機森林產生的 **{c_phys['isolated_noise_total']:,} 處**垂直孤立噪聲完全消除為 **0 處**。
 2. **「近場空間錨定效應」與「遠場地球物理外推限制」之定量分野**：
-   6,288 口工程鑽孔分佈於 218 個工程專案工區，工區內部鑽孔間距僅數十至數百公尺。在按井分組（GroupKFold）驗證下，同工區鄰井提供了高解析度的水平相律錨定，使工程淺孔折外盲測精度達 60.31%–62.64%；然而當改用 $15\\text{ km} \\times 15\\text{ km}$ 空間區塊盲測（將整個工區與周邊十餘公里鑽孔全數抽離）時，外推精度僅由 36.66% 提升至 37.83%（+1.17%）。這定量證實：**密集工程鑽孔能為都會工區的三維淺部非均質性提供強大的近場內插錨定，但超過 10 公里以上的跨盆地遠場外推，依然受限於背景震波層析網格的公里級平滑解析度**，完全印證假說一（H1）。
+   34,853 口工程鑽孔分佈於全臺各都會與重大建設工區，工區內部鑽孔間距僅數十至數百公尺。在按井分組（GroupKFold）驗證下，同工區鄰井提供了高解析度的水平相律錨定，使工程淺孔折外盲測精度達 {sch_eval['combined_oof_seqnet_acc']:.2f}%（增益達 +{sch_eval['seqnet_accuracy_gain']:.2f}%）；然而當改用 $15\\text{{ km}} \\times 15\\text{{ km}}$ 空間區塊盲測（將整個工區與周邊十餘公里鑽孔全數抽離）時，外推精度僅由 {sp_cv['baseline_15km_acc']:.2f}% 提升至 {sp_cv['combined_15km_acc']:.2f}%（增益僅 +{sp_cv['spatial_gain']:.2f}%）。這定量證實：**密集工程鑽孔能為都會工區的三維淺部非均質性提供強大的近場內插錨定，但超過 10 公里以上的跨盆地遠場外推，依然受限於背景震波層析網格的公里級平滑解析度**，完全印證假說一（H1）。
 
 ---
 
@@ -419,11 +437,11 @@ $$A_{{\\max,\\text{{single}}}} \\approx \\frac{{1}}{{\\alpha + \\frac{{\\pi}}{{4
 本研究針對現階段模型與驗證流程中的五項核心科學限制進行客觀說明：
 
 1. **點分類準確率與垂直相序連續性的權衡（Accuracy vs. Stratigraphic Continuity）**：
-   在 422 口水文深井與 5,541 口混合井的盲測中，PG-WellboreSeqNet 的點對點 Accuracy（35.27% 與 48.98%）略低於物理增強隨機森林（35.97% 與 51.97%）。這是因為地調所岩心描述中的「細砂」、「粗砂」與「砂泥互層」在過渡帶本就存在連續粒徑漸變，且樹狀模型擅長對局部座標進行硬切分。PG-WellboreSeqNet 的核心貢獻在於透過瓦爾特相律 CRF 與單點尖峰濾除，將隨機森林產生的 1,012 處（深井）與 2,270 處（混合井）垂直孤立椒鹽噪聲徹底降至 0 處，並透過對數先驗補償將少數類粉土召回率恢復至 5.12%。同時，序列模型換層頻率（1.7–4.0 次/100m）低於真實鑽井記錄（34.0 次/100m），反映模型主要捕捉數十公尺尺度的主導沉積相包裹體，尚無法解析次公尺級極薄互層。
+   在 {sizes['baseline_wells']} 口水文深井與 {sizes['combined_wells']:,} 口混合井的盲測中，PG-WellboreSeqNet 的點對點 Accuracy（{b_seq['acc_l2_mean']:.2f}% 與 {c_seq['acc_l2_mean']:.2f}%）略低於物理增強隨機森林（{b_phys['acc_l2_mean']:.2f}% 與 {c_phys['acc_l2_mean']:.2f}%）。這是因為地調所岩心描述中的「細砂」、「粗砂」與「砂泥互層」在過渡帶本就存在連續粒徑漸變，且樹狀模型擅長對局部座標進行硬切分。PG-WellboreSeqNet 的核心貢獻在於透過瓦爾特相律 CRF 與單點尖峰濾除，將隨機森林產生的 {b_phys['isolated_noise_total']:,} 處（深井）與 {c_phys['isolated_noise_total']:,} 處（混合井）垂直孤立椒鹽噪聲徹底降至 0 處，並透過對數先驗補償將少數類粉土召回率恢復至 5.12%。同時，序列模型換層頻率（{b_seq['trans_per_100m_mean']:.1f}–{c_seq['trans_per_100m_mean']:.1f} 次/100m）低於真實鑽井記錄（34.0 次/100m），反映模型主要捕捉數十公尺尺度的主導沉積相包裹體，尚無法解析次公尺級極薄互層。
 2. **區域地殼層析波速尺度對物理損失閘門的限制**：
-   經特徵變異數分解（`reports/phys_loss_activation_audit.json`），`LEE2025` 地殼層析模型在 0–300 m 的剪力波速範圍為 1,503.3–2,987.1 m/s（井間變異佔比 $\\eta^2 = 0.9999$，井內標準差僅 3.1 m/s），主要扮演跨盆地空間位置代理角色。因此四項物理一致性損失閘門中僅 $V_s > 2,500\\text{{ m/s}}$ 泥質懲罰實質觸發（6.19%），使得有無 $\\mathcal{{L}}_{{\\text{{phy}}}}$ 的 5 折交叉驗證表現（Macro F1 0.2665 vs. 0.2564）在統計上持平。未來需結合密集微地動陣列（Microtremor Array）或表面波頻散反演之淺層工程波速模型（$V_s < 500\\text{{ m/s}}$），方能完全發揮淺部岩石物理邊界損失的潛力。
+   經特徵變異數分解（`reports/phys_loss_activation_audit.json`），`LEE2025` 地殼層析模型在 0–300 m 的剪力波速範圍為 {phys_audit['vs_ms_describe']['min']:.1f}–{phys_audit['vs_ms_describe']['max']:.1f} m/s（井間變異佔比 $\\eta^2 = {phys_audit['vs_eta_squared_vs_well']:.4f}$，井內標準差僅 {phys_audit['vs_within_well_std_ms']:.1f} m/s），主要扮演跨盆地空間位置代理角色。因此四項物理一致性損失閘門中僅 $V_s > 2,500\\text{{ m/s}}$ 泥質懲罰實質觸發（{phys_audit['gate_activation_fraction']['c_vs_above_clay_max(2500)']*100:.2f}%，共 {phys_audit['gate_activation_count']['c']:,} 筆樣本），使得有無 $\\mathcal{{L}}_{{\\text{{phy}}}}$ 的 5 折交叉驗證表現（Macro F1 0.2665 vs. 0.2564）在統計上持平。未來需結合密集微地動陣列（Microtremor Array）或表面波頻散反演之淺層工程波速模型（$V_s < 500\\text{{ m/s}}$），方能完全發揮淺部岩石物理邊界損失的潛力。
 3. **工區近場內插與跨區遠場外推的尺度分野**：
-   全面融合 GSMMA 公開之 6,288 口工程地質鑽孔並導入固定基準對數深度 $z_{{\\text{{log}}}}$ 與雙尺度近場先驗後，PG-WellboreSeqNet 在 5,119 口工程鑽孔上的折外盲測（OOF）準確率由 Zero-shot 的 26.52% 大幅提升至 60.31%。然而當面對 $15\\text{{ km}} \\times 15\\text{{ km}}$ 空間區塊盲測時，準確率僅由 36.66% 提升至 37.83%（+1.17%）。這清楚顯示局部密集工程鑽孔的增益主要來自同工區數十至數百公尺內的近場空間錨定，而跨盆地遠場盲區的外推能力仍受制於背景震波層析網格的平滑解析度。
+   全面融合 GSMMA 公開之 34,853 口工程地質鑽孔並導入固定基準對數深度 $z_{{\\text{{log}}}}$ 與雙尺度近場先驗後，PG-WellboreSeqNet 在 {sizes['school_wells']:,} 口工程鑽孔上的折外盲測（OOF）準確率由 Zero-shot 的 {sch_eval['zeroshot_seqnet_acc']:.2f}% 大幅提升至 {sch_eval['combined_oof_seqnet_acc']:.2f}%（增益達 +{sch_eval['seqnet_accuracy_gain']:.2f}%）。然而當面對 $15\\text{{ km}} \\times 15\\text{{ km}}$ 空間區塊盲測時，準確率由 {sp_cv['baseline_15km_acc']:.2f}% 提升至 {sp_cv['combined_15km_acc']:.2f}%（增益僅 +{sp_cv['spatial_gain']:.2f}%）。這清楚顯示局部密集工程鑽孔的增益主要來自同工區數十至數百公尺內的近場空間錨定，而跨盆地遠場盲區的外推能力仍受制於背景震波層析網格的平滑解析度。
 4. **深部雙界面基盤之文獻先驗耦合限制**：
    全臺水文觀測井深度多在 50–300 m，未直接鑽穿至結晶基盤。本研究建立之「工程基盤面（$Z_{{\\text{{eng}}}}$）」與「地震聲學基盤面（$Z_{{\\text{{ac}}}}$）」屬於受區域層析波速梯度與地球物理文獻約束之結構先驗模型，雖在北港高區（404.4 m）、臺南深槽（893.7 m）及 32 座強震站基盤深度一致性檢查（$r = {tsmip_metrics['acoustic_bedrock_vs_lit_depth']['pearson_r']:.4f}, \\text{{RMSE}} = {tsmip_metrics['acoustic_bedrock_vs_lit_depth']['rmse_m']:.1f}\\text{{ m}}$）上展現合理趨勢，但並非獨立地球物理反演，未來需納入深部反射震測剖面與大地電磁（MT）資料進一步約束。
 5. **一維線性黏彈性波傳對三維盆地邊緣幾何效應之物理極限**：
@@ -434,8 +452,8 @@ $$A_{{\\max,\\text{{single}}}} \\approx \\frac{{1}}{{\\alpha + \\frac{{\\pi}}{{4
 ## 肆、結論與應用
 
 ### 一、核心結論
-1. **建立跨尺度物理與相律引導之井身序列網路（PG-WellboreSeqNet）與電測蒸餾模型**：透過固定基準對數深度（$z_{{\\text{{norm}}}}, z_{{\\text{{log}}}}$）、少數類對數先驗補償、列中心化瓦爾特相律 CRF 與單點尖峰濾除，在全臺 422 口水文深井 5 折盲測中維持 35.27% 準確率（Macro F1 0.2665），將垂直孤立單點噪聲由隨機森林的 1,012 處徹底消除至 0 處，並使少數類粉土召回率由 0.00% 恢復至 5.12%（15 km 空間盲測準確率達 41.42%）；同時透過特徵變異數分解誠實診斷出公里級地殼層析波速對淺部物理損失閘門的尺度限制（僅高波速泥質閘門觸發 6.19%）。在原位電測知識蒸餾中，14 維學生網路之 Macro F1 由 0.4172 提升至 0.4405（孤立噪聲 0 處），並於物理尺度重建虛擬自然伽瑪（$R^2=0.182, \\text{{RMSE}}=0.258$）與視電阻率（$R^2=0.121, \\text{{RMSE}}=0.435$）。
-2. **定量界定 GSMMA 公開工程鑽孔融合之近場錨定與遠場外推邊界**：自經濟部地調中心（GSMMA）地質資料整合查詢系統原始掃描 31,904 張圖檔中嚴格品管保留 14,280 張有效柱狀圖（6,288 口工程鑽孔，與深井合併為 5,541 口有效沉積相井、287,148 筆樣本），使 PG-WellboreSeqNet 全島 5 折準確率提升至 48.98%（Macro F1 達 0.3949，換層頻率 4.0 次/100m，孤立噪聲 0 處；消除隨機森林之 2,270 處噪聲），工程鑽孔折外盲測（OOF）準確率由 Zero-shot 的 26.52% 躍升至 60.31%（+33.79%），而 15 km 空間盲測為 37.83%（+1.17%），明確界定局部工區近場內插與區域層析遠場外推之物理邊界。
+1. **建立跨尺度物理與相律引導之井身序列網路（PG-WellboreSeqNet）與電測蒸餾模型**：透過固定基準對數深度（$z_{{\\text{{norm}}}}, z_{{\\text{{log}}}}$）、少數類對數先驗補償、列中心化瓦爾特相律 CRF 與單點尖峰濾除，在全臺 422 口水文深井 5 折盲測中維持 35.27% 準確率（Macro F1 0.2665），將垂直孤立單點噪聲由隨機森林的 1,012 處徹底消除至 0 處，並使少數類粉土召回率由 0.00% 恢復至 5.12%（15 km 空間盲測準確率達 41.42%）；同時透過特徵變異數分解誠實診斷出公里級地殼層析波速對淺部物理損失閘門的尺度限制（僅高波速泥質閘門觸發 {phys_audit['gate_activation_fraction']['c_vs_above_clay_max(2500)']*100:.2f}%）。在原位電測知識蒸餾中，14 維學生網路之 Macro F1 由 0.4172 提升至 0.4405（孤立噪聲 0 處），並於物理尺度重建虛擬自然伽瑪（$R^2=0.182, \\text{{RMSE}}=0.258$）與視電阻率（$R^2=0.121, \\text{{RMSE}}=0.435$）。
+2. **定量界定 GSMMA 公開工程鑽孔融合之近場錨定與遠場外推邊界**：自經濟部地調中心（GSMMA）地質資料整合查詢系統原始掃描 {ocr_m['total_scanned_charts']:,} 張圖檔中嚴格品管保留 {ocr_m['valid_retained_charts']:,} 張有效柱狀圖（34,853 口工程鑽孔，與深井合併為 {sizes['combined_wells']:,} 口有效沉積相井、{sizes['combined_samples']:,} 筆樣本），使 PG-WellboreSeqNet 全島 5 折準確率提升至 {c_seq['acc_l2_mean']:.2f}%（Macro F1 達 {c_seq['macro_f1_mean']:.4f}，換層頻率 {c_seq['trans_per_100m_mean']:.1f} 次/100m，孤立噪聲 0 處；消除隨機森林之 {c_phys['isolated_noise_total']:,} 處噪聲），工程鑽孔折外盲測（OOF）準確率由 Zero-shot 的 {sch_eval['zeroshot_seqnet_acc']:.2f}% 躍升至 {sch_eval['combined_oof_seqnet_acc']:.2f}%（增益達 +{sch_eval['seqnet_accuracy_gain']:.2f}%），而 15 km 空間盲測達 {sp_cv['combined_15km_acc']:.2f}%（{sp_cv['spatial_gain']:+.2f}%），明確界定局部工區近場內插與區域層析遠場外推之物理邊界。
 3. **量化臺灣六大盆地瓦爾特相律轉移矩陣與馬可夫熵**：揭示嘉南平原受全新世海侵潟湖泥主導（黏土佔 37.02%、砂泥比 0.68、轉移熵 1.671 Bits），而屏東平原與濁水溪沖積扇則呈現山前高能辮狀河道分選特徵（粗砂礫石佔 57.44% 與 41.13%、轉移熵達 2.012–2.025 Bits）。
 4. **建構全臺六大盆地雙界面基盤結構先驗並通過水動力文獻檢驗**：完成全臺 297,540 顆體素之工程基盤（$V_s \\ge 760\\text{{ m/s}}$）與聲學基盤（$V_s \\ge 2,000\\text{{ m/s}}$）建模，重現嘉南盆地北港基盤高區（平均 404.4 m）至臺南深槽（平均 893.7 m，構造傾沒梯度 133.6 m/10 km），並於濁水溪沖積扇 0–300 m 主含水層定量導出粗粒相由扇頂（58.5%）向扇尾（0.0%）之水動力指數衰減規律（$F(x) = 0.671 e^{{-x/12.0}}$，$R^2 = 0.936$）。
 5. **完成 32 座 NCREE EGDT 強震站統一參數閉環驗證、證實深部基盤物理控制並量化耐震規範低估率**：直接提取全臺六大盆地 32 座 NCREE EGDT 強震站正下方之 3D 體素岩性柱與基盤深度，在無分盆地調參下驅動 Haskell–Thomson 傳遞矩陣，體素聲學基盤先驗與文獻深度高度一致（$r = {tsmip_metrics['acoustic_bedrock_vs_lit_depth']['pearson_r']:.4f}, \\text{{RMSE}} = {tsmip_metrics['acoustic_bedrock_vs_lit_depth']['rmse_m']:.1f}\\text{{ m}}$），閉環預測主頻 $f_{{0,\\text{{voxel}}}}$ 與基準主頻顯著相關（Pearson $r = {tsmip_metrics['f0_voxel_vs_obs']['pearson_r']:.4f}$, Spearman $\\rho = {tsmip_metrics['f0_voxel_vs_obs']['spearman_rho']:.4f}$, $R^2 = {tsmip_metrics['f0_voxel_vs_obs']['r2']:.4f}$, $\\text{{RMSE}} = {tsmip_metrics['f0_voxel_vs_obs']['rmse_hz']:.3f}\\text{{ Hz}}$），相較四分之一波長粗略公式（$\\text{{RMSE}} = {tsmip_metrics['quarter_wavelength_vs_obs']['rmse_hz']:.3f}\\text{{ Hz}}$）將誤差降低 76.5%。定量邊緣距離回歸證實平原中心（$d_{{\\text{{edge}}}} \\ge 6\\text{{ km}}$）偏差僅 **+0.002 Hz**，正向高估完全集中於邊緣 6 km 內（**+0.161 Hz**），為假說三（H3）之二維/三維盆地表面波效應提供了量化證明。進一步分析揭示長週期共振週期 $T_0$ 與深部基盤深度 $Z_{{1.0}}$ 呈高度正相關（$r = {z10_m['pearson_r_z1_0_vs_t0']:.4f}, p = {z10_m['p_val_z1_0_vs_t0']:.2e}$），量化證明 2011 年耐震設計規範在西部前陸深盆地（嘉南、屏東、濁水溪）於 15 樓中高層建築敏感週期（$T = 1.5\\text{{s}}$）平均低估長週期震害達 **{code_west['mean_underestimation_t1_5s_pct']:.1f}%**（最大低估 **{code_all['max_underestimation_pct']:.1f}%**），並在 3D 數位分身門戶中落實全域任意座標即時場址解算器，為臺灣長週期耐震微區劃改革提供關鍵的科學與工具支撐。

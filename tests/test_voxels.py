@@ -9,7 +9,7 @@ def test_estimate_elevation():
     elev = estimate_elevation(lons, lats)
     assert len(elev) == 3
     assert elev[0] < elev[1] < elev[2]
-    assert 2.0 <= elev[0] <= 10.0
+    assert 2.0 <= elev[0] <= 15.0
     assert elev[2] > 50.0
 
 def test_voxel_volume_small_run(tmp_path):

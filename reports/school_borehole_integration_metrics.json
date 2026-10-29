@@ -2,10 +2,10 @@
   "dataset_sizes": {
     "baseline_wells": 422,
     "baseline_samples": 116960,
-    "school_wells": 5119,
-    "school_samples": 170188,
-    "combined_wells": 5541,
-    "combined_samples": 287148
+    "school_wells": 28547,
+    "school_samples": 689438,
+    "combined_wells": 28969,
+    "combined_samples": 806398
   },
   "5fold_groupkfold_baseline": {
     "rf_raw": {
@@ -16,55 +16,55 @@
       "isolated_noise_total": 469
     },
     "rf_phys": {
-      "acc_l2_mean": 36.126843253609266,
-      "macro_f1_mean": 0.32115952790071706,
-      "acc_l1_mean": 43.101368697087494,
-      "trans_per_100m_mean": 3.702668953230161,
-      "isolated_noise_total": 742
+      "acc_l2_mean": 35.97458446816071,
+      "macro_f1_mean": 0.3196710942898032,
+      "acc_l1_mean": 42.91392883989796,
+      "trans_per_100m_mean": 4.11036549799618,
+      "isolated_noise_total": 1012
     },
     "seqnet": {
-      "acc_l2_mean": 37.14382060425404,
-      "macro_f1_mean": 0.2586304665407462,
-      "acc_l1_mean": 42.90114654824202,
-      "trans_per_100m_mean": 1.4568017710056984,
+      "acc_l2_mean": 35.26958463344416,
+      "macro_f1_mean": 0.266516485164939,
+      "acc_l1_mean": 41.869818555825006,
+      "trans_per_100m_mean": 1.7295022466171954,
       "isolated_noise_total": 0
     }
   },
   "5fold_groupkfold_combined": {
     "rf_raw": {
-      "acc_l2_mean": 52.015526741744075,
-      "macro_f1_mean": 0.4347939352802383,
-      "acc_l1_mean": 63.229123134774056,
-      "trans_per_100m_mean": 5.358620424882788,
-      "isolated_noise_total": 1562
+      "acc_l2_mean": 56.9243889184041,
+      "macro_f1_mean": 0.4603259841341424,
+      "acc_l1_mean": 63.99113330062206,
+      "trans_per_100m_mean": 3.854292957047716,
+      "isolated_noise_total": 2538
     },
     "rf_phys": {
-      "acc_l2_mean": 51.97350584841324,
-      "macro_f1_mean": 0.4293584695716439,
-      "acc_l1_mean": 63.10039761384953,
-      "trans_per_100m_mean": 5.004491184675652,
-      "isolated_noise_total": 2270
+      "acc_l2_mean": 56.12726111464237,
+      "macro_f1_mean": 0.4475228264352519,
+      "acc_l1_mean": 63.37059116586846,
+      "trans_per_100m_mean": 3.7008269347424045,
+      "isolated_noise_total": 4294
     },
     "seqnet": {
-      "acc_l2_mean": 48.97601582282698,
-      "macro_f1_mean": 0.39488071604576264,
-      "acc_l1_mean": 59.56024514416506,
-      "trans_per_100m_mean": 3.962324466288466,
+      "acc_l2_mean": 55.661082154937716,
+      "macro_f1_mean": 0.45912165744595324,
+      "acc_l1_mean": 62.29450977865427,
+      "trans_per_100m_mean": 3.762978671059,
       "isolated_noise_total": 0
     }
   },
   "school_boreholes_evaluation": {
-    "zeroshot_rf_acc": 25.4130726020636,
-    "combined_oof_rf_acc": 62.63602604178908,
-    "local_accuracy_gain": 37.22295343972548,
-    "zeroshot_seqnet_acc": 26.515696419870533,
-    "combined_oof_seqnet_acc": 60.30766375089909,
-    "combined_oof_seqnet_f1": 0.5073169735906564,
-    "seqnet_accuracy_gain": 33.79196733102856
+    "zeroshot_rf_acc": 28.1577168650408,
+    "combined_oof_rf_acc": 59.91126105610657,
+    "local_accuracy_gain": 31.753544191065767,
+    "zeroshot_seqnet_acc": 27.970894327538883,
+    "combined_oof_seqnet_acc": 60.06004117108875,
+    "combined_oof_seqnet_f1": 0.5036187451751735,
+    "seqnet_accuracy_gain": 32.08914684354987
   },
   "spatial_block_cv": {
-    "baseline_15km_acc": 36.66471131291669,
-    "combined_15km_acc": 37.834543729059384,
-    "spatial_gain": 1.1698324161426967
+    "baseline_15km_acc": 36.721423963464176,
+    "combined_15km_acc": 38.728205067339616,
+    "spatial_gain": 2.00678110387544
   }
 }

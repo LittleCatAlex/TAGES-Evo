@@ -1,48 +1,48 @@
 {
-  "n_samples": 287148,
+  "n_samples": 806398,
   "vs_ms_describe": {
-    "count": 287148.0,
-    "mean": 1981.1,
-    "std": 317.6,
-    "min": 1503.3,
-    "25%": 1706.3,
-    "50%": 1899.7,
-    "75%": 2213.0,
-    "max": 2987.1
+    "count": 806398.0,
+    "mean": 2069.4,
+    "std": 338.3,
+    "min": 1416.3,
+    "25%": 1772.2,
+    "50%": 2082.5,
+    "75%": 2329.0,
+    "max": 3141.6
   },
   "poisson_describe": {
-    "count": 287148.0,
-    "mean": 0.2832,
-    "std": 0.0404,
-    "min": 0.162,
-    "25%": 0.254,
-    "50%": 0.297,
-    "75%": 0.314,
-    "max": 0.363
+    "count": 806398.0,
+    "mean": 0.2715,
+    "std": 0.043,
+    "min": 0.153,
+    "25%": 0.239,
+    "50%": 0.275,
+    "75%": 0.308,
+    "max": 0.364
   },
   "gate_activation_fraction": {
     "a_vs_below_gravel_min(1150)": 0.0,
     "b_poisson_above_0.37": 0.0,
-    "c_vs_above_clay_max(2500)": 0.0619,
+    "c_vs_above_clay_max(2500)": 0.116,
     "d_L_invert(z<25,vs<180,nu>0.38)": 0.0
   },
   "gate_activation_count": {
     "a": 0,
     "b": 0,
-    "c": 17772,
+    "c": 93527,
     "d_L_invert": 0
   },
   "vs_by_lithology_mean": {
-    "2": 1903.4,
-    "3": 1906.4,
-    "4": 2020.1,
-    "5": 2002.2,
-    "6": 2059.3,
-    "7": 2092.7
+    "2": 2020.7,
+    "3": 2042.8,
+    "4": 2014.3,
+    "5": 2063.5,
+    "6": 2090.9,
+    "7": 2138.8
   },
-  "vs_eta_squared_vs_lithology": 0.0626,
+  "vs_eta_squared_vs_lithology": 0.0178,
   "vs_eta_squared_vs_well": 0.9999,
-  "vs_within_well_std_ms": 3.1,
-  "vs_total_std_ms": 317.6,
-  "vs_within_well_eta_squared_vs_lithology": 0.0004
+  "vs_within_well_std_ms": 2.6,
+  "vs_total_std_ms": 338.3,
+  "vs_within_well_eta_squared_vs_lithology": 0.0002
 }

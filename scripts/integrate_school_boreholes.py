@@ -103,7 +103,7 @@ def audit_ocr_errors(error_json_path: Path, valid_charts_count: int, reports_dir
         "valid_retained_charts": int(valid_charts_count),
         "total_rejected_charts": int(total_err),
         "primary_rejection_reasons": {r: count for r, count in sorted_reasons[:15]},
-        "quality_control_policy": "自原始掃描之 31,904 張圖檔中，嚴格排除 17,624 張非地層柱狀圖或深度異常紀錄，最終保留 14,280 張有效工程地質鑽探柱狀圖進入模型訓練"
+        "quality_control_policy": f"自原始掃描之 {valid_charts_count + total_err:,} 張圖檔中，嚴格排除 {total_err:,} 張非地層柱狀圖或深度異常紀錄，最終保留 {valid_charts_count:,} 張有效工程地質鑽探柱狀圖進入模型訓練"
     }
 
     out_audit_path = reports_dir / "ocr_error_audit.json"
@@ -285,7 +285,7 @@ def main():
     print(f"  融合後總資料: {len(df_comb_clean):,} 筆 (來自 {df_comb_clean['station_id'].nunique()} 站)")
 
     # 預先計算單井時序衍生特徵 (含固定物理基準對數深度 z_log)，大幅加速 5-Fold 迭代
-    print("\n--> 預先計算全臺 5,541 口鑽孔之跨尺度深度序列特徵 (z_norm / z_log)...")
+    print(f"\n--> 預先計算全臺 {df_comb_clean['station_id'].nunique():,} 口鑽孔之跨尺度深度序列特徵 (z_norm / z_log)...")
     base_enricher = SequenceFeatureExtractor(l2_classes=valid_classes)
     df_orig_clean = base_enricher.enrich_dataframe(df_orig_clean)
     df_school_clean = base_enricher.enrich_dataframe(df_school_clean)
@@ -376,8 +376,8 @@ def main():
         if len(deep_seqs) > 0 and len(tr_ds.wells_data) > 5 * len(deep_seqs):
             tr_ds.wells_data.extend(deep_seqs * 3)
         val_ds = WellboreSequenceDataset(df_val, ext, l2_classes=valid_classes, stride=2)
-        tr_loader = DataLoader(tr_ds, batch_size=64, shuffle=False, collate_fn=collate_well_sequences)
-        val_loader = DataLoader(val_ds, batch_size=64, shuffle=False, collate_fn=collate_well_sequences)
+        tr_loader = DataLoader(tr_ds, batch_size=128, shuffle=False, collate_fn=collate_well_sequences)
+        val_loader = DataLoader(val_ds, batch_size=128, shuffle=False, collate_fn=collate_well_sequences)
 
         torch.manual_seed(42 + fold_idx)
         model_comb = WellboreSeqNet(
@@ -398,10 +398,10 @@ def main():
             model=model_comb, extractor=ext, l2_classes=valid_classes,
             l1_classes=[0, 1, 2, 3, 4, 5, 6, 7], lr=3e-3, loss_fn=loss_fn, device=device
         )
-        trainer_comb.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(trainer_comb.optimizer, T_max=8, eta_min=1e-4)
+        trainer_comb.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(trainer_comb.optimizer, T_max=5, eta_min=1e-4)
 
-        for ep in range(8):
-            tr_ds.shuffle_buckets(bucket_size=64, seed=42 + fold_idx * 100 + ep)
+        for ep in range(5):
+            tr_ds.shuffle_buckets(bucket_size=128, seed=42 + fold_idx * 100 + ep)
             trainer_comb.train_epoch(tr_loader)
 
         seq_res_fold, st_preds = evaluate_seq_net(model_comb, val_loader, device, valid_classes, transition_weight=0.06)
@@ -440,7 +440,7 @@ def main():
 
     # Zero-shot PG-WellboreSeqNet (載入 models/well_seq_net_v1.pt 並綁定 ext_base)
     school_ds_zs = WellboreSequenceDataset(df_school_clean, ext_base, l2_classes=valid_classes, stride=2)
-    school_loader_zs = DataLoader(school_ds_zs, batch_size=64, shuffle=False, collate_fn=collate_well_sequences)
+    school_loader_zs = DataLoader(school_ds_zs, batch_size=128, shuffle=False, collate_fn=collate_well_sequences)
     if (models_dir / "well_seq_net_v1.pt").exists():
         model_zs, _, _ = WellboreSeqTrainer.load_checkpoint(models_dir / "well_seq_net_v1.pt", device=str(device))
         model_zs.bind_extractor(ext_base)
@@ -597,7 +597,7 @@ def main():
    - 沉積相樣本點數 [Class 2-7]: {summary['dataset_sizes']['baseline_samples']:,} 筆
 
 2. 臺灣公開工程地質鑽探柱狀圖資料庫 (borehole_final_results.json):
-   - 原始掃描母體: 31,904 張圖檔，嚴格排除 17,624 張非地層柱狀圖或深度異常紀錄，保留 14,280 張有效工程地質鑽探柱狀圖
+   - 原始掃描母體: {valid_charts_count + 17624:,} 張圖檔，嚴格排除 17,624 張非地層柱狀圖或深度異常紀錄，保留 {valid_charts_count:,} 張有效工程地質鑽探柱狀圖
    - 有效工程鑽孔總數: {len(df_school_bh):,} 口工程地質鑽孔 (共 {len(df_school_st):,} 層)
    - 具沉積相 [Class 2-7] 之工程井數: {summary['dataset_sizes']['school_wells']:,} 口 ({summary['dataset_sizes']['school_samples']:,} 筆細分取樣)
 

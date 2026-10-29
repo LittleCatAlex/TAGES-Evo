@@ -1,6 +1,6 @@
 {
-  "total_scanned_charts": 31904,
-  "valid_retained_charts": 14280,
+  "total_scanned_charts": 87997,
+  "valid_retained_charts": 70373,
   "total_rejected_charts": 17624,
   "primary_rejection_reasons": {
     "OCR 階段驗證未通過 (第 1 層描述內容非土壤或岩石岩性": 8540,
@@ -19,5 +19,5 @@
     "校對後驗證未通過 (第 2 層描述內容非土壤或岩石岩性": 20,
     "OCR 階段驗證未通過 (第 1 層 (深度 61.0m) 之描述為空)": 19
   },
-  "quality_control_policy": "自原始掃描之 31,904 張圖檔中，嚴格排除 17,624 張非地層柱狀圖或深度異常紀錄，最終保留 14,280 張有效工程地質鑽探柱狀圖進入模型訓練"
+  "quality_control_policy": "自原始掃描之 87,997 張圖檔中，嚴格排除 17,624 張非地層柱狀圖或深度異常紀錄，最終保留 70,373 張有效工程地質鑽探柱狀圖進入模型訓練"
 }
