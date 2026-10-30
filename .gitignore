@@ -13,8 +13,6 @@ models/*.pkl
 !models/.gitkeep
 
 # Raw Data & Large Media
-data/raw/
-!data/raw/seismic/tsmip_site_truth.csv
 data/chart_photos/
 *.zip
 *.tar.gz
@@ -38,7 +36,6 @@ data/interim/*
 
 data/processed/*.parquet
 data/processed/*.zarr
-data/processed/petrophysics_aligned_dataset.csv
 
 # Logs & Temporary files
 logs_pip*.txt
