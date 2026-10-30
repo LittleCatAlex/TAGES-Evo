@@ -49,6 +49,9 @@ def test_manuscript_no_stale_or_corrupted_strings():
         "100% 盲測，不使用測站實測",
         "Lee, S.-J., Liang, W.-T.",
         "布袋 (Budai)",  # old mis-mapped CHY010 name
+        "34,853",  # old school boreholes count
+        "198,725",  # old school strata count
+        "1,056,137",  # old school depth points count
     ]
     for bad in forbidden_substrings:
         assert bad not in text, f"Found forbidden/stale string in manuscript: {bad!r}"

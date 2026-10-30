@@ -2,10 +2,10 @@
   "dataset_sizes": {
     "baseline_wells": 422,
     "baseline_samples": 116960,
-    "school_wells": 28547,
-    "school_samples": 689438,
-    "combined_wells": 28969,
-    "combined_samples": 806398
+    "school_wells": 29968,
+    "school_samples": 720684,
+    "combined_wells": 30390,
+    "combined_samples": 837644
   },
   "5fold_groupkfold_baseline": {
     "rf_raw": {
@@ -32,39 +32,39 @@
   },
   "5fold_groupkfold_combined": {
     "rf_raw": {
-      "acc_l2_mean": 56.9243889184041,
-      "macro_f1_mean": 0.4603259841341424,
-      "acc_l1_mean": 63.99113330062206,
-      "trans_per_100m_mean": 3.854292957047716,
-      "isolated_noise_total": 2538
+      "acc_l2_mean": 56.82495332662222,
+      "macro_f1_mean": 0.4589962509404832,
+      "acc_l1_mean": 63.96688875946147,
+      "trans_per_100m_mean": 3.7966948201139217,
+      "isolated_noise_total": 2573
     },
     "rf_phys": {
-      "acc_l2_mean": 56.12726111464237,
-      "macro_f1_mean": 0.4475228264352519,
-      "acc_l1_mean": 63.37059116586846,
-      "trans_per_100m_mean": 3.7008269347424045,
-      "isolated_noise_total": 4294
+      "acc_l2_mean": 56.26254204356549,
+      "macro_f1_mean": 0.44906700286265444,
+      "acc_l1_mean": 63.522784714596,
+      "trans_per_100m_mean": 3.611778696768514,
+      "isolated_noise_total": 4346
     },
     "seqnet": {
-      "acc_l2_mean": 55.661082154937716,
-      "macro_f1_mean": 0.45912165744595324,
-      "acc_l1_mean": 62.29450977865427,
-      "trans_per_100m_mean": 3.762978671059,
+      "acc_l2_mean": 56.283314286294456,
+      "macro_f1_mean": 0.4684512791019538,
+      "acc_l1_mean": 63.216857175813196,
+      "trans_per_100m_mean": 3.976535171273558,
       "isolated_noise_total": 0
     }
   },
   "school_boreholes_evaluation": {
-    "zeroshot_rf_acc": 28.1577168650408,
-    "combined_oof_rf_acc": 59.91126105610657,
-    "local_accuracy_gain": 31.753544191065767,
-    "zeroshot_seqnet_acc": 27.970894327538883,
-    "combined_oof_seqnet_acc": 60.06004117108875,
-    "combined_oof_seqnet_f1": 0.5036187451751735,
-    "seqnet_accuracy_gain": 32.08914684354987
+    "zeroshot_rf_acc": 28.075966720504407,
+    "combined_oof_rf_acc": 60.03588257821736,
+    "local_accuracy_gain": 31.959915857712954,
+    "zeroshot_seqnet_acc": 28.025228586198125,
+    "combined_oof_seqnet_acc": 60.4917167418364,
+    "combined_oof_seqnet_f1": 0.5079568179323046,
+    "seqnet_accuracy_gain": 32.466488155638274
   },
   "spatial_block_cv": {
-    "baseline_15km_acc": 36.721423963464176,
-    "combined_15km_acc": 38.728205067339616,
-    "spatial_gain": 2.00678110387544
+    "baseline_15km_acc": 36.60954419023803,
+    "combined_15km_acc": 43.21958563803255,
+    "spatial_gain": 6.610041447794515
   }
 }

@@ -265,7 +265,7 @@ def main():
     if raw_school_json.exists():
         with open(raw_school_json, "r", encoding="utf-8") as f:
             valid_charts_count = len(json.load(f))
-    audit_ocr_errors(raw_error_json, valid_charts_count, reports_dir)
+    audit_res = audit_ocr_errors(raw_error_json, valid_charts_count, reports_dir)
 
     # 1. 載入已建置之中間表與特徵資料集
     df_school_bh = pd.read_csv(interim_dir / "school_boreholes.csv")
@@ -597,7 +597,7 @@ def main():
    - 沉積相樣本點數 [Class 2-7]: {summary['dataset_sizes']['baseline_samples']:,} 筆
 
 2. 臺灣公開工程地質鑽探柱狀圖資料庫 (borehole_final_results.json):
-   - 原始掃描母體: {valid_charts_count + 17624:,} 張圖檔，嚴格排除 17,624 張非地層柱狀圖或深度異常紀錄，保留 {valid_charts_count:,} 張有效工程地質鑽探柱狀圖
+   - 原始掃描母體: {audit_res['total_scanned_charts'] if audit_res else valid_charts_count:,} 張圖檔，嚴格排除 {audit_res['total_rejected_charts'] if audit_res else 0:,} 張非地層柱狀圖或深度異常紀錄，保留 {valid_charts_count:,} 張有效工程地質鑽探柱狀圖
    - 有效工程鑽孔總數: {len(df_school_bh):,} 口工程地質鑽孔 (共 {len(df_school_st):,} 層)
    - 具沉積相 [Class 2-7] 之工程井數: {summary['dataset_sizes']['school_wells']:,} 口 ({summary['dataset_sizes']['school_samples']:,} 筆細分取樣)
 

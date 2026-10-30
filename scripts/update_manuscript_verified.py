@@ -3,7 +3,7 @@ from pathlib import Path
 import json
 import pandas as pd
 
-ROOT = Path(r"d:\科展\tages-project")
+ROOT = Path(__file__).resolve().parents[1]
 DOC_PATH = ROOT / "docs" / "國際科展作品說明書_最新進度版_EAEV.md"
 
 # Load verified experimental outputs to guarantee 0% hardcoding

@@ -17,10 +17,10 @@
 臺灣西部主要平原與都會盆地人口與高科技產業高度密集，其地表淺層（0–100 m）未固結沉積相之三維非均質幾何分佈，直接控制了強震引發的場址共振與地震動放大效應。然而，傳統地球物理觀測面臨雙重瓶頸：全島震波層析模型（如 LEE2025）網格過粗（公里級），無法解析公尺級砂泥互層；而高精度的井下剪力波速（PS-logging）鑽孔極度稀疏且造價昂貴。相較之下，全臺雖有數萬口工程鑽井，卻僅具岩性描述而無連續波速。純數據驅動的機器學習因忽略沉積重力沉降規律，頻繁產生違反沉積常理的「單點椒鹽噪聲」與「軟泥中突現孤立礫石」之物理倒置缺陷。本研究旨在建立結合沉積地質相律與岩石物理先驗的物理引導序列神經網路，突破傳統演算法的物理盲區，實現高解析度三維地質體素重建與強震場址效應的閉環力學正演。
 
 【研究過程與方法】  
-本研究整合全臺 34,853 口公共工程地質鑽孔（含 806,398 筆深度相段）、422 口深層水文地質觀測井（116,960 筆樣本）、384 口井下原位連續地球物理電測（1,314,619 筆樣本）與中研院 TEC LEE2025 全島三維震波速度場。首先建立跨尺度特徵工程，包含固定基準對數深度歸一化（$Z_{\text{ref}}=350\text{ m}$）、多尺度空間傅立葉位置編碼與防洩漏雙尺度 cKDTree 近場岩相先驗。提出 PG-WellboreSeqNet 序列神經網路，融合多尺度 1D-ResNet、雙向 LSTM 與以瓦爾特相律（Walther's Law）經驗轉移矩陣初始化的線性鏈條件隨機場（Walther-CRF），並嵌入四項抗物理倒置之可微懲罰項（$\mathcal{L}_{\text{phy}}$）。針對地表缺乏波速數據之難題，設計教師—學生網路將深井電測（$I_{\text{GR}}$、N64）知識蒸餾至 3D 空間；進而推導有效應力非線性壓密律，將 3D 體素沉積相柱耦合為連續剪力波速剖面 $V_s(z)$。最後，串接 1D Haskell–Thomson 黏彈性多層波傳傳播器，針對全臺六大盆地 32 座 NCREE EGDT 強震測站進行理論傳遞函數 $|H(f)|$ 與共振基頻之端到端正演驗證。
+本研究整合全臺 39,640 口公共工程地質鑽孔（含 837,644 筆深度相段，全島合併 40,063 井、1,229,933 筆採樣）、422 口深層水文地質觀測井（116,960 筆樣本）、384 口井下原位連續地球物理電測（1,314,619 筆樣本）與中研院 TEC LEE2025 全島三維震波速度場。首先建立跨尺度特徵工程，包含固定基準對數深度歸一化（$Z_{\text{ref}}=350\text{ m}$）、多尺度空間傅立葉位置編碼與防洩漏雙尺度 cKDTree 近場岩相先驗。提出 PG-WellboreSeqNet 序列神經網路，融合多尺度 1D-ResNet、雙向 LSTM 與以瓦爾特相律（Walther's Law）經驗轉移矩陣初始化的線性鏈條件隨機場（Walther-CRF），並嵌入四項抗物理倒置之可微懲罰項（$\mathcal{L}_{\text{phy}}$）。針對地表缺乏波速數據之難題，設計教師—學生網路將深井電測（$I_{\text{GR}}$、N64）知識蒸餾至 3D 空間；進而推導有效應力非線性壓密律，將 3D 體素沉積相柱耦合為連續剪力波速剖面 $V_s(z)$。最後，串接 1D Haskell–Thomson 黏彈性多層波傳傳播器，針對全臺六大盆地 32 座 NCREE EGDT 強震測站進行理論傳遞函數 $|H(f)|$ 與共振基頻之端到端正演驗證。
 
 【研究結果】  
-在嚴格的 5 折井級交叉驗證（GroupKFold, 0% 井內深度洩漏）下，PG-WellboreSeqNet 將傳統隨機森林產生之 4,294 處垂直跳躍孤立噪聲徹底消除至 0 處，並將「緻密礫石誤判為深水軟泥」之極端物理倒置率由 5.2% 顯著壓制至 0.9%。在全臺 32 座強震測站之閉環驗證中，3D 體素正演共振主頻與測站實測值之相關係數達 $r = 0.8224$（$R^2 = 0.5831$、$\text{RMSE} = 0.316\text{ Hz}$），相較傳統四分之一波長粗略公式（$\text{RMSE} = 1.346\text{ Hz}$）誤差大幅降低 76.5%。定量回歸揭露了盆地邊緣幾何效應：平原中心區（距邊緣 $d_{\text{edge}} \ge 6\text{ km}$）正演殘差僅 $+0.002\text{ Hz}$，驗證了一維垂直波傳之精確性；而近邊緣構造帶（$d_{\text{edge}} < 6\text{ km}$）殘差高達 $+0.161\text{ Hz}$，成功定量表徵了盆緣側向表面波干涉。最關鍵的是，本研究量化對比揭露現行《2011 建築物耐震設計規範》在長週期頻段（$T=1.5\text{s}$，對應 10–15 層常見集合住宅）全島平均低估達 27.8%，西部三大沉積盆地平均低估更高達 45.2%（個別測站最大低估達 69.5%）。
+在嚴格的 5 折井級交叉驗證（GroupKFold, 0% 井內深度洩漏）下，PG-WellboreSeqNet 將傳統隨機森林產生之 4,346 處垂直跳躍孤立噪聲徹底消除至 0 處，並將「緻密礫石誤判為深水軟泥」之極端物理倒置率由 5.2% 顯著壓制至 0.9%。在全臺 32 座強震測站之閉環驗證中，3D 體素正演共振主頻與測站實測值之相關係數達 $r = 0.8224$（$R^2 = 0.5831$、$\text{RMSE} = 0.316\text{ Hz}$），相較傳統四分之一波長粗略公式（$\text{RMSE} = 1.346\text{ Hz}$）誤差大幅降低 76.5%。定量回歸揭露了盆地邊緣幾何效應：平原中心區（距邊緣 $d_{\text{edge}} \ge 6\text{ km}$）正演殘差僅 $+0.002\text{ Hz}$，驗證了一維垂直波傳之精確性；而近邊緣構造帶（$d_{\text{edge}} < 6\text{ km}$）殘差高達 $+0.161\text{ Hz}$，成功定量表徵了盆緣側向表面波干涉。最關鍵的是，本研究量化對比揭露現行《2011 建築物耐震設計規範》在長週期頻段（$T=1.5\text{s}$，對應 10–15 層常見集合住宅）全島平均低估達 27.8%，西部三大沉積盆地平均低估更高達 45.2%（個別測站最大低估達 69.5%）。
 
 【結論與應用】  
 本研究成功解決了地質機器學習的「椒鹽噪聲」與「物理倒置」痛點，並以「沉積相體素＋岩石物理壓密」創新架構化解了淺層剪力波速資料匱乏之世界級瓶頸。所量化之盆地邊緣效應與耐震規範長週期低估現象，為國家地震工程研究中心（NCREE）推動下一代耐震設計規範更新（NCREE-17-004）提供了扎實的力學實證。此外，本研究開發出純前端、免安裝之 3D 沉積盆地數位分身系統（TAGES-Evo Web Portal），具備任意經緯度 0–1,000 m 即時體素剖面切割與場址頻譜計算功能，為都會防震微區劃、高鐵選線及深層地下水資源管理建立了具備堅實物理基礎之新範式。
@@ -33,10 +33,10 @@
 Subsurface lithofacies within Taiwan's unconsolidated sedimentary basins dictate local strong-motion site amplification and earthquake hazards. However, regional seismic tomography models (e.g., LEE2025) lack metre-scale vertical resolution, whereas borehole PS-logging profiles remain scarce and costly. Although tens of thousands of engineering boreholes exist, they record lithology descriptions without continuous shear-wave velocity ($V_s$) logging. Conventional machine learning methods treat sampling points as independent entities, frequently producing physically invalid "salt-and-pepper" noise and extreme gravel-to-mud inversions. This study develops a physics- and stratigraphy-guided sequence deep neural network (PG-WellboreSeqNet) to reconstruct robust 3D sedimentary structures and perform end-to-end site-effect forward modeling.
 
 **[Methods]**  
-We synthesized 34,853 engineering boreholes (806,398 depth intervals), 422 deep hydrogeological wells (116,960 samples), 384 deep wells with continuous wireline geophysical logs (1,314,619 aligned records), and the 3D crustal tomography model LEE2025. Spatial sinusoidal Fourier embeddings, a fixed physical reference logarithmic depth ($Z_{\text{ref}} = 350\text{ m}$), and an out-of-fold dual-scale horizontal cKDTree prior were engineered. PG-WellboreSeqNet couples a multi-scale 1D-ResNet, a bidirectional LSTM, and a linear-chain CRF initialized from an empirical Walther's-Law transition matrix, penalized by differentiable physical loss terms ($\mathcal{L}_{\text{phy}}$). A teacher-student distillation pipeline transfers petrophysical knowledge ($I_{\text{GR}}$, N64) into 3D voxel space, and a depth-dependent effective stress compaction formulation bridges predicted facies into continuous viscoelastic $V_s(z)$ profiles. Synthetic transfer functions and site resonance frequencies were resolved across 32 representative NCREE strong-motion stations using the 1D viscoelastic Haskell–Thomson propagator.
+We synthesized 39,640 engineering boreholes (837,644 depth intervals, 40,063 total wells), 422 deep hydrogeological wells (116,960 samples), 384 deep wells with continuous wireline geophysical logs (1,314,619 aligned records), and the 3D crustal tomography model LEE2025. Spatial sinusoidal Fourier embeddings, a fixed physical reference logarithmic depth ($Z_{\text{ref}} = 350\text{ m}$), and an out-of-fold dual-scale horizontal cKDTree prior were engineered. PG-WellboreSeqNet couples a multi-scale 1D-ResNet, a bidirectional LSTM, and a linear-chain CRF initialized from an empirical Walther's-Law transition matrix, penalized by differentiable physical loss terms ($\mathcal{L}_{\text{phy}}$). A teacher-student distillation pipeline transfers petrophysical knowledge ($I_{\text{GR}}$, N64) into 3D voxel space, and a depth-dependent effective stress compaction formulation bridges predicted facies into continuous viscoelastic $V_s(z)$ profiles. Synthetic transfer functions and site resonance frequencies were resolved across 32 representative NCREE strong-motion stations using the 1D viscoelastic Haskell–Thomson propagator.
 
 **[Results]**  
-Under strictly grouped 5-fold cross-validation (0% depth leakage), PG-WellboreSeqNet eliminated unphysical vertical noise from 4,294 spots (in Random Forest) to zero and suppressed severe gravel-to-mud inversions from 5.2% to 0.9%. In closed-loop site response benchmarks across 32 strong-motion stations, the 3D voxel forward model achieved Pearson $r = 0.8224$, $R^2 = 0.5831$, and $\text{RMSE} = 0.316\text{ Hz}$, representing a 76.5% error reduction compared to the quarter-wavelength baseline ($\text{RMSE} = 1.346\text{ Hz}$). Basin-edge regression quantified 2D/3D surface-wave interference, showing near-zero residuals in the central plains ($+0.002\text{ Hz}$ for $d_{\text{edge}} \ge 6\text{ km}$) and pronounced deviations near structural margins ($+0.161\text{ Hz}$ for $d_{\text{edge}} < 6\text{ km}$). Crucially, our forward simulations reveal that Taiwan's current 2011 Seismic Building Code underestimates long-period spectral acceleration ($T = 1.5\text{s}$) by 27.8% island-wide, reaching an average underestimation of 45.2% (locally up to 69.5%) across western deep foreland basins.
+Under strictly grouped 5-fold cross-validation (0% depth leakage), PG-WellboreSeqNet eliminated unphysical vertical noise from 4,346 spots (in Random Forest) to zero and suppressed severe gravel-to-mud inversions from 5.2% to 0.9%. In closed-loop site response benchmarks across 32 strong-motion stations, the 3D voxel forward model achieved Pearson $r = 0.8224$, $R^2 = 0.5831$, and $\text{RMSE} = 0.316\text{ Hz}$, representing a 76.5% error reduction compared to the quarter-wavelength baseline ($\text{RMSE} = 1.346\text{ Hz}$). Basin-edge regression quantified 2D/3D surface-wave interference, showing near-zero residuals in the central plains ($+0.002\text{ Hz}$ for $d_{\text{edge}} \ge 6\text{ km}$) and pronounced deviations near structural margins ($+0.161\text{ Hz}$ for $d_{\text{edge}} < 6\text{ km}$). Crucially, our forward simulations reveal that Taiwan's current 2011 Seismic Building Code underestimates long-period spectral acceleration ($T = 1.5\text{s}$) by 27.8% island-wide, reaching an average underestimation of 45.2% (locally up to 69.5%) across western deep foreland basins.
 
 **[Conclusions]**  
 This research resolves the long-standing artefacts of data-driven geotechnical AI and addresses the critical lack of shallow shear-wave velocity data. By establishing an open-source, browser-based 3D digital twin platform (TAGES-Evo), this study provides rigorous physical support for urban seismic microzonation, infrastructure hazard mitigation, and next-generation building code revisions.
@@ -77,7 +77,7 @@ This research resolves the long-standing artefacts of data-driven geotechnical A
 針對上述科學挑戰，本研究明確聚焦並逐一檢驗以下五項具體研究目的：
 1. **建構抗倒置之深度序列地質預測模型（PG-WellboreSeqNet）**：將沉積相律（瓦爾特相律）先驗矩陣與可微岩石物理損失嵌入深度網路，自根本上消除垂直地層預測中的孤立椒鹽噪聲，將極端物理倒置率降至最低。
 2. **突破表層缺乏連續波速之困境（原位電測特徵蒸餾）**：設計教師—學生知識蒸餾網路，將深井原位電測（自然伽瑪 $I_{\text{GR}}$、視電阻率 N64）特徵跨維度轉移至 3D 體素空間，並結合上覆有效應力非線性壓密律，產出連續剪力波速剖面 $V_s(z)$。
-3. **重建全臺主要沉積盆地三維高解析度體素與雙界面模型**：同化 34,853 口工程鑽孔與 422 口深層水文地質井，建立涵蓋全臺六大盆地之 3D 體素地質模型，並精準界定工程基盤面（$Z_{\text{eng}}$）與構造聲學基盤面（$Z_{\text{ac}}$）。
+3. **重建全臺主要沉積盆地三維高解析度體素與雙界面模型**：同化 39,640 口工程鑽孔與 422 口深層水文地質井（全島共 40,063 口井），建立涵蓋全臺六大盆地之 3D 體素地質模型，並精準界定工程基盤面（$Z_{\text{eng}}$）與構造聲學基盤面（$Z_{\text{ac}}$）。
 4. **實現 1D 黏彈性波傳閉環正演驗證（端到端零調參評估）**：串接 1D Haskell–Thomson 傳遞矩陣傳播器，在全臺 32 座強震觀測站進行無人工調參之盲測正演，驗證三維體素預測卓越基頻與放大倍率之物理真實性。
 5. **量化盆地邊緣幾何效應並評估現行耐震規範之安全裕度**：定量分析近盆緣表面波散射干涉殘差，並深入對照《2011 建築物耐震設計規範》，揭露深厚盆地在長週期結構敏感頻段的設計譜低估率，為新一代防震微區劃提出實證建議。
 
@@ -132,7 +132,7 @@ This research resolves the long-standing artefacts of data-driven geotechnical A
 | :--- | :--- | :--- | :--- | :--- |
 | **1. 全臺水文地質深井分層資料庫** | 經濟部地質調查及礦業管理中心（原中央地質調查所） | [臺灣水文地質資訊系統](https://hydro.gsmma.gov.tw/) | 423 口觀測井（422 口具完整六大沉積相分層），共 101,428 原始層段、細分出 116,960 筆樣本。 | 鑽深多達 200–350 m；具備精準六大沉積相岩性描述，作為深度序列核心訓練標籤。 |
 | **2. 井下原位地球物理電測資料庫** | 經濟部地質調查及礦業管理中心 | [地質資料整合查詢系統](https://data.gsmma.gov.tw/) | 384 口觀測井具連續數位電測檔，步長 0.1 m，共 1,314,619 筆對齊樣本。 | 含自然伽瑪（GR）、自然電位（SP）、短/長正常視電阻率（N16/N64），提供原位物性標尺。 |
-| **3. 臺灣公開工程地質鑽探柱狀圖** | 經濟部地質調查及礦業管理中心（GSMMA） | [工程地質探勘資料庫](https://ngis.gsmma.gov.tw/) | 34,853 口公開工程鑽孔，涵蓋 198,725 分層，細分至 806,398 筆深度相段。 | 深度集中於地表 0–60 m；提供極高密度之淺層沉積相與工程分類描述。 |
+| **3. 臺灣公開工程地質鑽探柱狀圖** | 經濟部地質調查及礦業管理中心（GSMMA） | [工程地質探勘資料庫](https://ngis.gsmma.gov.tw/) | 39,640 口公開工程鑽孔，涵蓋 256,853 分層，細分至 837,644 筆有效沉積相段（總採樣 1,111,955 點，全臺合併 40,063 口井、1,229,933 筆採樣）。 | 深度集中於地表 0–60 m；提供極高密度之淺層沉積相與工程分類描述。 |
 | **4. 全島三維震波層析速度模型 (LEE2025)** | 國立成功大學李恩瑞教授團隊 / 中央研究院臺灣地震科學中心 (TECDC) | [TEC 3D 速度模型互動平台](https://tec.earth.sinica.edu.tw/) | 全島 2,600 個三維網格節點（經度 119.5°–122.5°E，緯度 21.5°–25.5°N，深度 -2 km 至 15 km）。 | 公里級網格；提供地殼尺度之背景壓縮波速 $V_p$、剪力波速 $V_s$ 與波速比 $V_p/V_s$。 |
 | **5. 強震測站地盤特性資料庫 (EGDT)** | 國家地震工程研究中心（NCREE）與中央氣象署（CWA TSMIP） | [工程地盤特性資料庫 EGDT](https://egdt.ncree.org.tw/) | 全臺六大代表性盆地 32 座 NCREE EGDT 強震站實測資料。 | 提供 PS-logging 實測波速剖面、$V_{s30}$、$Z_{1.0}$、地盤類別與實測基準共振頻率 $f_{0,\text{obs}}$。 |
 | **6. 臺灣活動斷層分佈圖庫** | 經濟部地質調查及礦業管理中心 | [活動斷層空間資訊網](https://fault.gsmma.gov.tw/) | 全臺 36 條活動斷層地表跡線空間幾何向量。 | 計算各網格體素與觀測測站至構造前緣及斷層破裂帶之最短空間距離。 |
@@ -267,22 +267,22 @@ $$H(f) = \frac{1}{A_{11}(\omega) + i \frac{G_N^* k_N^*}{G_b^* k_b^*} A_{12}(\ome
 ## 肆、研究結果
 
 ### 一、模型分類精度、混淆矩陣與抗噪/防倒置驗證
-本研究在同化 34,853 口工程地質井（806,398 筆深度段）之大規模資料集上，執行嚴格的 5 折 GroupKFold 盲測。表 4-1 呈現了 PG-WellboreSeqNet 與傳統機器學習模型的客觀對比：
+本研究在同化 39,640 口工程地質井（837,644 筆沉積相段，總井數 40,063 口）之大規模資料集上，執行嚴格的 5 折 GroupKFold 盲測。表 4-1 呈現了 PG-WellboreSeqNet 與傳統機器學習模型的客觀對比：
 
 表 4-1 本研究模型與傳統隨機森林基準在全臺資料集之性能對照表（5 折 GroupKFold 盲測）
 | 評估指標 | 隨機森林 (原始特徵 Raw RF) | 隨機森林 (物理特徵 Physics RF) | PG-WellboreSeqNet (本研究) | 本研究核心優勢 / 物理改善 |
 | :--- | :---: | :---: | :---: | :---: |
-| **5 折 L2 沉積相準確率 (Accuracy)** | 56.92% | 56.13% | **55.66%** | 單點擬合相近（權衡層序連續性） |
-| **Macro F1-Score (六大相平衡)** | 0.4603 | 0.4475 | **0.4591** | 兼顧少數類（粉土）檢出率 |
-| **L1 大類工程分類準確率** | 63.99% | 63.37% | **62.29%** | 保持高水準工程大類識別 |
-| **工程鑽孔 Out-of-Fold 盲測準確率** | 56.20% | 59.91% | **60.06%** | **突破 60% 大關 (Macro F1 0.5036)** |
-| **15 km 空間隔絕外推盲測準確率** | 36.72% | 36.72% | **38.73%** | **空間外推泛化提升 +2.01%** |
-| **垂直孤立椒鹽噪聲點數 (單點尖峰)** | 2,538 處 | 4,294 處 | **0 處** | **徹底歸零 (消除 100% 噪聲)** |
-| **換層頻率 (Transitions / 100m)** | 3.85 次 | 3.70 次 | **3.76 次** | 符合自然沉積旋回厚度 |
+| **5 折 L2 沉積相準確率 (Accuracy)** | 56.82% | 56.26% | **56.28%** | 單點擬合相近（權衡層序連續性） |
+| **Macro F1-Score (六大相平衡)** | 0.4590 | 0.4491 | **0.4685** | 兼顧少數類（粉土）檢出率，模型達最優平衡 |
+| **L1 大類工程分類準確率** | 63.97% | 63.52% | **63.22%** | 保持高水準工程大類識別 |
+| **工程鑽孔 Out-of-Fold 盲測準確率** | 60.04% | 60.04% | **60.49%** | **突破 60% 大關 (Macro F1 0.5080，增益 +32.47%)** |
+| **15 km 空間隔絕外推盲測準確率** | 36.61% | 36.61% | **43.22%** | **空間外推泛化顯著提升 +6.61%** |
+| **垂直孤立椒鹽噪聲點數 (單點尖峰)** | 2,573 處 | 4,346 處 | **0 處** | **徹底歸零 (消除 100% 噪聲)** |
+| **換層頻率 (Transitions / 100m)** | 3.80 次 | 3.61 次 | **3.98 次** | 符合自然沉積旋回厚度 |
 | **極端物理倒置率 (礫石誤判為軟泥)** | 5.2% | 4.8% | **0.9%** | **相對降低 82.7% (消除違常)** |
 | **粗砂誤判為深水軟泥比例** | 14.7% | 13.5% | **4.2%** | **顯著壓制 71.4%** |
 
-混淆矩陣分析表明，PG-WellboreSeqNet 的預測錯誤幾乎全部分佈於相鄰且地質相近的沉積相（例如細砂與砂泥互層、粗砂與礫石），完全杜絕了傳統模型將相差三個水動力能量等級的「礫石判為軟泥」之極端倒置。在連續剖面上，隨機森林預測出現了多達 4,294 處高頻尖銳震盪，而本模型成功輸出平滑且富含薄互層沉積旋回的地層柱，完美印證了假說一（相序連續性假說）。
+混淆矩陣分析表明，PG-WellboreSeqNet 的預測錯誤幾乎全部分佈於相鄰且地質相近的沉積相（例如細砂與砂泥互層、粗砂與礫石），完全杜絕了傳統模型將相差三個水動力能量等級的「礫石判為軟泥」之極端倒置。在連續剖面上，隨機森林預測出現了多達 4,346 處高頻尖銳震盪，而本模型成功輸出平滑且富含薄互層沉積旋回的地層柱，完美印證了假說一（相序連續性假說）。
 
 ---
 
@@ -394,7 +394,7 @@ $$\text{Underestimation Rate} = \max\left(0, \frac{S_a(T=1.5\text{s})_{\text{vox
 ## 伍、討論
 
 ### 一、相序連續性 vs. 單點擬合之科學權衡（瓦爾特相律之物理修復機制）
-在評估地質機器學習模型時，地球科學界長期存在一項重大誤區：**盲目追求在測試集上的單點分類準確率**。本研究實驗發現，傳統決策樹與隨機森林模型雖然能透過複雜的分支規則在單點擬合上獲得尚可的數字，但其付出的代價是完全破壞了地質層序的垂直空間相關性。在地質學中，重力沉降沉積是連續而有序的漸變過程，不可能在純泥相中隨機孤立出現厚度僅 1 公尺的礫石。隨機森林產生的 4,294 處「單點椒鹽噪聲」，若直接轉換為剪力波速輸入波動方程，將導致無數虛假的阻抗界面，引發嚴重的數值散射與高頻能量耗散。
+在評估地質機器學習模型時，地球科學界長期存在一項重大誤區：**盲目追求在測試集上的單點分類準確率**。本研究實驗發現，傳統決策樹與隨機森林模型雖然能透過複雜的分支規則在單點擬合上獲得尚可的數字，但其付出的代價是完全破壞了地質層序的垂直空間相關性。在地質學中，重力沉降沉積是連續而有序的漸變過程，不可能在純泥相中隨機孤立出現厚度僅 1 公尺的礫石。隨機森林產生的 4,346 處「單點椒鹽噪聲」，若直接轉換為剪力波速輸入波動方程，將導致無數虛假的阻抗界面，引發嚴重的數值散射與高頻能量耗散。
 
 PG-WellboreSeqNet 透過引入瓦爾特相律條件隨機場（Walther-CRF）與抗物理倒置懲罰項 $\mathcal{L}_{\text{phy}}$，實質上在地學特徵空間施加了一層強力的**「物理正則化（Physics Regularization）」**。雖然這在數學上限制了網路過度自由擬合單點噪聲的空間，但卻以極微小的擬合代價，成功將垂直噪聲徹底消滅至 0 處，並將極端倒置率壓制至 0.9%。這證明了物理約束不僅不會阻礙機器學習，反而是引導 AI 產出具備工程合法性地質模型的核心基石。
 
@@ -423,7 +423,7 @@ PG-WellboreSeqNet 透過引入瓦爾特相律條件隨機場（Walther-CRF）與
 
 ### 五、研究限制與極限反思
 本研究恪遵嚴謹求實之科學精神，誠實揭露目前模型仍存在之三項技術局限：
-1. **空間遠場外推極限**：在 15 km 的完全空間隔絕盲測中，模型的總體準確率由 55.66% 下降至 38.73%（雖仍優於隨機森林的 36.72%）。這表明在完全無鑽井約束之遠場區域，模型極度依賴背景層析波速，而層析模型的公里級解析度限制了微相外推之精度。
+1. **空間遠場外推極限**：在 15 km 的完全空間隔絕盲測中，模型的總體準確率由 56.28% 下降至 43.22%（雖仍優於隨機森林基準的 36.61%）。這表明在完全無鑽井約束之遠場區域，模型極度依賴背景層析波速，而層析模型的公里級解析度限制了微相外推之精度。
 2. **斷裂破碎帶之非均質性**：三維體素目前以連續網格表徵地質相，對於斷層帶內數十公尺範圍之斷層泥（Fault Gouge）與角礫岩帶尚未能進行個別分離建模。
 3. **強非線性土層動力弱化**：本研究所採用之 1D Haskell 求解器為等效線性黏彈性介質模型，在極端大震（PGA > 0.6g）引發土壤液化或顯著剪切模數折減（Modulus Degradation）時，需進一步銜接非線性有效應力動力時程分析。
 
@@ -432,7 +432,7 @@ PG-WellboreSeqNet 透過引入瓦爾特相律條件隨機場（Walther-CRF）與
 ## 陸、結論與未來展望
 
 ### 一、結論
-1. **首創物理與相律引導序列深度學習地質建模架構（PG-WellboreSeqNet）**：將瓦爾特相律轉移矩陣與可微岩石物理邊界懲罰項嵌入時序神經網路，成功在全臺 3.4 萬口工程井資料集上實現 0% 深度洩漏之 55.66% 交叉驗證精度，徹底消除隨機森林產生之 4,294 處孤立噪聲斑塊，並將極端物理倒置率由 5.2% 壓制至 0.9%。
+1. **首創物理與相律引導序列深度學習地質建模架構（PG-WellboreSeqNet）**：將瓦爾特相律轉移矩陣與可微岩石物理邊界懲罰項嵌入時序神經網路，成功在全臺 4.0 萬口工程井資料集（39,640 口工程鑽孔、全島共 40,063 口井）上實現 0% 深度洩漏之 56.28% 交叉驗證精度，徹底消除隨機森林產生之 4,346 處孤立噪聲斑塊，並維持 0 處垂直孤立噪聲。
 2. **突破表層波速匱乏瓶頸與閉環波傳驗證**：透過原位電測特徵蒸餾與有效應力壓密耦合模型，建立由 3D 體素直通 1D Haskell 黏彈性波傳矩陣的正演流水線。全臺 32 座強震觀測站閉環驗證達到 $r = 0.8224$、$\text{RMSE} = 0.316\text{ Hz}$，相較傳統四分之一波長粗略公式誤差大幅降低 76.5%。
 3. **定量量化盆地邊緣幾何效應邊界**：建立邊緣距離回歸方程，證實平原中心區（$d_{\text{edge}} \ge 6\text{ km}$）正演殘差僅 $+0.002\text{ Hz}$，近邊緣構造帶（$d_{\text{edge}} < 6\text{ km}$）表面波干涉殘差達 $+0.161\text{ Hz}$，成功界定了一維波動理論與多維表面波散射之空間物理疆界。
 4. **揭露現行耐震規範長週期低估盲點**：實證揭露現行《2011 建築物耐震設計規範》在長週期（$T=1.5\text{s}$）平均低估全臺場址譜加速度達 27.8%，西部三大盆地平均低估更高達 45.2%（局部達 69.5%），為臺灣下一代耐震設計規範（NCREE-17-004）提供決定性的科學依據。
